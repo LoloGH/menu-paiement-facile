@@ -50,7 +50,7 @@ const Index = () => {
             className="bg-restaurant-purple hover:bg-restaurant-red transition-colors"
           >
             <ShoppingCart className="mr-2 h-5 w-5" />
-            Commander tous les repas de la semaine pour {weeklyPackagePrice.toFixed(0)} FCFA
+            Payez Maintenant - Tous les repas de la semaine pour {weeklyPackagePrice.toFixed(0)} FCFA
             <CalendarCheck className="ml-2 h-5 w-5" />
           </Button>
         </div>

@@ -124,13 +124,13 @@ export const MealOption: React.FC<MealOptionProps> = ({
         </div>
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-4 bg-muted p-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center text-center">
           <span className="text-lg font-semibold">Prix total:</span>
           <span className="text-2xl font-bold text-restaurant-red">{total.toFixed(0)} FCFA</span>
         </div>
         <PaymentButton 
           price={total} 
-          label={`Commander ${mainDish.name}`} 
+          label="Payez Maintenant" 
           details={`${mainDish.name}${includeSide ? ` + ${sideDish.name}` : ''}${includeDessert ? ` + ${dessert.name}` : ''}`}
         />
       </CardFooter>
