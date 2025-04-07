@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { ShoppingCart } from "lucide-react";
+import { paymentRedirectUrl, paymentSimulationDelay, paymentMessages } from "@/config/paymentConfig";
 
 interface PaymentButtonProps {
   price: number;
@@ -16,18 +17,22 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
   const handlePayment = () => {
     // Dans une application réelle, cela redirigerait vers une passerelle de paiement
     toast({
-      title: "Redirection vers le paiement",
-      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(0)} FCFA${details ? ` pour ${details}` : ''}.`,
+      title: paymentMessages.redirecting,
+      description: paymentMessages.redirectDescription(price, details),
     });
 
     // Simuler une redirection après un court délai
     setTimeout(() => {
+      // Pour une application réelle, décommentez la ligne ci-dessous
+      // window.location.href = `${paymentRedirectUrl}?amount=${price}&details=${encodeURIComponent(details || '')}`;
+      
+      // Simulation pour la démonstration
       toast({
-        title: "Paiement simulé",
-        description: "Dans une application réelle, vous seriez maintenant sur la page de paiement.",
+        title: paymentMessages.simulatedTitle,
+        description: paymentMessages.simulatedDescription,
         variant: "default",
       });
-    }, 2000);
+    }, paymentSimulationDelay);
   };
 
   return (

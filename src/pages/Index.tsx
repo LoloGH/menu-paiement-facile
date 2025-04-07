@@ -2,10 +2,11 @@
 import React, { useState } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
-import { weeklyMenu, weeklyPackagePrice } from '@/data/menuData';
+import { weeklyMenu } from '@/data/menuData';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { CalendarCheck, ShoppingCart } from "lucide-react";
+import { weeklyPackagePrice, paymentSimulationDelay, paymentMessages } from '@/config/paymentConfig';
 
 const Index = () => {
   const [activeDay, setActiveDay] = useState(weeklyMenu[0].id);
@@ -13,18 +14,18 @@ const Index = () => {
 
   const handleWeeklyPayment = () => {
     toast({
-      title: "Commande pour la semaine",
-      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${weeklyPackagePrice.toFixed(0)} FCFA pour tous les menus de la semaine.`,
+      title: paymentMessages.weeklyTitle,
+      description: paymentMessages.weeklyDescription(weeklyPackagePrice),
     });
 
-    // Simulate a redirect after a short delay
+    // Simuler une redirection après un court délai
     setTimeout(() => {
       toast({
-        title: "Paiement simulé",
-        description: "Dans une application réelle, vous seriez maintenant sur la page de paiement pour la semaine entière.",
+        title: paymentMessages.simulatedTitle,
+        description: paymentMessages.simulatedDescription,
         variant: "default",
       });
-    }, 2000);
+    }, paymentSimulationDelay);
   };
 
   return (

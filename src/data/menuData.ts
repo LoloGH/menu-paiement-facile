@@ -1,3 +1,4 @@
+import { weeklyPackagePrice } from "../config/paymentConfig";
 
 export interface MenuItem {
   id: string;
@@ -188,7 +189,6 @@ export const weeklyMenu: DayMenu[] = [
       }
     ]
   },
-  // Pour les autres jours, nous utilisons une structure similaire
   {
     id: "wednesday",
     day: "Mercredi",
@@ -601,4 +601,4 @@ export const weeklyMenu: DayMenu[] = [
   }
 ];
 
-export const weeklyPackagePrice = 149.99;
+export { weeklyPackagePrice };
