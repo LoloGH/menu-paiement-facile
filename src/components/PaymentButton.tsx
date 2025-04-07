@@ -7,19 +7,20 @@ import { ShoppingCart } from "lucide-react";
 interface PaymentButtonProps {
   price: number;
   label: string;
+  details?: string;
 }
 
-export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label }) => {
+export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, details }) => {
   const { toast } = useToast();
 
   const handlePayment = () => {
-    // In a real application, this would redirect to a payment gateway
+    // Dans une application réelle, cela redirigerait vers une passerelle de paiement
     toast({
       title: "Redirection vers le paiement",
-      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(2)}€.`,
+      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(2)}€${details ? ` pour ${details}` : ''}.`,
     });
 
-    // Simulate a redirect after a short delay
+    // Simuler une redirection après un court délai
     setTimeout(() => {
       toast({
         title: "Paiement simulé",
