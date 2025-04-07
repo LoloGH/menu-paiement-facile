@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -68,7 +67,9 @@ export default {
                     terracotta: '#E2725B',
                     cream: '#FFF8DC',
                     sage: '#BCB88A',
-                    brown: '#8B4513'
+                    brown: '#8B4513',
+                    purple: '#67007a',
+                    red: '#ED0707'
                 }
 			},
 			borderRadius: {

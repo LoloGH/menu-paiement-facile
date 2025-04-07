@@ -17,7 +17,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     // Dans une application réelle, cela redirigerait vers une passerelle de paiement
     toast({
       title: "Redirection vers le paiement",
-      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(2)}€${details ? ` pour ${details}` : ''}.`,
+      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(0)} FCFA${details ? ` pour ${details}` : ''}.`,
     });
 
     // Simuler une redirection après un court délai
@@ -33,7 +33,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
   return (
     <Button 
       onClick={handlePayment} 
-      className="w-full bg-restaurant-terracotta hover:bg-restaurant-brown transition-colors"
+      className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors"
     >
       <ShoppingCart className="mr-2 h-4 w-4" />
       {label}

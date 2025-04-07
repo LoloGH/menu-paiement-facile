@@ -36,7 +36,7 @@ export const MealOption: React.FC<MealOptionProps> = ({
 
   return (
     <Card className="w-full max-w-md mx-auto overflow-hidden transition-all duration-300 mb-6 shadow-md hover:shadow-lg">
-      <CardHeader className="bg-restaurant-olive text-white">
+      <CardHeader className="bg-restaurant-purple text-white">
         <CardTitle className="text-xl">{mainDish.name}</CardTitle>
       </CardHeader>
       <CardContent className="p-6 space-y-4">
@@ -53,7 +53,7 @@ export const MealOption: React.FC<MealOptionProps> = ({
               <div className="flex-1">
                 <h4 className="font-semibold">Plat Principal</h4>
                 <p className="text-sm text-muted-foreground">{mainDish.description}</p>
-                <p className="text-sm font-medium mt-1 text-restaurant-terracotta">{mainDish.price.toFixed(2)}€</p>
+                <p className="text-sm font-medium mt-1 text-restaurant-red">{mainDish.price.toFixed(0)} FCFA</p>
               </div>
             </div>
           </div>
@@ -66,11 +66,11 @@ export const MealOption: React.FC<MealOptionProps> = ({
                   checked={includeSide} 
                   onCheckedChange={(checked) => setIncludeSide(checked as boolean)}
                 />
-                <Label htmlFor={`side-${id}`} className="font-serif text-lg font-semibold text-restaurant-olive">
+                <Label htmlFor={`side-${id}`} className="font-serif text-lg font-semibold text-restaurant-purple">
                   Accompagnement
                 </Label>
               </div>
-              <span className="text-sm font-medium text-restaurant-terracotta">{sideDish.price.toFixed(2)}€</span>
+              <span className="text-sm font-medium text-restaurant-red">{sideDish.price.toFixed(0)} FCFA</span>
             </div>
             
             {includeSide && (
@@ -98,11 +98,11 @@ export const MealOption: React.FC<MealOptionProps> = ({
                   checked={includeDessert} 
                   onCheckedChange={(checked) => setIncludeDessert(checked as boolean)}
                 />
-                <Label htmlFor={`dessert-${id}`} className="font-serif text-lg font-semibold text-restaurant-olive">
+                <Label htmlFor={`dessert-${id}`} className="font-serif text-lg font-semibold text-restaurant-purple">
                   Dessert
                 </Label>
               </div>
-              <span className="text-sm font-medium text-restaurant-terracotta">{dessert.price.toFixed(2)}€</span>
+              <span className="text-sm font-medium text-restaurant-red">{dessert.price.toFixed(0)} FCFA</span>
             </div>
             
             {includeDessert && (
@@ -126,7 +126,7 @@ export const MealOption: React.FC<MealOptionProps> = ({
       <CardFooter className="flex flex-col items-stretch gap-4 bg-muted p-6">
         <div className="flex justify-between items-center">
           <span className="text-lg font-semibold">Prix total:</span>
-          <span className="text-2xl font-bold text-restaurant-terracotta">{total.toFixed(2)}€</span>
+          <span className="text-2xl font-bold text-restaurant-red">{total.toFixed(0)} FCFA</span>
         </div>
         <PaymentButton 
           price={total} 

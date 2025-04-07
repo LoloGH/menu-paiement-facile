@@ -12,7 +12,7 @@ interface MenuCardProps {
 export const MenuCard: React.FC<MenuCardProps> = ({ menu, isActive }) => {
   return (
     <Card className={`w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300 ${isActive ? 'scale-100 opacity-100 shadow-lg' : 'scale-95 opacity-70'}`}>
-      <CardHeader className="bg-restaurant-olive text-white">
+      <CardHeader className="bg-restaurant-purple text-white">
         <CardTitle className="text-2xl">{menu.day}</CardTitle>
         <CardDescription className="text-restaurant-cream text-lg">{menu.date}</CardDescription>
       </CardHeader>

@@ -14,7 +14,7 @@ const Index = () => {
   const handleWeeklyPayment = () => {
     toast({
       title: "Commande pour la semaine",
-      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${weeklyPackagePrice.toFixed(2)}€ pour tous les menus de la semaine.`,
+      description: `Vous allez être redirigé vers notre portail de paiement pour un montant de ${weeklyPackagePrice.toFixed(0)} FCFA pour tous les menus de la semaine.`,
     });
 
     // Simulate a redirect after a short delay
@@ -29,7 +29,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-restaurant-cream bg-opacity-30">
-      <header className="bg-restaurant-olive text-white py-12 px-4">
+      <header className="bg-restaurant-purple text-white py-12 px-4">
         <div className="container mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Menu de la Semaine</h1>
           <p className="text-xl max-w-2xl mx-auto">
@@ -41,16 +41,16 @@ const Index = () => {
 
       <main className="container mx-auto py-12 px-4">
         <div className="text-center mb-12">
-          <div className="inline-block bg-restaurant-terracotta text-white text-lg font-semibold px-6 py-3 rounded-full mb-6">
+          <div className="inline-block bg-restaurant-red text-white text-lg font-semibold px-6 py-3 rounded-full mb-6">
             Économisez en commandant pour toute la semaine !
           </div>
           <Button 
             onClick={handleWeeklyPayment}
             size="lg" 
-            className="bg-restaurant-brown hover:bg-restaurant-terracotta transition-colors"
+            className="bg-restaurant-purple hover:bg-restaurant-red transition-colors"
           >
             <ShoppingCart className="mr-2 h-5 w-5" />
-            Commander tous les repas de la semaine pour {weeklyPackagePrice.toFixed(2)}€
+            Commander tous les repas de la semaine pour {weeklyPackagePrice.toFixed(0)} FCFA
             <CalendarCheck className="ml-2 h-5 w-5" />
           </Button>
         </div>
@@ -75,7 +75,7 @@ const Index = () => {
         </div>
       </main>
 
-      <footer className="bg-restaurant-olive text-white py-8 px-4">
+      <footer className="bg-restaurant-purple text-white py-8 px-4">
         <div className="container mx-auto text-center">
           <p className="mb-4">© 2025 Semaine Menu Paiement Facile</p>
           <p className="text-sm">
