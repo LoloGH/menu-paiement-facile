@@ -21,4 +21,15 @@ export const paymentMessages = {
   weeklyTitle: "Commande pour la semaine",
   weeklyDescription: (price: number) => 
     `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(0)} FCFA pour tous les menus de la semaine.`,
+  loginRequired: "Connexion requise",
+  loginDescription: "Veuillez vous connecter pour finaliser votre commande.",
+  paymentSuccess: "Paiement réussi !",
+  paymentSuccessDescription: "Votre commande a été confirmée avec succès."
+};
+
+// Fonction pour générer un ID de reçu unique
+export const generateReceiptId = (): string => {
+  const timestamp = new Date().getTime().toString().slice(-6);
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `CMD-${timestamp}-${random}`;
 };
