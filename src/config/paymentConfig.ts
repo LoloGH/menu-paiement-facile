@@ -5,8 +5,8 @@
 // Prix hebdomadaire pour tous les repas de la semaine
 export const weeklyPackagePrice = 149.99;
 
-// URL de redirection pour le paiement (remplacez par votre lien de paiement réel)
-export const paymentRedirectUrl = "https://example.com/payment";
+// URL de redirection pour le paiement (lien Wave)
+export const paymentRedirectUrl = "https://pay.wave.com/m/M_sn_e0AALi3GMxex/c/sn/";
 
 // Délai de simulation du paiement en millisecondes
 export const paymentSimulationDelay = 2000;

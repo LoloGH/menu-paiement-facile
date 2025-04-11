@@ -1,19 +1,40 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
 import { weeklyMenu } from '@/data/menuData';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { CalendarCheck, ShoppingCart } from "lucide-react";
-import { weeklyPackagePrice, paymentSimulationDelay, paymentMessages } from '@/config/paymentConfig';
+import { weeklyPackagePrice, paymentRedirectUrl, paymentSimulationDelay, paymentMessages } from '@/config/paymentConfig';
 import { SocialMediaButtons } from '@/components/SocialMediaButtons';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Index = () => {
-  const [activeDay, setActiveDay] = useState(weeklyMenu[0].id);
+  const [activeDay, setActiveDay] = useState("");
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  // Fonction pour déterminer le jour actuel de la semaine
+  useEffect(() => {
+    const getCurrentDay = () => {
+      const daysOfWeek = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+      const currentDayName = daysOfWeek[new Date().getDay()];
+      
+      // Trouver le menu correspondant au jour actuel
+      const todayMenu = weeklyMenu.find(menu => menu.day.includes(currentDayName));
+      
+      // Si le jour actuel existe dans le menu, on le définit comme actif
+      // Sinon, on prend le premier jour du menu
+      if (todayMenu) {
+        setActiveDay(todayMenu.id);
+      } else {
+        setActiveDay(weeklyMenu[0].id);
+      }
+    };
+    
+    getCurrentDay();
+  }, []);
 
   const handleWeeklyPayment = () => {
     toast({
@@ -21,13 +42,9 @@ const Index = () => {
       description: paymentMessages.weeklyDescription(weeklyPackagePrice),
     });
 
-    // Simuler une redirection après un court délai
+    // Redirection vers le lien de paiement Wave
     setTimeout(() => {
-      toast({
-        title: paymentMessages.simulatedTitle,
-        description: paymentMessages.simulatedDescription,
-        variant: "default",
-      });
+      window.location.href = `${paymentRedirectUrl}?amount=${weeklyPackagePrice}&details=Menu_Semaine_Complete`;
     }, paymentSimulationDelay);
   };
 
@@ -37,11 +54,13 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between mb-6">
             <div className="flex items-center mb-4 md:mb-0">
-              <img 
-                src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png" 
-                alt="AXESS Logo" 
-                className="h-16 md:h-20 mr-4"
-              />
+              <div className="bg-[#1A1F2C] p-2 rounded-lg">
+                <img 
+                  src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png" 
+                  alt="AXESS Logo" 
+                  className="h-16 md:h-20 mr-4"
+                />
+              </div>
             </div>
             <SocialMediaButtons />
           </div>
@@ -75,35 +94,41 @@ const Index = () => {
           </Button>
         </div>
 
-        <WeekNavigation 
-          menus={weeklyMenu} 
-          activeDay={activeDay} 
-          setActiveDay={setActiveDay} 
-        />
+        {activeDay && (
+          <>
+            <WeekNavigation 
+              menus={weeklyMenu} 
+              activeDay={activeDay} 
+              setActiveDay={setActiveDay} 
+            />
 
-        <div className="animate-fade-in">
-          {weeklyMenu.map((menu) => (
-            <div 
-              key={menu.id} 
-              className={`transition-all duration-500 ${
-                activeDay === menu.id ? "block" : "hidden"
-              }`}
-            >
-              <MenuCard menu={menu} isActive={activeDay === menu.id} />
+            <div className="animate-fade-in">
+              {weeklyMenu.map((menu) => (
+                <div 
+                  key={menu.id} 
+                  className={`transition-all duration-500 ${
+                    activeDay === menu.id ? "block" : "hidden"
+                  }`}
+                >
+                  <MenuCard menu={menu} isActive={activeDay === menu.id} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </main>
 
       <footer className="bg-restaurant-purple text-white py-8 px-4">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center mb-4 md:mb-0">
-              <img 
-                src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png" 
-                alt="AXESS Logo" 
-                className="h-12 mr-4"
-              />
+              <div className="bg-[#1A1F2C] p-2 rounded-lg mr-4">
+                <img 
+                  src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png" 
+                  alt="AXESS Logo" 
+                  className="h-12"
+                />
+              </div>
               <p className="text-sm">© 2025 Semaine Menu Paiement Facile</p>
             </div>
             <SocialMediaButtons />

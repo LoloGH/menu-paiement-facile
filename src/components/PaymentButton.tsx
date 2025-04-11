@@ -17,23 +17,16 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
   const isMobile = useIsMobile();
 
   const handlePayment = () => {
-    // Dans une application réelle, cela redirigerait vers une passerelle de paiement
+    // Afficher le toast pour informer l'utilisateur
     toast({
       title: paymentMessages.redirecting,
       description: paymentMessages.redirectDescription(price, details),
     });
 
-    // Simuler une redirection après un court délai
+    // Redirection après un court délai
     setTimeout(() => {
-      // Pour une application réelle, décommentez la ligne ci-dessous
-      // window.location.href = `${paymentRedirectUrl}?amount=${price}&details=${encodeURIComponent(details || '')}`;
-      
-      // Simulation pour la démonstration
-      toast({
-        title: paymentMessages.simulatedTitle,
-        description: paymentMessages.simulatedDescription,
-        variant: "default",
-      });
+      // Redirection vers le lien de paiement Wave
+      window.location.href = `${paymentRedirectUrl}?amount=${price}&details=${encodeURIComponent(details || '')}`;
     }, paymentSimulationDelay);
   };
 
