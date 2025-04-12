@@ -24,7 +24,9 @@ export const paymentMessages = {
   loginRequired: "Connexion requise",
   loginDescription: "Veuillez vous connecter pour finaliser votre commande.",
   paymentSuccess: "Paiement réussi !",
-  paymentSuccessDescription: "Votre commande a été confirmée avec succès."
+  paymentSuccessDescription: "Votre commande a été confirmée avec succès.",
+  userCreated: "Compte créé avec succès",
+  userCreatedDescription: "Votre compte a été créé avec succès. Vous pouvez maintenant finaliser votre paiement."
 };
 
 // Fonction pour générer un ID de reçu unique

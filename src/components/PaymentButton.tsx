@@ -39,21 +39,26 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
       description: paymentMessages.redirectDescription(price, details),
     });
 
-    // Simuler une redirection vers Wave et un retour avec succès
-    setTimeout(() => {
-      // Simuler un paiement réussi
-      const receiptId = generateReceiptId();
-      setReceiptData({
-        date: new Date(),
-        receiptId,
-      });
-      
-      // Afficher le dialogue du reçu
-      setIsReceiptDialogOpen(true);
-      
-      // Dans une application réelle, vous redirigeriez vers Wave ici:
-      // window.location.href = `${paymentRedirectUrl}?amount=${price}&details=${encodeURIComponent(details || '')}`;
-    }, paymentSimulationDelay);
+    // Redirection vers Wave
+    window.location.href = `${paymentRedirectUrl}?amount=${price}&details=${encodeURIComponent(details || '')}`;
+    
+    // Note: Le code suivant ne s'exécutera pas à cause de la redirection
+    // Dans un environnement réel, il faudrait gérer le retour de Wave avec un webhook
+    // Pour la simulation, nous allons supprimer ce code car le reçu devrait être
+    // affiché seulement après le retour de Wave, pas avant la redirection
+  };
+
+  const handlePaymentSuccess = () => {
+    // Simulation d'un paiement réussi après retour de Wave
+    // Ce code devrait être appelé via un webhook ou une page de retour
+    const receiptId = generateReceiptId();
+    setReceiptData({
+      date: new Date(),
+      receiptId,
+    });
+    
+    // Afficher le dialogue du reçu
+    setIsReceiptDialogOpen(true);
   };
 
   const handleReceiptClose = () => {

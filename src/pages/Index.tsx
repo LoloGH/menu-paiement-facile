@@ -9,6 +9,7 @@ import { CalendarCheck, ShoppingCart } from "lucide-react";
 import { weeklyPackagePrice, paymentRedirectUrl, paymentSimulationDelay, paymentMessages } from '@/config/paymentConfig';
 import { SocialMediaButtons } from '@/components/SocialMediaButtons';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { UserHeader } from '@/components/UserHeader';
 
 const Index = () => {
   const [activeDay, setActiveDay] = useState("");
@@ -62,7 +63,10 @@ const Index = () => {
                 />
               </div>
             </div>
-            <SocialMediaButtons />
+            <div className="flex items-center space-x-4">
+              <UserHeader className="mr-4" />
+              <SocialMediaButtons />
+            </div>
           </div>
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Menu de la Semaine</h1>
