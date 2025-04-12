@@ -40,7 +40,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     });
 
     // Redirection vers Wave
-    window.location.href = `${paymentRedirectUrl}?amount=${price}&details=${encodeURIComponent(details || '')}`;
+    window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}`;
     
     // Note: Le code suivant ne s'exécutera pas à cause de la redirection
     // Dans un environnement réel, il faudrait gérer le retour de Wave avec un webhook
@@ -72,7 +72,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
         className={`w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors ${isMobile ? 'py-3 text-sm' : ''}`}
       >
         <ShoppingCart className={`mr-2 ${isMobile ? 'h-3 w-3' : 'h-4 w-4'}`} />
-        {isMobile ? `Payez: ${price.toFixed(0)} FCFA` : label}
+        {isMobile ? `Payez: ${Math.round(price)} FCFA` : label}
       </Button>
       
       <PaymentLoginDialog 

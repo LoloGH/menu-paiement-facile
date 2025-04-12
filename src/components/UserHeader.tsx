@@ -80,7 +80,7 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
       ) : (
         <Button 
           variant="outline" 
-          className="bg-white hover:bg-gray-100"
+          className="bg-restaurant-red text-white hover:bg-restaurant-red/80"
           onClick={handleLogin}
         >
           <LogIn className="h-4 w-4 mr-2" />

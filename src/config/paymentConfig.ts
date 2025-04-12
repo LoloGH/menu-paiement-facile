@@ -15,12 +15,12 @@ export const paymentSimulationDelay = 2000;
 export const paymentMessages = {
   redirecting: "Redirection vers le paiement",
   redirectDescription: (price: number, details?: string) => 
-    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(0)} FCFA${details ? ` pour ${details}` : ''}.`,
+    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${Math.round(price)} FCFA${details ? ` pour ${details}` : ''}.`,
   simulatedTitle: "Paiement simulé",
   simulatedDescription: "Dans une application réelle, vous seriez maintenant sur la page de paiement.",
   weeklyTitle: "Commande pour la semaine",
   weeklyDescription: (price: number) => 
-    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${price.toFixed(0)} FCFA pour tous les menus de la semaine.`,
+    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${Math.round(price)} FCFA pour tous les menus de la semaine.`,
   loginRequired: "Connexion requise",
   loginDescription: "Veuillez vous connecter pour finaliser votre commande.",
   paymentSuccess: "Paiement réussi !",

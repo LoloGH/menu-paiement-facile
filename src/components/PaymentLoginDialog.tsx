@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LogIn, User, UserPlus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Schéma de validation
 const formSchema = z.object({
@@ -33,9 +34,9 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
   details
 }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
 
-  const form = useForm<FormValues>({
+  const loginForm = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       phoneNumber: "",
@@ -43,7 +44,7 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
     },
   });
 
-  const onSubmit = async (data: FormValues) => {
+  const onLoginSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
       // Ici, nous simulons simplement une connexion réussie
@@ -62,91 +63,109 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
     }
   };
 
-  const handleCreateAccount = () => {
-    setShowSignup(true);
-  };
-
-  const handleBackToLogin = () => {
-    setShowSignup(false);
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
-        {!showSignup ? (
-          <>
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold">Connexion requise</DialogTitle>
-              <DialogDescription>
-                Veuillez vous connecter pour finaliser votre paiement de {price.toFixed(0)} FCFA
-                {details ? ` pour ${details}` : ''}.
-              </DialogDescription>
-            </DialogHeader>
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold">Espace client</DialogTitle>
+          <DialogDescription>
+            {price > 0 ? 
+              `Veuillez vous connecter pour finaliser votre paiement de ${Math.round(price)} FCFA${details ? ` pour ${details}` : ''}.` :
+              "Connectez-vous à votre compte ou créez-en un nouveau pour accéder à toutes les fonctionnalités."
+            }
+          </DialogDescription>
+        </DialogHeader>
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
-                <FormField
-                  control={form.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Numéro de téléphone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="70 123 45 67" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mot de passe</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                  <Button type="submit" className="bg-restaurant-purple hover:bg-restaurant-red transition-colors" disabled={isLoading}>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    {isLoading ? "Connexion..." : "Se connecter"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={onClose}>
-                    Annuler
-                  </Button>
-                </div>
-              </form>
-            </Form>
-
-            <div className="border-t pt-4 mt-2">
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-                <p className="font-semibold text-yellow-800">Offre spéciale pour les nouveaux comptes !</p>
-                <p className="text-yellow-700 mt-1">Créez un compte aujourd'hui et bénéficiez de promotions exclusives sur nos menus hebdomadaires. Ne manquez pas nos offres à venir !</p>
-              </div>
-              <p className="text-sm text-muted-foreground mb-2">Vous n'avez pas de compte ?</p>
-              <Button onClick={handleCreateAccount} variant="outline" className="w-full">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Créer un compte
-              </Button>
-            </div>
-          </>
-        ) : (
-          <SignupForm 
-            onBackToLogin={handleBackToLogin} 
-            onSignupSuccess={onLoginSuccess}
-            price={price}
-            details={details}
-          />
-        )}
+        <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-2 w-full mb-4">
+            <TabsTrigger value="login">Se connecter</TabsTrigger>
+            <TabsTrigger value="signup">Créer un compte</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="login">
+            <LoginTab 
+              form={loginForm} 
+              onSubmit={onLoginSubmit} 
+              isLoading={isLoading} 
+              onClose={onClose} 
+              setActiveTab={setActiveTab}
+            />
+          </TabsContent>
+          
+          <TabsContent value="signup">
+            <SignupTab 
+              onSignupSuccess={onLoginSuccess}
+              price={price}
+              details={details}
+              isLoading={isLoading}
+              setIsLoading={setIsLoading}
+              onClose={onClose}
+            />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
+  );
+};
+
+interface LoginTabProps {
+  form: any;
+  onSubmit: (data: FormValues) => void;
+  isLoading: boolean;
+  onClose: () => void;
+  setActiveTab: (tab: string) => void;
+}
+
+const LoginTab: React.FC<LoginTabProps> = ({ form, onSubmit, isLoading, onClose, setActiveTab }) => {
+  return (
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
+          <FormField
+            control={form.control}
+            name="phoneNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Numéro de téléphone</FormLabel>
+                <FormControl>
+                  <Input placeholder="70 123 45 67" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mot de passe</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button type="submit" className="bg-restaurant-purple hover:bg-restaurant-red transition-colors" disabled={isLoading}>
+              <LogIn className="mr-2 h-4 w-4" />
+              {isLoading ? "Connexion..." : "Se connecter"}
+            </Button>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Annuler
+            </Button>
+          </div>
+        </form>
+      </Form>
+
+      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
+        <p className="font-semibold text-yellow-800">Offre spéciale pour les nouveaux comptes !</p>
+        <p className="text-yellow-700 mt-1">Créez un compte aujourd'hui et bénéficiez de promotions exclusives sur nos menus hebdomadaires. Ne manquez pas nos offres à venir !</p>
+      </div>
+    </>
   );
 };
 
@@ -159,16 +178,16 @@ const signupFormSchema = z.object({
 
 type SignupFormValues = z.infer<typeof signupFormSchema>;
 
-interface SignupFormProps {
-  onBackToLogin: () => void;
+interface SignupTabProps {
   onSignupSuccess: () => void;
   price: number;
   details?: string;
+  isLoading: boolean;
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  onClose: () => void;
 }
 
-const SignupForm: React.FC<SignupFormProps> = ({ onBackToLogin, onSignupSuccess, price, details }) => {
-  const [isLoading, setIsLoading] = useState(false);
-
+const SignupTab: React.FC<SignupTabProps> = ({ onSignupSuccess, price, details, isLoading, setIsLoading, onClose }) => {
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
@@ -198,14 +217,6 @@ const SignupForm: React.FC<SignupFormProps> = ({ onBackToLogin, onSignupSuccess,
 
   return (
     <>
-      <DialogHeader>
-        <DialogTitle className="text-xl font-bold">Créer un compte</DialogTitle>
-        <DialogDescription>
-          Créez votre compte pour finaliser votre paiement de {price.toFixed(0)} FCFA
-          {details ? ` pour ${details}` : ''} et profiter de nos offres spéciales.
-        </DialogDescription>
-      </DialogHeader>
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
           <FormField
@@ -255,18 +266,16 @@ const SignupForm: React.FC<SignupFormProps> = ({ onBackToLogin, onSignupSuccess,
               <UserPlus className="mr-2 h-4 w-4" />
               {isLoading ? "Création..." : "Créer un compte"}
             </Button>
-            <Button type="button" variant="outline" onClick={onBackToLogin}>
-              Retour
+            <Button type="button" variant="outline" onClick={onClose}>
+              Annuler
             </Button>
           </div>
         </form>
       </Form>
 
-      <div className="border-t pt-4 mt-2">
-        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-          <p className="font-semibold text-yellow-800">Avantages exclusifs !</p>
-          <p className="text-yellow-700 mt-1">En créant un compte, vous recevrez des notifications sur nos promotions et aurez accès à des menus exclusifs réservés aux membres.</p>
-        </div>
+      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
+        <p className="font-semibold text-yellow-800">Avantages exclusifs !</p>
+        <p className="text-yellow-700 mt-1">En créant un compte, vous recevrez des notifications sur nos promotions et aurez accès à des menus exclusifs réservés aux membres.</p>
       </div>
     </>
   );
