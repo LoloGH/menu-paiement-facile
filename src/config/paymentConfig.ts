@@ -3,13 +3,10 @@
 // Vous pouvez modifier ces valeurs selon vos besoins
 
 // Prix hebdomadaire pour tous les repas de la semaine
-export const weeklyPackagePrice = 149.99;
+export const weeklyPackagePrice = 150;
 
 // URL de redirection pour le paiement (lien Wave)
 export const paymentRedirectUrl = "https://pay.wave.com/m/M_sn_e0AALi3GMxex/c/sn/";
-
-// Délai de simulation du paiement en millisecondes
-export const paymentSimulationDelay = 2000;
 
 // Messages de notification pour le paiement
 export const paymentMessages = {
@@ -24,9 +21,11 @@ export const paymentMessages = {
   loginRequired: "Connexion requise",
   loginDescription: "Veuillez vous connecter pour finaliser votre commande.",
   paymentSuccess: "Paiement réussi !",
-  paymentSuccessDescription: "Votre commande a été confirmée avec succès.",
+  paymentSuccessDescription: "Votre commande a été confirmée avec succès. Votre reçu est disponible.",
   userCreated: "Compte créé avec succès",
-  userCreatedDescription: "Votre compte a été créé avec succès. Vous pouvez maintenant finaliser votre paiement."
+  userCreatedDescription: "Votre compte a été créé avec succès. Vous pouvez maintenant finaliser votre paiement.",
+  returnToSite: "Retour au site marchand",
+  returnToSiteDescription: "Vous êtes redirigé vers le site marchand..."
 };
 
 // Fonction pour générer un ID de reçu unique

@@ -2,7 +2,8 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Download, FileText } from "lucide-react";
+import { Check, Download, FileText, FilePdf } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 interface PaymentReceiptDialogProps {
   isOpen: boolean;
@@ -32,8 +33,8 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
     }).format(date);
   };
 
-  const handleDownloadReceipt = () => {
-    // Création du contenu du reçu
+  const handleDownloadTextReceipt = () => {
+    // Create receipt content as text
     const receiptContent = `
 =======================================================
                 REÇU DE COMMANDE
@@ -49,7 +50,7 @@ Merci pour votre commande !
 =======================================================
     `;
 
-    // Création d'un blob et téléchargement
+    // Create a blob and download
     const blob = new Blob([receiptContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -59,6 +60,55 @@ Merci pour votre commande !
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPdfReceipt = () => {
+    // Create new PDF document
+    const doc = new jsPDF();
+    
+    // Set font style
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(128, 0, 128); // Purple color
+    
+    // Add title
+    doc.text("REÇU DE COMMANDE", 105, 20, { align: "center" });
+    
+    // Add logo placeholder
+    doc.setDrawColor(200, 200, 200);
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(20, 30, 170, 15, 3, 3, 'FD');
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Menu Paiement Facile", 105, 40, { align: "center" });
+    
+    // Add receipt details
+    doc.setDrawColor(200, 200, 200);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(20, 50, 170, 100, 3, 3, 'FD');
+    
+    doc.setFontSize(12);
+    doc.text("Détails de la commande:", 30, 65);
+    
+    doc.setFontSize(11);
+    doc.text(`Numéro de commande: ${receiptId}`, 40, 80);
+    doc.text(`Date: ${formatDate(date)}`, 40, 90);
+    doc.text(`Produit: ${details || 'Menu personnalisé'}`, 40, 100);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text(`Montant total: ${price.toFixed(0)} FCFA`, 40, 120);
+    
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    doc.text("Merci pour votre commande !", 105, 140, { align: "center" });
+    
+    // Add footer
+    doc.setFontSize(9);
+    doc.text("Ce reçu est une preuve d'achat. Pour toute question, contactez notre service client.", 105, 180, { align: "center" });
+    
+    // Save the PDF
+    doc.save(`recu-${receiptId}.pdf`);
   };
 
   return (
@@ -99,13 +149,21 @@ Merci pour votre commande !
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+        <div className="flex flex-col gap-2 mt-2">
           <Button 
-            onClick={handleDownloadReceipt} 
+            onClick={handleDownloadPdfReceipt} 
             className="bg-restaurant-purple hover:bg-restaurant-red transition-colors"
           >
+            <FilePdf className="mr-2 h-4 w-4" />
+            Télécharger le reçu en PDF
+          </Button>
+          <Button 
+            onClick={handleDownloadTextReceipt}
+            variant="outline" 
+            className="border-restaurant-purple text-restaurant-purple hover:bg-gray-100"
+          >
             <Download className="mr-2 h-4 w-4" />
-            Télécharger le reçu
+            Télécharger en format texte
           </Button>
           <Button variant="outline" onClick={onClose}>
             Fermer

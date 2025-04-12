@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { ShoppingCart } from "lucide-react";
-import { paymentRedirectUrl, paymentSimulationDelay, paymentMessages, generateReceiptId } from "@/config/paymentConfig";
+import { paymentRedirectUrl, paymentMessages, generateReceiptId } from "@/config/paymentConfig";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PaymentLoginDialog } from './PaymentLoginDialog';
 import { PaymentReceiptDialog } from './PaymentReceiptDialog';
@@ -24,40 +24,58 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     receiptId: '',
   });
 
+  // Check for payment success in URL parameters when component mounts
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment_status');
+    
+    if (paymentStatus === 'success') {
+      // Clear URL parameters without refreshing the page
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      // Simulate successful payment return
+      handlePaymentSuccess();
+      
+      // Show success toast
+      toast({
+        title: paymentMessages.paymentSuccess,
+        description: paymentMessages.paymentSuccessDescription,
+      });
+    }
+  }, []);
+
   const handlePayment = () => {
-    // Ouvrir le dialogue de connexion
+    // Open login dialog
     setIsLoginDialogOpen(true);
   };
 
   const handleLoginSuccess = () => {
-    // Fermer le dialogue de connexion
+    // Close login dialog
     setIsLoginDialogOpen(false);
     
-    // Afficher le toast pour informer l'utilisateur
+    // Show redirecting toast
     toast({
       title: paymentMessages.redirecting,
       description: paymentMessages.redirectDescription(price, details),
     });
 
-    // Redirection vers Wave
-    window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}`;
+    // Add return URL parameter to redirect back to our site after payment
+    const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     
-    // Note: Le code suivant ne s'exécutera pas à cause de la redirection
-    // Dans un environnement réel, il faudrait gérer le retour de Wave avec un webhook
-    // Pour la simulation, nous allons supprimer ce code car le reçu devrait être
-    // affiché seulement après le retour de Wave, pas avant la redirection
+    // Redirect to Wave payment with return URL
+    window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
   };
 
   const handlePaymentSuccess = () => {
-    // Simulation d'un paiement réussi après retour de Wave
-    // Ce code devrait être appelé via un webhook ou une page de retour
+    // Generate receipt data
     const receiptId = generateReceiptId();
     setReceiptData({
       date: new Date(),
       receiptId,
     });
     
-    // Afficher le dialogue du reçu
+    // Show receipt dialog
     setIsReceiptDialogOpen(true);
   };
 
