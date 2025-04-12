@@ -26,28 +26,64 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
 
   // Check for payment success in URL parameters when component mounts
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment_status');
-    
-    if (paymentStatus === 'success') {
-      // Clear URL parameters without refreshing the page
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
+    const checkPaymentStatus = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentStatus = urlParams.get('payment_status');
       
-      // Simulate successful payment return
+      if (paymentStatus === 'success') {
+        // Clear URL parameters without refreshing the page
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        
+        // Simulate successful payment return
+        handlePaymentSuccess();
+        
+        // Show success toast
+        toast({
+          title: paymentMessages.paymentSuccess,
+          description: paymentMessages.paymentSuccessDescription,
+        });
+      }
+    };
+
+    // Check immediately on mount
+    checkPaymentStatus();
+
+    // Also check when the window gains focus (user returns from payment page)
+    const handleFocus = () => {
+      checkPaymentStatus();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  const handlePayment = () => {
+    // For demo purposes, we'll skip the login in this modified version
+    // and go straight to payment simulation
+    simulatePaymentAndShowReceipt();
+  };
+
+  const simulatePaymentAndShowReceipt = () => {
+    // Show redirecting toast
+    toast({
+      title: paymentMessages.redirecting,
+      description: paymentMessages.redirectDescription(price, details),
+    });
+    
+    // Simulate a successful payment by showing the receipt directly
+    // In a real app, this would happen after returning from the payment gateway
+    setTimeout(() => {
       handlePaymentSuccess();
       
-      // Show success toast
       toast({
         title: paymentMessages.paymentSuccess,
         description: paymentMessages.paymentSuccessDescription,
       });
-    }
-  }, []);
-
-  const handlePayment = () => {
-    // Open login dialog
-    setIsLoginDialogOpen(true);
+    }, 1500);
   };
 
   const handleLoginSuccess = () => {
@@ -60,11 +96,15 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
       description: paymentMessages.redirectDescription(price, details),
     });
 
+    // In a real implementation, we would redirect to the payment gateway
     // Add return URL parameter to redirect back to our site after payment
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     
-    // Redirect to Wave payment with return URL
-    window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
+    // Comment out the actual redirect for demo purposes
+    // window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
+    
+    // Instead, simulate a successful payment for demonstration
+    simulatePaymentAndShowReceipt();
   };
 
   const handlePaymentSuccess = () => {
@@ -112,4 +152,3 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     </>
   );
 };
-
