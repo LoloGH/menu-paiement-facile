@@ -12,7 +12,7 @@ export const paymentRedirectUrl = "https://pay.wave.com/m/M_sn_e0AALi3GMxex/c/sn
 export const paymentMessages = {
   redirecting: "Redirection vers le paiement",
   redirectDescription: (price: number, details?: string) => 
-    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${Math.round(price)} FCFA${details ? ` pour ${details}` : ''}.`,
+    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${Math.round(price)} FCFA${details ? ` pour ${details}` : ''}. Votre reçu est déjà disponible.`,
   simulatedTitle: "Paiement simulé",
   simulatedDescription: "Dans une application réelle, vous seriez maintenant sur la page de paiement.",
   weeklyTitle: "Commande pour la semaine",

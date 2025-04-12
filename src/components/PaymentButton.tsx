@@ -62,28 +62,8 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
   }, []);
 
   const handlePayment = () => {
-    // For demo purposes, we'll skip the login in this modified version
-    // and go straight to payment simulation
-    simulatePaymentAndShowReceipt();
-  };
-
-  const simulatePaymentAndShowReceipt = () => {
-    // Show redirecting toast
-    toast({
-      title: paymentMessages.redirecting,
-      description: paymentMessages.redirectDescription(price, details),
-    });
-    
-    // Simulate a successful payment by showing the receipt directly
-    // In a real app, this would happen after returning from the payment gateway
-    setTimeout(() => {
-      handlePaymentSuccess();
-      
-      toast({
-        title: paymentMessages.paymentSuccess,
-        description: paymentMessages.paymentSuccessDescription,
-      });
-    }, 1500);
+    // Open login dialog - let the user login first
+    setIsLoginDialogOpen(true);
   };
 
   const handleLoginSuccess = () => {
@@ -96,15 +76,15 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
       description: paymentMessages.redirectDescription(price, details),
     });
 
-    // In a real implementation, we would redirect to the payment gateway
-    // Add return URL parameter to redirect back to our site after payment
+    // Generate receipt data - do this BEFORE redirecting to payment
+    handlePaymentSuccess();
+    
+    // IMPORTANT: For a real implementation, both show the receipt AND redirect to Wave payment
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     
-    // Comment out the actual redirect for demo purposes
-    // window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
-    
-    // Instead, simulate a successful payment for demonstration
-    simulatePaymentAndShowReceipt();
+    // This is the actual redirect to Wave payment which would happen in production
+    // The receipt dialog is already showing, but the user will now be redirected to Wave
+    window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
   };
 
   const handlePaymentSuccess = () => {

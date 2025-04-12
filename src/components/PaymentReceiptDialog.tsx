@@ -112,15 +112,18 @@ Merci pour votre commande !
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={(open) => !open && onClose()}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl font-bold text-green-600">
             <Check className="mr-2 h-5 w-5" />
-            Paiement réussi !
+            Reçu Téléchargeable
           </DialogTitle>
           <DialogDescription>
-            Votre commande a été confirmée et traitée avec succès.
+            Votre reçu est disponible. Vous serez redirigé vers la page de paiement pour confirmer la transaction.
           </DialogDescription>
         </DialogHeader>
 
