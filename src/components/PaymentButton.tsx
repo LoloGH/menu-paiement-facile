@@ -112,3 +112,4 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     </>
   );
 };
+
