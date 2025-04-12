@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
@@ -6,7 +5,7 @@ import { weeklyMenu } from '@/data/menuData';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { CalendarCheck, ShoppingCart } from "lucide-react";
-import { weeklyPackagePrice, paymentRedirectUrl, paymentSimulationDelay, paymentMessages } from '@/config/paymentConfig';
+import { weeklyPackagePrice, paymentRedirectUrl, paymentMessages } from '@/config/paymentConfig';
 import { SocialMediaButtons } from '@/components/SocialMediaButtons';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { UserHeader } from '@/components/UserHeader';
@@ -44,9 +43,8 @@ const Index = () => {
     });
 
     // Redirection vers le lien de paiement Wave
-    setTimeout(() => {
-      window.location.href = `${paymentRedirectUrl}?amount=${weeklyPackagePrice}&details=Menu_Semaine_Complete`;
-    }, paymentSimulationDelay);
+    const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
+    window.location.href = `${paymentRedirectUrl}?amount=${weeklyPackagePrice}&details=Menu_Semaine_Complete&return_url=${returnUrl}`;
   };
 
   return (

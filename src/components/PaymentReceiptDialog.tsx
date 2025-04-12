@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Download, FileText, FilePdf } from "lucide-react";
+import { Check, Download, FileText, File } from "lucide-react";
 import { jsPDF } from "jspdf";
 
 interface PaymentReceiptDialogProps {
@@ -154,7 +154,7 @@ Merci pour votre commande !
             onClick={handleDownloadPdfReceipt} 
             className="bg-restaurant-purple hover:bg-restaurant-red transition-colors"
           >
-            <FilePdf className="mr-2 h-4 w-4" />
+            <File className="mr-2 h-4 w-4" />
             Télécharger le reçu en PDF
           </Button>
           <Button 
