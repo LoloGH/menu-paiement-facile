@@ -9,7 +9,115 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      order_items: {
+        Row: {
+          created_at: string
+          day: string
+          dessert: string | null
+          id: string
+          main_dish: string
+          meal_option_id: string
+          order_id: string | null
+          price: number
+          side_dish: string | null
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          dessert?: string | null
+          id?: string
+          main_dish: string
+          meal_option_id: string
+          order_id?: string | null
+          price: number
+          side_dish?: string | null
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          dessert?: string | null
+          id?: string
+          main_dish?: string
+          meal_option_id?: string
+          order_id?: string | null
+          price?: number
+          side_dish?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          payment_status: string
+          receipt_id: string
+          total_amount: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          payment_status?: string
+          receipt_id: string
+          total_amount: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          payment_status?: string
+          receipt_id?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

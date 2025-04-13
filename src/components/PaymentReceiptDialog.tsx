@@ -12,6 +12,7 @@ interface PaymentReceiptDialogProps {
   details?: string;
   date: Date;
   receiptId: string;
+  orderId?: string;
 }
 
 export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
@@ -20,7 +21,8 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
   price,
   details,
   date,
-  receiptId
+  receiptId,
+  orderId
 }) => {
   
   const formatDate = (date: Date): string => {
@@ -41,6 +43,7 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
 =======================================================
 
 ID Commande: ${receiptId}
+${orderId ? `Référence DB: ${orderId}` : ''}
 Date: ${formatDate(date)}
 
 Détails: ${details || 'Menu personnalisé'}
@@ -93,11 +96,14 @@ Merci pour votre commande !
     
     doc.setFontSize(11);
     doc.text(`Numéro de commande: ${receiptId}`, 40, 80);
-    doc.text(`Date: ${formatDate(date)}`, 40, 90);
-    doc.text(`Produit: ${details || 'Menu personnalisé'}`, 40, 100);
+    if (orderId) {
+      doc.text(`Référence interne: ${orderId}`, 40, 90);
+    }
+    doc.text(`Date: ${formatDate(date)}`, 40, orderId ? 100 : 90);
+    doc.text(`Produit: ${details || 'Menu personnalisé'}`, 40, orderId ? 110 : 100);
     
     doc.setFont("helvetica", "bold");
-    doc.text(`Montant total: ${price.toFixed(0)} FCFA`, 40, 120);
+    doc.text(`Montant total: ${price.toFixed(0)} FCFA`, 40, orderId ? 130 : 120);
     
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);

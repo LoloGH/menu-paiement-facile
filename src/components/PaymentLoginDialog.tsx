@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Schéma de validation
 const formSchema = z.object({
+  email: z.string().email("Veuillez entrer une adresse email valide"),
   phoneNumber: z.string().min(9, "Le numéro de téléphone doit contenir au moins 9 chiffres"),
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
 });
@@ -21,7 +22,7 @@ type FormValues = z.infer<typeof formSchema>;
 interface PaymentLoginDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: () => void;
+  onLoginSuccess: (userData: any) => void;
   price: number;
   details?: string;
 }
@@ -39,6 +40,7 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
   const loginForm = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      email: "",
       phoneNumber: "",
       password: "",
     },
@@ -54,8 +56,12 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
       // Simuler un délai de traitement
       setTimeout(() => {
         setIsLoading(false);
-        // Connexion réussie
-        onLoginSuccess();
+        // Connexion réussie - passer les données utilisateur au parent
+        onLoginSuccess({
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+          fullName: "Utilisateur " + data.phoneNumber.substring(0, 4) // Nom générique pour le moment
+        });
       }, 1000);
     } catch (error) {
       setIsLoading(false);
@@ -123,6 +129,20 @@ const LoginTab: React.FC<LoginTabProps> = ({ form, onSubmit, isLoading, onClose,
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
           <FormField
             control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Adresse email</FormLabel>
+                <FormControl>
+                  <Input type="email" placeholder="exemple@email.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="phoneNumber"
             render={({ field }) => (
               <FormItem>
@@ -172,6 +192,7 @@ const LoginTab: React.FC<LoginTabProps> = ({ form, onSubmit, isLoading, onClose,
 // Schéma de validation pour l'inscription
 const signupFormSchema = z.object({
   fullName: z.string().min(3, "Le nom complet doit contenir au moins 3 caractères"),
+  email: z.string().email("Veuillez entrer une adresse email valide"),
   phoneNumber: z.string().min(9, "Le numéro de téléphone doit contenir au moins 9 chiffres"),
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
 });
@@ -179,7 +200,7 @@ const signupFormSchema = z.object({
 type SignupFormValues = z.infer<typeof signupFormSchema>;
 
 interface SignupTabProps {
-  onSignupSuccess: () => void;
+  onSignupSuccess: (userData: any) => void;
   price: number;
   details?: string;
   isLoading: boolean;
@@ -192,6 +213,7 @@ const SignupTab: React.FC<SignupTabProps> = ({ onSignupSuccess, price, details, 
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
       fullName: "",
+      email: "",
       phoneNumber: "",
       password: "",
     },
@@ -206,8 +228,12 @@ const SignupTab: React.FC<SignupTabProps> = ({ onSignupSuccess, price, details, 
       // Simuler un délai de traitement
       setTimeout(() => {
         setIsLoading(false);
-        // Inscription réussie
-        onSignupSuccess();
+        // Inscription réussie - passer les données utilisateur au parent
+        onSignupSuccess({
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+          fullName: data.fullName
+        });
       }, 1000);
     } catch (error) {
       setIsLoading(false);
@@ -227,6 +253,20 @@ const SignupTab: React.FC<SignupTabProps> = ({ onSignupSuccess, price, details, 
                 <FormLabel>Nom complet</FormLabel>
                 <FormControl>
                   <Input placeholder="Prénom et Nom" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Adresse email</FormLabel>
+                <FormControl>
+                  <Input type="email" placeholder="exemple@email.com" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

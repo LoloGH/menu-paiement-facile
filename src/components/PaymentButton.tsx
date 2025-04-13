@@ -7,6 +7,7 @@ import { paymentRedirectUrl, paymentMessages, generateReceiptId } from "@/config
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PaymentLoginDialog } from './PaymentLoginDialog';
 import { PaymentReceiptDialog } from './PaymentReceiptDialog';
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentButtonProps {
   price: number;
@@ -22,6 +23,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
   const [receiptData, setReceiptData] = useState({
     date: new Date(),
     receiptId: '',
+    orderId: '', // ID de la commande dans Supabase
   });
 
   // Check for payment success in URL parameters when component mounts
@@ -34,6 +36,14 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
         // Clear URL parameters without refreshing the page
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
+        
+        // Récupérer l'ID de commande temporaire du localStorage pour mise à jour
+        const tempOrderId = localStorage.getItem('temp_order_id');
+        if (tempOrderId) {
+          // Mettre à jour le statut de la commande dans Supabase
+          updateOrderStatus(tempOrderId, 'paid');
+          localStorage.removeItem('temp_order_id');
+        }
         
         // Simulate successful payment return
         handlePaymentSuccess();
@@ -66,36 +76,133 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     setIsLoginDialogOpen(true);
   };
 
-  const handleLoginSuccess = () => {
-    // Close login dialog
+  // Fonction pour créer un utilisateur et une commande dans Supabase
+  const createOrder = async (userData) => {
+    try {
+      // 1. Insérer l'utilisateur (ou le récupérer s'il existe déjà)
+      let userId;
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userData.email)
+        .single();
+      
+      if (userCheckError || !existingUser) {
+        // L'utilisateur n'existe pas, on le crée
+        const { data: newUser, error: userInsertError } = await supabase
+          .from('users')
+          .insert({
+            email: userData.email,
+            name: userData.fullName,
+            phone: userData.phoneNumber
+          })
+          .select('id')
+          .single();
+        
+        if (userInsertError) throw userInsertError;
+        userId = newUser.id;
+      } else {
+        userId = existingUser.id;
+      }
+      
+      // 2. Générer un ID de reçu
+      const receiptId = generateReceiptId();
+
+      // 3. Créer la commande
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: userId,
+          receipt_id: receiptId,
+          total_amount: price,
+          details: details || 'Menu personnalisé',
+          payment_status: 'pending'
+        })
+        .select('id')
+        .single();
+      
+      if (orderError) throw orderError;
+      
+      // Stocker l'ID de commande temporairement dans le localStorage
+      localStorage.setItem('temp_order_id', orderData.id);
+      
+      return {
+        userId,
+        orderId: orderData.id,
+        receiptId
+      };
+    } catch (error) {
+      console.error("Erreur lors de la création de la commande:", error);
+      return null;
+    }
+  };
+
+  // Fonction pour mettre à jour le statut de paiement d'une commande
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ payment_status: status })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du statut de la commande:", error);
+    }
+  };
+
+  const handleLoginSuccess = async (userData) => {
+    // Fermer la boîte de dialogue de connexion
     setIsLoginDialogOpen(false);
     
-    // Show redirecting toast
+    // Afficher le toast de redirection
     toast({
       title: paymentMessages.redirecting,
       description: paymentMessages.redirectDescription(price, details),
     });
-
-    // Generate receipt data - do this BEFORE redirecting to payment
-    handlePaymentSuccess();
     
-    // IMPORTANT: For a real implementation, both show the receipt AND redirect to Wave payment
+    // Créer la commande dans Supabase
+    const orderResult = await createOrder(userData);
+    if (!orderResult) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la création de la commande.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Générer les données du reçu
+    setReceiptData({
+      date: new Date(),
+      receiptId: orderResult.receiptId,
+      orderId: orderResult.orderId
+    });
+    
+    // Afficher la boîte de dialogue du reçu
+    setIsReceiptDialogOpen(true);
+    
+    // Rediriger vers Wave pour le paiement
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     
-    // This is the actual redirect to Wave payment which would happen in production
-    // The receipt dialog is already showing, but the user will now be redirected to Wave
-    window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
+    // Délai court pour permettre à l'utilisateur de voir le reçu avant redirection
+    setTimeout(() => {
+      window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
+    }, 1500);
   };
 
   const handlePaymentSuccess = () => {
-    // Generate receipt data
-    const receiptId = generateReceiptId();
-    setReceiptData({
-      date: new Date(),
-      receiptId,
-    });
+    // Si nous n'avons pas d'ID de reçu (par exemple, après retour de paiement),
+    // en générer un nouveau
+    if (!receiptData.receiptId) {
+      setReceiptData({
+        date: new Date(),
+        receiptId: generateReceiptId(),
+        orderId: ''
+      });
+    }
     
-    // Show receipt dialog
+    // Afficher la boîte de dialogue du reçu
     setIsReceiptDialogOpen(true);
   };
 
@@ -128,6 +235,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
         details={details}
         date={receiptData.date}
         receiptId={receiptData.receiptId}
+        orderId={receiptData.orderId}
       />
     </>
   );
