@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, LogIn, LogOut } from 'lucide-react';
+import { User, LogIn, LogOut, Database } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/components/ui/use-toast";
 import { PaymentLoginDialog } from './PaymentLoginDialog';
 import { supabase } from "@/integrations/supabase/client";
+import { Link } from 'react-router-dom';
 
 interface UserHeaderProps {
   className?: string;
@@ -144,10 +145,19 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
                   <span className="text-green-600 font-medium">Actif</span>
                 </p>
               </div>
-              <div className="pt-2 border-t">
+              <div className="pt-2 border-t space-y-2">
+                <Link to="/admin" className="block w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full text-gray-700 hover:bg-gray-100"
+                  >
+                    <Database className="h-4 w-4 mr-2" />
+                    Interface Admin
+                  </Button>
+                </Link>
                 <Button 
                   variant="outline" 
-                  className="w-full mt-2 text-gray-700 hover:bg-gray-100"
+                  className="w-full text-gray-700 hover:bg-gray-100"
                   onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
