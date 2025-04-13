@@ -9,15 +9,25 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LogIn, User, UserPlus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 // Schéma de validation
-const formSchema = z.object({
+const loginFormSchema = z.object({
+  email: z.string().email("Veuillez entrer une adresse email valide"),
+  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+});
+
+// Schéma de validation pour l'inscription
+const signupFormSchema = z.object({
+  fullName: z.string().min(3, "Le nom complet doit contenir au moins 3 caractères"),
   email: z.string().email("Veuillez entrer une adresse email valide"),
   phoneNumber: z.string().min(9, "Le numéro de téléphone doit contenir au moins 9 chiffres"),
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type LoginFormValues = z.infer<typeof loginFormSchema>;
+type SignupFormValues = z.infer<typeof signupFormSchema>;
 
 interface PaymentLoginDialogProps {
   isOpen: boolean;
@@ -36,36 +46,64 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const { toast } = useToast();
 
-  const loginForm = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const loginForm = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
     defaultValues: {
       email: "",
-      phoneNumber: "",
       password: "",
     },
   });
 
-  const onLoginSubmit = async (data: FormValues) => {
+  const onLoginSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Ici, nous simulons simplement une connexion réussie
-      // Dans une implémentation réelle, vous connecteriez à une API d'authentification
-      console.log("Connexion avec:", data);
-      
-      // Simuler un délai de traitement
-      setTimeout(() => {
-        setIsLoading(false);
-        // Connexion réussie - passer les données utilisateur au parent
-        onLoginSuccess({
-          email: data.email,
-          phoneNumber: data.phoneNumber,
-          fullName: "Utilisateur " + data.phoneNumber.substring(0, 4) // Nom générique pour le moment
+      // Connexion avec Supabase
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (authData.user) {
+        // Récupérer les informations utilisateur depuis la table users
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', data.email)
+          .single();
+
+        if (userError && userError.code !== 'PGRST116') {
+          console.error("Erreur lors de la récupération des données utilisateur:", userError);
+        }
+
+        // Connexion réussie
+        toast({
+          title: "Connexion réussie",
+          description: "Vous êtes maintenant connecté à votre compte.",
         });
-      }, 1000);
-    } catch (error) {
-      setIsLoading(false);
+
+        // Passer les données utilisateur au parent
+        onLoginSuccess({
+          id: authData.user.id,
+          email: authData.user.email,
+          phoneNumber: userData?.phone || "",
+          fullName: userData?.name || "Utilisateur"
+        });
+      }
+    } catch (error: any) {
       console.error("Erreur de connexion:", error);
+      toast({
+        title: "Erreur de connexion",
+        description: error.message || "Une erreur est survenue lors de la connexion.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -116,7 +154,7 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
 
 interface LoginTabProps {
   form: any;
-  onSubmit: (data: FormValues) => void;
+  onSubmit: (data: LoginFormValues) => void;
   isLoading: boolean;
   onClose: () => void;
   setActiveTab: (tab: string) => void;
@@ -135,20 +173,6 @@ const LoginTab: React.FC<LoginTabProps> = ({ form, onSubmit, isLoading, onClose,
                 <FormLabel>Adresse email</FormLabel>
                 <FormControl>
                   <Input type="email" placeholder="exemple@email.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="phoneNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Numéro de téléphone</FormLabel>
-                <FormControl>
-                  <Input placeholder="70 123 45 67" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -182,22 +206,21 @@ const LoginTab: React.FC<LoginTabProps> = ({ form, onSubmit, isLoading, onClose,
       </Form>
 
       <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-        <p className="font-semibold text-yellow-800">Offre spéciale pour les nouveaux comptes !</p>
-        <p className="text-yellow-700 mt-1">Créez un compte aujourd'hui et bénéficiez de promotions exclusives sur nos menus hebdomadaires. Ne manquez pas nos offres à venir !</p>
+        <p className="font-semibold text-yellow-800">Pas encore de compte ?</p>
+        <p className="text-yellow-700 mt-1">
+          <Button 
+            variant="link" 
+            className="p-0 h-auto text-yellow-800 underline" 
+            onClick={() => setActiveTab("signup")}
+          >
+            Créez un compte
+          </Button> 
+          {" "}aujourd'hui et bénéficiez de promotions exclusives sur nos menus hebdomadaires.
+        </p>
       </div>
     </>
   );
 };
-
-// Schéma de validation pour l'inscription
-const signupFormSchema = z.object({
-  fullName: z.string().min(3, "Le nom complet doit contenir au moins 3 caractères"),
-  email: z.string().email("Veuillez entrer une adresse email valide"),
-  phoneNumber: z.string().min(9, "Le numéro de téléphone doit contenir au moins 9 chiffres"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
-});
-
-type SignupFormValues = z.infer<typeof signupFormSchema>;
 
 interface SignupTabProps {
   onSignupSuccess: (userData: any) => void;
@@ -208,7 +231,16 @@ interface SignupTabProps {
   onClose: () => void;
 }
 
-const SignupTab: React.FC<SignupTabProps> = ({ onSignupSuccess, price, details, isLoading, setIsLoading, onClose }) => {
+const SignupTab: React.FC<SignupTabProps> = ({ 
+  onSignupSuccess, 
+  price, 
+  details, 
+  isLoading, 
+  setIsLoading, 
+  onClose 
+}) => {
+  const { toast } = useToast();
+  
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
@@ -222,22 +254,62 @@ const SignupTab: React.FC<SignupTabProps> = ({ onSignupSuccess, price, details, 
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
     try {
-      // Ici, nous simulons simplement une inscription réussie
-      console.log("Inscription avec:", data);
-      
-      // Simuler un délai de traitement
-      setTimeout(() => {
-        setIsLoading(false);
-        // Inscription réussie - passer les données utilisateur au parent
+      // Inscription avec Supabase
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            name: data.fullName,
+            phone: data.phoneNumber,
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (authData.user) {
+        // Ajouter l'utilisateur à la table users
+        const { error: userError } = await supabase
+          .from('users')
+          .insert([
+            { 
+              id: authData.user.id,
+              email: data.email,
+              name: data.fullName,
+              phone: data.phoneNumber,
+            }
+          ]);
+
+        if (userError) {
+          console.error("Erreur lors de l'ajout de l'utilisateur:", userError);
+        }
+
+        // Inscription réussie
+        toast({
+          title: "Inscription réussie",
+          description: "Votre compte a été créé avec succès.",
+        });
+
+        // Passer les données utilisateur au parent
         onSignupSuccess({
+          id: authData.user.id,
           email: data.email,
           phoneNumber: data.phoneNumber,
           fullName: data.fullName
         });
-      }, 1000);
-    } catch (error) {
-      setIsLoading(false);
+      }
+    } catch (error: any) {
       console.error("Erreur d'inscription:", error);
+      toast({
+        title: "Erreur d'inscription",
+        description: error.message || "Une erreur est survenue lors de l'inscription.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, LogIn, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/components/ui/use-toast";
 import { PaymentLoginDialog } from './PaymentLoginDialog';
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserHeaderProps {
   className?: string;
@@ -12,19 +13,78 @@ interface UserHeaderProps {
 
 export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [userData, setUserData] = useState<any>(null);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const { toast } = useToast();
+
+  // Vérifier l'état de la session au chargement et écouter les changements
+  useEffect(() => {
+    // Fonction pour récupérer les données utilisateur
+    const getUserData = async (userId: string) => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error("Erreur lors de la récupération des données utilisateur:", error);
+        return null;
+      }
+      
+      return data;
+    };
+
+    // Configurer l'écouteur d'événements d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session && session.user) {
+          const profile = await getUserData(session.user.id);
+          setIsLoggedIn(true);
+          setUserData({
+            id: session.user.id,
+            email: session.user.email,
+            fullName: profile?.name || "Utilisateur",
+            phoneNumber: profile?.phone || "",
+          });
+        } else {
+          setIsLoggedIn(false);
+          setUserData(null);
+        }
+      }
+    );
+
+    // Vérifier la session actuelle au chargement
+    const checkCurrentSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user) {
+        const profile = await getUserData(session.user.id);
+        setIsLoggedIn(true);
+        setUserData({
+          id: session.user.id,
+          email: session.user.email,
+          fullName: profile?.name || "Utilisateur",
+          phoneNumber: profile?.phone || "",
+        });
+      }
+    };
+
+    checkCurrentSession();
+
+    // Nettoyage à la destruction du composant
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleLogin = () => {
     setIsLoginDialogOpen(true);
   };
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = (user: any) => {
     setIsLoginDialogOpen(false);
-    // Simuler la connexion
     setIsLoggedIn(true);
-    setUserName('Client Axess');
+    setUserData(user);
     
     toast({
       title: "Connexion réussie",
@@ -32,9 +92,21 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
     });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      console.error("Erreur de déconnexion:", error);
+      toast({
+        title: "Erreur",
+        description: "Un problème est survenu lors de la déconnexion.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoggedIn(false);
-    setUserName('');
+    setUserData(null);
     
     toast({
       title: "Déconnexion réussie",
@@ -49,7 +121,7 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
           <PopoverTrigger asChild>
             <Button variant="outline" className="bg-white hover:bg-gray-100">
               <User className="h-4 w-4 mr-2" />
-              <span className="font-medium">{userName}</span>
+              <span className="font-medium">{userData?.fullName}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-56 p-4">
@@ -57,8 +129,16 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
               <h3 className="font-medium text-center mb-2 text-restaurant-purple">Espace Client</h3>
               <div className="space-y-1 text-sm text-gray-600">
                 <p className="flex items-center">
-                  <span className="font-semibold mr-2">Nom:</span> {userName}
+                  <span className="font-semibold mr-2">Nom:</span> {userData?.fullName}
                 </p>
+                <p className="flex items-center">
+                  <span className="font-semibold mr-2">Email:</span> {userData?.email}
+                </p>
+                {userData?.phoneNumber && (
+                  <p className="flex items-center">
+                    <span className="font-semibold mr-2">Téléphone:</span> {userData.phoneNumber}
+                  </p>
+                )}
                 <p className="flex items-center">
                   <span className="font-semibold mr-2">Statut:</span> 
                   <span className="text-green-600 font-medium">Actif</span>
