@@ -9,7 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserTable } from "@/components/admin/UserTable";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
-import { Search, ShieldAlert } from "lucide-react";
+import { MenuEditor } from "@/components/admin/MenuEditor";
+import { Search, ShieldAlert, UtensilsCrossed } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const Admin = () => {
@@ -83,6 +84,10 @@ const Admin = () => {
           <TabsTrigger value="users">Utilisateurs</TabsTrigger>
           <TabsTrigger value="orders">Commandes</TabsTrigger>
           <TabsTrigger value="order-items">Articles commandés</TabsTrigger>
+          <TabsTrigger value="menus">
+            <UtensilsCrossed className="h-4 w-4 mr-2" />
+            Menus
+          </TabsTrigger>
         </TabsList>
         
         <Card>
@@ -100,6 +105,10 @@ const Admin = () => {
             
             <TabsContent value="order-items">
               <OrderItemsTable searchTerm={searchTerm} />
+            </TabsContent>
+            
+            <TabsContent value="menus">
+              <MenuEditor />
             </TabsContent>
           </CardContent>
         </Card>

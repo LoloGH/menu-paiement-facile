@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
+import UserProfile from "./pages/UserProfile";
+import UserOrders from "./pages/UserOrders";
 import { buttonVariants } from "./components/ui/button";
 import { Link } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
@@ -35,6 +37,8 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/profile" element={<UserProfile />} />
+          <Route path="/mes-commandes" element={<UserOrders />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, LogIn, LogOut, Database } from 'lucide-react';
+import { User, LogIn, LogOut, Database, Settings, ShoppingBag } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,34 +20,64 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
 
   // Vérifier l'état de la session au chargement et écouter les changements
   useEffect(() => {
-    // Fonction pour récupérer les données utilisateur
-    const getUserData = async (userId: string) => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.error("Erreur lors de la récupération des données utilisateur:", error);
-        return null;
-      }
-      
-      return data;
-    };
-
     // Configurer l'écouteur d'événements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session && session.user) {
-          const profile = await getUserData(session.user.id);
           setIsLoggedIn(true);
-          setUserData({
-            id: session.user.id,
-            email: session.user.email,
-            fullName: profile?.name || "Utilisateur",
-            phoneNumber: profile?.phone || "",
-          });
+          
+          try {
+            // Récupérer les données utilisateur depuis la table users
+            const { data, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (error) {
+              if (error.code !== 'PGRST116') {
+                console.error("Erreur lors de la récupération des données utilisateur:", error);
+              }
+              
+              // Si l'utilisateur n'existe pas dans la table users, créons-le
+              const { error: insertError } = await supabase
+                .from('users')
+                .insert([
+                  { 
+                    id: session.user.id,
+                    email: session.user.email,
+                    name: session.user.user_metadata?.full_name || "Utilisateur",
+                    phone: session.user.user_metadata?.phone || "",
+                  }
+                ]);
+                
+              if (insertError) {
+                console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
+              }
+              
+              setUserData({
+                id: session.user.id,
+                email: session.user.email,
+                fullName: session.user.user_metadata?.full_name || "Utilisateur",
+                phoneNumber: session.user.user_metadata?.phone || "",
+              });
+            } else {
+              setUserData({
+                id: data.id,
+                email: data.email,
+                fullName: data.name || "Utilisateur",
+                phoneNumber: data.phone || "",
+              });
+            }
+          } catch (err) {
+            console.error("Erreur lors de la gestion des données utilisateur:", err);
+            setUserData({
+              id: session.user.id,
+              email: session.user.email,
+              fullName: "Utilisateur",
+              phoneNumber: "",
+            });
+          }
         } else {
           setIsLoggedIn(false);
           setUserData(null);
@@ -59,14 +89,60 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
     const checkCurrentSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user) {
-        const profile = await getUserData(session.user.id);
         setIsLoggedIn(true);
-        setUserData({
-          id: session.user.id,
-          email: session.user.email,
-          fullName: profile?.name || "Utilisateur",
-          phoneNumber: profile?.phone || "",
-        });
+        
+        try {
+          // Récupérer les données utilisateur depuis la table users
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (error) {
+            if (error.code !== 'PGRST116') {
+              console.error("Erreur lors de la récupération des données utilisateur:", error);
+            }
+            
+            // Si l'utilisateur n'existe pas dans la table users, créons-le
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert([
+                { 
+                  id: session.user.id,
+                  email: session.user.email,
+                  name: session.user.user_metadata?.full_name || "Utilisateur",
+                  phone: session.user.user_metadata?.phone || "",
+                }
+              ]);
+              
+            if (insertError) {
+              console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
+            }
+            
+            setUserData({
+              id: session.user.id,
+              email: session.user.email,
+              fullName: session.user.user_metadata?.full_name || "Utilisateur",
+              phoneNumber: session.user.user_metadata?.phone || "",
+            });
+          } else {
+            setUserData({
+              id: data.id,
+              email: data.email,
+              fullName: data.name || "Utilisateur",
+              phoneNumber: data.phone || "",
+            });
+          }
+        } catch (err) {
+          console.error("Erreur lors de la gestion des données utilisateur:", err);
+          setUserData({
+            id: session.user.id,
+            email: session.user.email,
+            fullName: "Utilisateur",
+            phoneNumber: "",
+          });
+        }
       }
     };
 
@@ -146,6 +222,24 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
                 </p>
               </div>
               <div className="pt-2 border-t space-y-2">
+                <Link to="/profile" className="block w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full text-gray-700 hover:bg-gray-100"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Gérer mon profil
+                  </Button>
+                </Link>
+                <Link to="/mes-commandes" className="block w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full text-gray-700 hover:bg-gray-100"
+                  >
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                    Mes commandes
+                  </Button>
+                </Link>
                 <Link to="/admin" className="block w-full">
                   <Button 
                     variant="outline" 
