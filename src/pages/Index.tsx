@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
@@ -48,7 +49,7 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between mb-6">
             <div className="flex items-center mb-4 md:mb-0">
-              <div className="bg-[#1A1F2C] p-2 rounded-lg">
+              <div className="bg-white p-2 rounded-lg">
                 <img 
                   src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png" 
                   alt="AXESS Logo" 
@@ -119,7 +120,7 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center mb-4 md:mb-0">
-              <div className="bg-[#1A1F2C] p-2 rounded-lg mr-4">
+              <div className="bg-white p-2 rounded-lg mr-4">
                 <img 
                   src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png" 
                   alt="AXESS Logo" 

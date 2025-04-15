@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Settings, ShoppingBag, LogOut } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -24,7 +23,7 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="bg-white hover:bg-gray-100">
+        <Button variant="outline" className="bg-restaurant-purple text-white hover:bg-restaurant-purple/80">
           <User className="h-4 w-4 mr-2" />
           <span className="font-medium">{userData?.fullName}</span>
         </Button>
@@ -70,7 +69,7 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
             </Link>
             <Button 
               variant="outline" 
-              className="w-full text-gray-700 hover:bg-gray-100"
+              className="w-full text-white bg-restaurant-red hover:bg-restaurant-red/80"
               onClick={onLogout}
             >
               <LogOut className="h-4 w-4 mr-2" />
