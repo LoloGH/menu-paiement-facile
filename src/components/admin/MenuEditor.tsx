@@ -73,26 +73,26 @@ export const MenuEditor = () => {
         id: menu.id,
         day: menu.day,
         date: menu.date,
-        mainDishes: menu.meals.filter(meal => meal.type === 'main').map(meal => ({
-          id: meal.id,
-          name: meal.name,
-          price: meal.price,
-          description: meal.description,
-          imageUrl: meal.imageUrl
+        mainDishes: menu.mealOptions.flatMap(option => ({
+          id: option.mainDish.id,
+          name: option.mainDish.name,
+          price: option.mainDish.price,
+          description: option.mainDish.description,
+          imageUrl: option.mainDish.image
         })),
-        sideDishes: menu.meals.filter(meal => meal.type === 'side').map(meal => ({
-          id: meal.id,
-          name: meal.name,
-          price: meal.price,
-          description: meal.description,
-          imageUrl: meal.imageUrl
+        sideDishes: menu.mealOptions.flatMap(option => ({
+          id: option.sideDish.id,
+          name: option.sideDish.name,
+          price: option.sideDish.price,
+          description: option.sideDish.description,
+          imageUrl: option.sideDish.image
         })),
-        desserts: menu.meals.filter(meal => meal.type === 'dessert').map(meal => ({
-          id: meal.id,
-          name: meal.name,
-          price: meal.price,
-          description: meal.description,
-          imageUrl: meal.imageUrl
+        desserts: menu.mealOptions.flatMap(option => ({
+          id: option.dessert.id,
+          name: option.dessert.name,
+          price: option.dessert.price,
+          description: option.dessert.description,
+          imageUrl: option.dessert.image
         }))
       };
     });
