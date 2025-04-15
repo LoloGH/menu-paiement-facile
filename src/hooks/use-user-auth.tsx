@@ -16,6 +16,7 @@ export const useUserAuth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session && session.user) {
@@ -33,13 +34,16 @@ export const useUserAuth = () => {
                 console.error("Erreur lors de la récupération des données utilisateur:", error);
               }
               
+              const fullName = session.user.user_metadata?.full_name || "";
+              
+              // Create user record if it doesn't exist
               const { error: insertError } = await supabase
                 .from('users')
                 .insert([
                   { 
                     id: session.user.id,
                     email: session.user.email,
-                    name: session.user.user_metadata?.full_name || "Utilisateur",
+                    name: fullName || "Utilisateur",
                     phone: session.user.user_metadata?.phone || "",
                   }
                 ]);
@@ -51,7 +55,7 @@ export const useUserAuth = () => {
               setUserData({
                 id: session.user.id,
                 email: session.user.email || "",
-                fullName: session.user.user_metadata?.full_name || "Utilisateur",
+                fullName: fullName || "Utilisateur",
                 phoneNumber: session.user.user_metadata?.phone || "",
               });
             } else {
@@ -67,8 +71,8 @@ export const useUserAuth = () => {
             setUserData({
               id: session.user.id,
               email: session.user.email || "",
-              fullName: "Utilisateur",
-              phoneNumber: "",
+              fullName: session.user.user_metadata?.full_name || "Utilisateur",
+              phoneNumber: session.user.user_metadata?.phone || "",
             });
           }
         } else {
@@ -78,6 +82,7 @@ export const useUserAuth = () => {
       }
     );
 
+    // Then check for existing session
     const checkCurrentSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user) {
@@ -95,13 +100,16 @@ export const useUserAuth = () => {
               console.error("Erreur lors de la récupération des données utilisateur:", error);
             }
             
+            const fullName = session.user.user_metadata?.full_name || "";
+            
+            // Create user record if it doesn't exist
             const { error: insertError } = await supabase
               .from('users')
               .insert([
                 { 
                   id: session.user.id,
                   email: session.user.email,
-                  name: session.user.user_metadata?.full_name || "Utilisateur",
+                  name: fullName || "Utilisateur",
                   phone: session.user.user_metadata?.phone || "",
                 }
               ]);
@@ -113,7 +121,7 @@ export const useUserAuth = () => {
             setUserData({
               id: session.user.id,
               email: session.user.email || "",
-              fullName: session.user.user_metadata?.full_name || "Utilisateur",
+              fullName: fullName || "Utilisateur",
               phoneNumber: session.user.user_metadata?.phone || "",
             });
           } else {
@@ -129,8 +137,8 @@ export const useUserAuth = () => {
           setUserData({
             id: session.user.id,
             email: session.user.email || "",
-            fullName: "Utilisateur",
-            phoneNumber: "",
+            fullName: session.user.user_metadata?.full_name || "Utilisateur",
+            phoneNumber: session.user.user_metadata?.phone || "",
           });
         }
       }

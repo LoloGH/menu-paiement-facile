@@ -1,11 +1,10 @@
+
 import React from 'react';
 import { Settings, ShoppingBag, LogOut } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { User } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface UserProfilePopoverProps {
   userData: {
@@ -20,12 +19,14 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
   userData, 
   onLogout 
 }) => {
+  const displayName = userData?.fullName || "Utilisateur";
+  
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" className="bg-restaurant-purple text-white hover:bg-restaurant-purple/80">
           <User className="h-4 w-4 mr-2" />
-          <span className="font-medium">{userData?.fullName}</span>
+          <span className="font-medium">{displayName}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-4">
@@ -33,7 +34,7 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
           <h3 className="font-medium text-center mb-2 text-restaurant-purple">Espace Client</h3>
           <div className="space-y-1 text-sm text-gray-600">
             <p className="flex items-center">
-              <span className="font-semibold mr-2">Nom:</span> {userData?.fullName}
+              <span className="font-semibold mr-2">Nom:</span> {displayName}
             </p>
             <p className="flex items-center">
               <span className="font-semibold mr-2">Email:</span> {userData?.email}
