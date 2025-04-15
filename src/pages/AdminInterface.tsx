@@ -11,8 +11,9 @@ import { UserTable } from "@/components/admin/UserTable";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { MenuEditor } from "@/components/admin/MenuEditor";
-import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft } from "lucide-react";
+import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -20,6 +21,7 @@ const AdminInterface = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
 
   // Vérification de l'authentification et droits admin
   useEffect(() => {
@@ -27,12 +29,8 @@ const AdminInterface = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        toast({
-          title: "Accès refusé",
-          description: "Vous devez être connecté pour accéder à cette page.",
-          variant: "destructive",
-        });
-        navigate("/");
+        setIsAdmin(false);
+        setIsLoading(false);
         return;
       }
       
@@ -45,6 +43,20 @@ const AdminInterface = () => {
     checkAuth();
   }, [navigate, toast]);
 
+  const handleLoginClick = () => {
+    setIsLoginDialogOpen(true);
+  };
+
+  const handleLoginSuccess = (user: any) => {
+    setIsLoginDialogOpen(false);
+    setIsAdmin(true);
+    
+    toast({
+      title: "Connexion administrateur réussie",
+      description: "Bienvenue dans l'interface d'administration.",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -55,11 +67,54 @@ const AdminInterface = () => {
 
   if (!isAdmin) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <ShieldAlert className="w-16 h-16 text-restaurant-red mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Accès non autorisé</h1>
-        <p className="text-gray-600 mb-4">Vous n'avez pas les permissions nécessaires pour accéder à cette page.</p>
-        <Button onClick={() => navigate("/")}>Retour à l'accueil</Button>
+      <div className="bg-gray-50 min-h-screen">
+        <header className="bg-restaurant-purple text-white p-4 shadow-md">
+          <div className="container mx-auto">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className="bg-white p-2 rounded-md mr-3">
+                  <img 
+                    src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png"
+                    alt="Logo"
+                    className="h-10 w-auto"
+                  />
+                </div>
+                <h1 className="text-2xl font-bold">Interface Administrateur</h1>
+              </div>
+              <Button
+                onClick={handleLoginClick}
+                className="bg-white text-restaurant-purple hover:bg-gray-100"
+              >
+                <LogIn className="h-4 w-4 mr-2" />
+                Connexion Admin
+              </Button>
+            </div>
+          </div>
+        </header>
+        
+        <div className="container mx-auto flex flex-col items-center justify-center py-20 px-4">
+          <ShieldAlert className="w-20 h-20 text-restaurant-red mb-6" />
+          <h1 className="text-3xl font-bold mb-3">Accès non autorisé</h1>
+          <p className="text-gray-600 mb-6 text-center max-w-md">
+            Vous devez être connecté en tant qu'administrateur pour accéder à cette page.
+          </p>
+          <div className="flex space-x-4">
+            <Button onClick={handleLoginClick} className="bg-restaurant-purple text-white">
+              <LogIn className="h-4 w-4 mr-2" />
+              Connexion Admin
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/")}>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Retour à l'accueil
+            </Button>
+          </div>
+        </div>
+        
+        <AdminLoginDialog
+          isOpen={isLoginDialogOpen}
+          onClose={() => setIsLoginDialogOpen(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
       </div>
     );
   }
@@ -69,7 +124,16 @@ const AdminInterface = () => {
       <header className="bg-restaurant-purple text-white p-4 shadow-md">
         <div className="container mx-auto">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Interface Administrateur</h1>
+            <div className="flex items-center">
+              <div className="bg-white p-2 rounded-md mr-3">
+                <img 
+                  src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png"
+                  alt="Logo"
+                  className="h-10 w-auto"
+                />
+              </div>
+              <h1 className="text-2xl font-bold">Interface Administrateur</h1>
+            </div>
             <Link to="/" className="flex items-center text-white hover:text-gray-200 transition">
               <ChevronLeft className="w-5 h-5 mr-1" />
               Retour au site principal
@@ -136,6 +200,12 @@ const AdminInterface = () => {
           </Card>
         </Tabs>
       </div>
+      
+      <AdminLoginDialog
+        isOpen={isLoginDialogOpen}
+        onClose={() => setIsLoginDialogOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
     </div>
   );
 };

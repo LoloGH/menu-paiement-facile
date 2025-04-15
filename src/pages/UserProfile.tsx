@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Key, Save } from "lucide-react";
 
@@ -129,6 +129,18 @@ const UserProfile = () => {
         fullName: data.fullName,
         phoneNumber: data.phoneNumber
       });
+      
+      // Mettre à jour également les métadonnées utilisateur Supabase
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { 
+          full_name: data.fullName,
+          phone: data.phoneNumber 
+        }
+      });
+      
+      if (metadataError) {
+        console.warn("Avertissement: Impossible de mettre à jour les métadonnées utilisateur", metadataError);
+      }
       
       toast({
         title: "Profil mis à jour",

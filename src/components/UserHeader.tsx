@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { User, LogIn, LogOut, Database, Settings, ShoppingBag } from 'lucide-react';
+import { User, LogIn, LogOut, Settings, ShoppingBag } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/components/ui/use-toast";
@@ -18,16 +17,13 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  // Vérifier l'état de la session au chargement et écouter les changements
   useEffect(() => {
-    // Configurer l'écouteur d'événements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session && session.user) {
           setIsLoggedIn(true);
           
           try {
-            // Récupérer les données utilisateur depuis la table users
             const { data, error } = await supabase
               .from('users')
               .select('*')
@@ -39,7 +35,6 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
                 console.error("Erreur lors de la récupération des données utilisateur:", error);
               }
               
-              // Si l'utilisateur n'existe pas dans la table users, créons-le
               const { error: insertError } = await supabase
                 .from('users')
                 .insert([
@@ -85,14 +80,12 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
       }
     );
 
-    // Vérifier la session actuelle au chargement
     const checkCurrentSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user) {
         setIsLoggedIn(true);
         
         try {
-          // Récupérer les données utilisateur depuis la table users
           const { data, error } = await supabase
             .from('users')
             .select('*')
@@ -104,7 +97,6 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
               console.error("Erreur lors de la récupération des données utilisateur:", error);
             }
             
-            // Si l'utilisateur n'existe pas dans la table users, créons-le
             const { error: insertError } = await supabase
               .from('users')
               .insert([
@@ -148,7 +140,6 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
 
     checkCurrentSession();
 
-    // Nettoyage à la destruction du composant
     return () => {
       subscription.unsubscribe();
     };
@@ -238,15 +229,6 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
                   >
                     <ShoppingBag className="h-4 w-4 mr-2" />
                     Mes commandes
-                  </Button>
-                </Link>
-                <Link to="/admin" className="block w-full">
-                  <Button 
-                    variant="outline" 
-                    className="w-full text-gray-700 hover:bg-gray-100"
-                  >
-                    <Database className="h-4 w-4 mr-2" />
-                    Interface Admin
                   </Button>
                 </Link>
                 <Button 
