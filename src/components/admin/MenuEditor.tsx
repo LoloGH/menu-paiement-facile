@@ -42,7 +42,7 @@ interface MenuDay {
 
 export const MenuEditor = () => {
   const { toast } = useToast();
-  const [menus, setMenus] = useState<MenuDay[]>(weeklyMenu);
+  const [menus, setMenus] = useState<MenuDay[]>([]);
   const [editingMenu, setEditingMenu] = useState<MenuDay | null>(null);
   const [editingItem, setEditingItem] = useState<{item: MenuItem | null, type: string}>(
     {item: null, type: ''}
@@ -57,9 +57,48 @@ export const MenuEditor = () => {
         setMenus(JSON.parse(savedMenus));
       } catch (error) {
         console.error("Erreur lors du chargement des menus sauvegardés:", error);
+        // Si erreur de chargement, convertir les données du weeklyMenu
+        convertAndSetMenus();
       }
+    } else {
+      // Pas de données sauvegardées, convertir les données du weeklyMenu
+      convertAndSetMenus();
     }
   }, []);
+
+  const convertAndSetMenus = () => {
+    // Convertir les données du weeklyMenu au format MenuDay
+    const convertedMenus: MenuDay[] = weeklyMenu.map(menu => {
+      return {
+        id: menu.id,
+        day: menu.day,
+        date: menu.date,
+        mainDishes: menu.meals.filter(meal => meal.type === 'main').map(meal => ({
+          id: meal.id,
+          name: meal.name,
+          price: meal.price,
+          description: meal.description,
+          imageUrl: meal.imageUrl
+        })),
+        sideDishes: menu.meals.filter(meal => meal.type === 'side').map(meal => ({
+          id: meal.id,
+          name: meal.name,
+          price: meal.price,
+          description: meal.description,
+          imageUrl: meal.imageUrl
+        })),
+        desserts: menu.meals.filter(meal => meal.type === 'dessert').map(meal => ({
+          id: meal.id,
+          name: meal.name,
+          price: meal.price,
+          description: meal.description,
+          imageUrl: meal.imageUrl
+        }))
+      };
+    });
+    
+    setMenus(convertedMenus);
+  };
 
   const saveMenusToLocalStorage = (updatedMenus: MenuDay[]) => {
     try {
@@ -177,7 +216,7 @@ export const MenuEditor = () => {
 
   const resetToDefault = () => {
     if (window.confirm("Êtes-vous sûr de vouloir réinitialiser tous les menus aux valeurs par défaut ? Cette action est irréversible.")) {
-      setMenus(weeklyMenu);
+      convertAndSetMenus();
       localStorage.removeItem('weeklyMenu');
       toast({
         title: "Menus réinitialisés",
