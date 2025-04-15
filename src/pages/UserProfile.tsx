@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useToast } from "@/hooks/use-toast"; // Updated import path
+import { useToast } from "@/hooks/use-toast"; 
 import { supabase } from "@/integrations/supabase/client";
 import { User, Key, Save } from "lucide-react";
 
@@ -111,6 +111,19 @@ const UserProfile = () => {
     setIsUpdating(true);
     
     try {
+      // Mettre à jour les métadonnées utilisateur dans Supabase Auth
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { 
+          full_name: data.fullName,
+          phone: data.phoneNumber 
+        }
+      });
+      
+      if (metadataError) {
+        throw metadataError;
+      }
+      
+      // Mettre à jour également la table users
       const { error } = await supabase
         .from('users')
         .update({ 
@@ -129,18 +142,6 @@ const UserProfile = () => {
         fullName: data.fullName,
         phoneNumber: data.phoneNumber
       });
-      
-      // Mettre à jour également les métadonnées utilisateur Supabase
-      const { error: metadataError } = await supabase.auth.updateUser({
-        data: { 
-          full_name: data.fullName,
-          phone: data.phoneNumber 
-        }
-      });
-      
-      if (metadataError) {
-        console.warn("Avertissement: Impossible de mettre à jour les métadonnées utilisateur", metadataError);
-      }
       
       toast({
         title: "Profil mis à jour",
@@ -162,6 +163,18 @@ const UserProfile = () => {
     setIsChangingPassword(true);
     
     try {
+      // Pour des raisons de sécurité, nous devons d'abord vérifier l'ancien mot de passe
+      // en essayant de se reconnecter avec celui-ci
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: data.currentPassword,
+      });
+      
+      if (authError) {
+        throw new Error("Le mot de passe actuel est incorrect");
+      }
+      
+      // Si l'authentification réussit, nous pouvons mettre à jour le mot de passe
       const { error } = await supabase.auth.updateUser({
         password: data.newPassword
       });
