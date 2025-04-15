@@ -226,8 +226,16 @@ export const MenuEditor = () => {
   };
 
   const getMenuTableSection = (menu: MenuDay, type: string, title: string) => {
+    // Add null check to ensure menu exists
+    if (!menu) {
+      console.error(`Menu is undefined when displaying ${type} for ${title}`);
+      return null;
+    }
+    
     const itemType = `${type}s` as keyof MenuDay;
-    const items = menu[itemType] as MenuItem[];
+    
+    // Add null check to ensure the items array exists before attempting to map
+    const items = menu[itemType] as MenuItem[] || [];
     
     return (
       <div className="mb-4">
