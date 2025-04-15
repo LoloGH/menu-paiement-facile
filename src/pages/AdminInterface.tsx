@@ -1,47 +1,24 @@
 
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { UserTable } from "@/components/admin/UserTable";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { MenuEditor } from "@/components/admin/MenuEditor";
-import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn } from "lucide-react";
+import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 const AdminInterface = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-
-  // Vérification de l'authentification et droits admin
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        setIsAdmin(false);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Pour l'instant, tous les utilisateurs connectés sont des administrateurs
-      // Dans un système réel, vous devriez vérifier si l'utilisateur a un rôle d'administrateur
-      setIsAdmin(true);
-      setIsLoading(false);
-    };
-    
-    checkAuth();
-  }, [navigate, toast]);
+  const { isLoggedIn, adminData, isLoading, handleLogout } = useAdminAuth();
 
   const handleLoginClick = () => {
     setIsLoginDialogOpen(true);
@@ -49,7 +26,6 @@ const AdminInterface = () => {
 
   const handleLoginSuccess = (user: any) => {
     setIsLoginDialogOpen(false);
-    setIsAdmin(true);
     
     toast({
       title: "Connexion administrateur réussie",
@@ -65,7 +41,7 @@ const AdminInterface = () => {
     );
   }
 
-  if (!isAdmin) {
+  if (!isLoggedIn) {
     return (
       <div className="bg-gray-50 min-h-screen">
         <header className="bg-restaurant-purple text-white p-4 shadow-md">
@@ -94,7 +70,7 @@ const AdminInterface = () => {
         
         <div className="container mx-auto flex flex-col items-center justify-center py-20 px-4">
           <ShieldAlert className="w-20 h-20 text-restaurant-red mb-6" />
-          <h1 className="text-3xl font-bold mb-3">Accès non autorisé</h1>
+          <h1 className="text-3xl font-bold mb-3">Accès réservé</h1>
           <p className="text-gray-600 mb-6 text-center max-w-md">
             Vous devez être connecté en tant qu'administrateur pour accéder à cette page.
           </p>
@@ -103,7 +79,7 @@ const AdminInterface = () => {
               <LogIn className="h-4 w-4 mr-2" />
               Connexion Admin
             </Button>
-            <Button variant="outline" onClick={() => navigate("/")}>
+            <Button variant="outline" onClick={() => window.location.href = "/"}>
               <ChevronLeft className="h-4 w-4 mr-2" />
               Retour à l'accueil
             </Button>
@@ -134,10 +110,24 @@ const AdminInterface = () => {
               </div>
               <h1 className="text-2xl font-bold">Interface Administrateur</h1>
             </div>
-            <Link to="/" className="flex items-center text-white hover:text-gray-200 transition">
-              <ChevronLeft className="w-5 h-5 mr-1" />
-              Retour au site principal
-            </Link>
+            <div className="flex items-center space-x-4">
+              <div className="text-sm bg-white/20 px-3 py-1 rounded">
+                Admin: {adminData?.email}
+              </div>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleLogout}
+                className="bg-restaurant-red hover:bg-restaurant-red/80"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
+              </Button>
+              <Link to="/" className="flex items-center text-white hover:text-gray-200 transition">
+                <ChevronLeft className="w-5 h-5 mr-1" />
+                Retour au site
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -156,11 +146,6 @@ const AdminInterface = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-              </div>
-              <div>
-                <Link to="/" className="bg-restaurant-purple text-white px-4 py-2 rounded hover:bg-restaurant-red transition-colors inline-flex items-center">
-                  Voir le site principal
-                </Link>
               </div>
             </div>
           </CardContent>
