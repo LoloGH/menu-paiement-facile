@@ -8,24 +8,20 @@ import { CalendarCheck, ShoppingCart } from "lucide-react";
 import { weeklyPackagePrice, paymentRedirectUrl, paymentMessages } from '@/config/paymentConfig';
 import { SocialMediaButtons } from '@/components/SocialMediaButtons';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { UserHeader } from '@/components/UserHeader';
+import { UserHeader } from '@/components/user-header/UserHeader';
 
 const Index = () => {
   const [activeDay, setActiveDay] = useState("");
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  // Fonction pour déterminer le jour actuel de la semaine
   useEffect(() => {
     const getCurrentDay = () => {
       const daysOfWeek = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
       const currentDayName = daysOfWeek[new Date().getDay()];
       
-      // Trouver le menu correspondant au jour actuel
       const todayMenu = weeklyMenu.find(menu => menu.day.includes(currentDayName));
       
-      // Si le jour actuel existe dans le menu, on le définit comme actif
-      // Sinon, on prend le premier jour du menu
       if (todayMenu) {
         setActiveDay(todayMenu.id);
       } else {
@@ -42,7 +38,6 @@ const Index = () => {
       description: paymentMessages.weeklyDescription(weeklyPackagePrice),
     });
 
-    // Redirection vers le lien de paiement Wave
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     window.location.href = `${paymentRedirectUrl}?amount=${weeklyPackagePrice}&details=Menu_Semaine_Complete&return_url=${returnUrl}`;
   };
