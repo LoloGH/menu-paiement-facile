@@ -29,7 +29,7 @@ export const isAdminUser = async (userId: string | undefined): Promise<boolean> 
       .rpc('has_role', { 
         user_id: userId, 
         required_role: 'admin' 
-      }) as any);
+      }) as unknown as Promise<{data: boolean, error: null} | {data: null, error: Error}>);
     
     if (error) {
       console.error("Error checking admin role:", error);

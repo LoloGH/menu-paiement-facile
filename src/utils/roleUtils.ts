@@ -14,7 +14,7 @@ export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
     // Use type assertion to bypass TypeScript's strict checking
     const { data, error } = await (supabase.rpc('get_users_with_role', {
       role_name: 'admin'
-    }) as any);
+    }) as unknown as Promise<{data: UserRoleInfo[], error: null} | {data: null, error: Error}>);
 
     if (error) {
       console.error("Erreur lors du chargement des administrateurs:", error);
@@ -36,7 +36,7 @@ export const addAdminRole = async (email: string): Promise<{ success: boolean; m
     const { data, error } = await (supabase.rpc('add_role_to_user_by_email', {
       user_email: email,
       role_name: 'admin'
-    }) as any);
+    }) as unknown as Promise<{data: boolean, error: null} | {data: null, error: {message: string}}>);
 
     if (error) {
       return { 
@@ -66,7 +66,7 @@ export const removeAdminRole = async (userId: string): Promise<{ success: boolea
     const { data, error } = await (supabase.rpc('remove_role_from_user', {
       user_id: userId,
       role_name: 'admin'
-    }) as any);
+    }) as unknown as Promise<{data: boolean, error: null} | {data: null, error: {message: string}}>);
 
     if (error) {
       return { 
