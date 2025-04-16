@@ -20,8 +20,6 @@ export const isAdminUser = async (userId: string | undefined): Promise<boolean> 
   if (!userId) return false;
   
   try {
-    // Since the TypeScript types don't know about our custom functions,
-    // we need to use type assertion here
     const { data, error } = await (supabase.rpc as any)('has_role', { 
       user_id: userId, 
       required_role: 'admin' 
