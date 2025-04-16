@@ -52,7 +52,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             <FormItem>
               <FormLabel>Nom</FormLabel>
               <FormControl>
-                <Input placeholder="Nom de l'utilisateur" {...field} />
+                <Input placeholder="Nom de l'utilisateur" {...field} value={field.value || ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -80,7 +80,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             <FormItem>
               <FormLabel>Téléphone</FormLabel>
               <FormControl>
-                <Input placeholder="Numéro de téléphone" {...field} />
+                <Input placeholder="Numéro de téléphone" {...field} value={field.value || ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -91,7 +91,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           <Button type="button" variant="outline" onClick={onCancel}>
             Annuler
           </Button>
-          <Button type="submit">
+          <Button type="submit" className="bg-restaurant-purple hover:bg-restaurant-purple/90">
             {initialData ? "Mettre à jour" : "Créer"}
           </Button>
         </div>
