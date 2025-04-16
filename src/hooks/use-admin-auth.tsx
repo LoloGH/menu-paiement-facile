@@ -21,22 +21,28 @@ export const useAdminAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session && session.user) {
-          // Check if the user has admin privileges
-          const adminStatus = await isAdminUser(session.user.id);
-          setIsAdmin(adminStatus);
-          
+          // Store user login status immediately
           setIsLoggedIn(true);
-          setAdminData({
-            id: session.user.id,
-            email: session.user.email || "",
-            isAdmin: adminStatus
-          });
+          
+          // Defer admin check to prevent blocking the UI
+          setTimeout(async () => {
+            // Check if the user has admin privileges using the user_roles table
+            const adminStatus = await isAdminUser(session.user.id);
+            setIsAdmin(adminStatus);
+            
+            setAdminData({
+              id: session.user.id,
+              email: session.user.email || "",
+              isAdmin: adminStatus
+            });
+            setIsLoading(false);
+          }, 0);
         } else {
           setIsLoggedIn(false);
           setIsAdmin(false);
           setAdminData(null);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
@@ -44,11 +50,13 @@ export const useAdminAuth = () => {
     const checkCurrentSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user) {
+        // Store user login status immediately
+        setIsLoggedIn(true);
+        
         // Check if user has admin privileges
         const adminStatus = await isAdminUser(session.user.id);
         setIsAdmin(adminStatus);
         
-        setIsLoggedIn(true);
         setAdminData({
           id: session.user.id,
           email: session.user.email || "",

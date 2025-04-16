@@ -9,7 +9,8 @@ import { UserTable } from "@/components/admin/UserTable";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { MenuEditor } from "@/components/admin/MenuEditor";
-import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut } from "lucide-react";
+import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
+import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -208,13 +209,17 @@ const AdminInterface = () => {
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
-              <TabsList className="grid grid-cols-4 gap-4">
+              <TabsList className="grid grid-cols-5 gap-4">
                 <TabsTrigger value="users">Utilisateurs</TabsTrigger>
                 <TabsTrigger value="orders">Commandes</TabsTrigger>
                 <TabsTrigger value="order-items">Articles commandés</TabsTrigger>
                 <TabsTrigger value="menus">
                   <UtensilsCrossed className="h-4 w-4 mr-2" />
                   Menus
+                </TabsTrigger>
+                <TabsTrigger value="admins">
+                  <Users className="h-4 w-4 mr-2" />
+                  Administrateurs
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -233,6 +238,10 @@ const AdminInterface = () => {
               
               <TabsContent value="menus" className="space-y-4">
                 <MenuEditor />
+              </TabsContent>
+              
+              <TabsContent value="admins" className="space-y-4">
+                <AdminRoleManager />
               </TabsContent>
             </CardContent>
           </Card>

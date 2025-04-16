@@ -19,31 +19,24 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
-// Check if a user has admin privileges
+// Check if a user has admin privileges using the new user_roles table
 export const isAdminUser = async (userId: string | undefined): Promise<boolean> => {
   if (!userId) return false;
   
   try {
-    // Get user email from auth.users (only works server-side, but we'll check on client side as a first layer)
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('email')
-      .eq('id', userId)
-      .single();
+    // Check if the user has the 'admin' role in the user_roles table
+    const { data, error } = await supabase
+      .rpc('has_role', { 
+        user_id: userId, 
+        required_role: 'admin' 
+      });
     
-    if (userError || !userData) {
-      console.error("Error fetching user data:", userError);
+    if (error) {
+      console.error("Error checking admin role:", error);
       return false;
     }
     
-    // List of admin emails - THIS SHOULD BE MOVED TO A DATABASE TABLE IN PRODUCTION
-    const adminEmails = [
-      'admin@example.com', 
-      'admin@axess.com',
-      // Add other admin emails here
-    ];
-    
-    return adminEmails.includes(userData.email);
+    return data || false;
   } catch (err) {
     console.error("Error checking admin status:", err);
     return false;
