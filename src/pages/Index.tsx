@@ -10,11 +10,25 @@ import { weeklyPackagePrice, paymentRedirectUrl, paymentMessages } from '@/confi
 import { SocialMediaButtons } from '@/components/SocialMediaButtons';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { UserHeader } from '@/components/user-header/UserHeader';
+import { PaymentLoginDialog } from '@/components/PaymentLoginDialog';
+import { useState as useHookState } from 'react';
+import { useUserAuth } from '@/hooks/use-user-auth';
+import { supabase } from "@/integrations/supabase/client";
+import { generateReceiptId } from '@/config/paymentConfig';
+import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
 
 const Index = () => {
   const [activeDay, setActiveDay] = useState("");
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useHookState(false);
+  const { isLoggedIn, userData } = useUserAuth();
+  const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState({
+    date: new Date(),
+    receiptId: '',
+    orderId: '',
+  });
 
   useEffect(() => {
     const getCurrentDay = () => {
@@ -31,16 +45,187 @@ const Index = () => {
     };
     
     getCurrentDay();
+    
+    // Check for payment success in URL parameters
+    const checkPaymentStatus = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentStatus = urlParams.get('payment_status');
+      
+      console.log("Checking payment status:", paymentStatus);
+      
+      if (paymentStatus === 'success') {
+        // Clear URL parameters without refreshing the page
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        
+        // Récupérer l'ID de commande temporaire du localStorage pour mise à jour
+        const tempOrderId = localStorage.getItem('temp_order_id');
+        console.log("Retrieved temp order ID:", tempOrderId);
+        
+        if (tempOrderId) {
+          // Mettre à jour le statut de la commande dans Supabase
+          updateOrderStatus(tempOrderId, 'completed');
+          localStorage.removeItem('temp_order_id');
+        }
+        
+        // Show success toast
+        toast({
+          title: paymentMessages.paymentSuccess,
+          description: paymentMessages.paymentSuccessDescription,
+        });
+      }
+    };
+    
+    checkPaymentStatus();
   }, []);
 
-  const handleWeeklyPayment = () => {
-    toast({
-      title: paymentMessages.weeklyTitle,
-      description: paymentMessages.weeklyDescription(weeklyPackagePrice),
-    });
+  const updateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      console.log("Updating order status:", orderId, status);
+      
+      const { error } = await supabase
+        .from('orders')
+        .update({ payment_status: status })
+        .eq('id', orderId);
+      
+      if (error) {
+        console.error("Error updating order status:", error);
+        throw error;
+      }
+      
+      console.log("Order status updated successfully");
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du statut de la commande:", error);
+    }
+  };
 
+  const handleWeeklyPayment = async () => {
+    console.log("Weekly payment button clicked");
+    
+    if (isLoggedIn && userData) {
+      console.log("User already logged in:", userData.id);
+      
+      // User is already logged in, proceed with payment
+      const orderResult = await createOrder(userData);
+      
+      if (!orderResult) {
+        toast({
+          title: "Erreur",
+          description: "Une erreur s'est produite lors de la création de la commande.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Generate receipt data
+      setReceiptData({
+        date: new Date(),
+        receiptId: orderResult.receiptId,
+        orderId: orderResult.orderId
+      });
+      
+      // Show receipt dialog
+      setIsReceiptDialogOpen(true);
+      
+      // Redirect to payment
+      setTimeout(() => {
+        proceedToPayment();
+      }, 1000);
+    } else {
+      // Not logged in, open login dialog
+      setIsLoginDialogOpen(true);
+    }
+  };
+  
+  const createOrder = async (userData: any) => {
+    try {
+      console.log("Creating order for user:", userData);
+      
+      // Générer un ID de reçu
+      const receiptId = generateReceiptId();
+      console.log("Generated receipt ID:", receiptId);
+
+      // Créer la commande
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: userData.id,
+          receipt_id: receiptId,
+          total_amount: weeklyPackagePrice,
+          details: 'Menu Semaine Complete',
+          payment_status: 'pending'
+        })
+        .select('id')
+        .single();
+      
+      if (orderError) {
+        console.error("Error creating order:", orderError);
+        throw orderError;
+      }
+      
+      console.log("Order created successfully:", orderData);
+      
+      // Stocker l'ID de commande temporairement dans le localStorage
+      localStorage.setItem('temp_order_id', orderData.id);
+      
+      return {
+        userId: userData.id,
+        orderId: orderData.id,
+        receiptId
+      };
+    } catch (error) {
+      console.error("Erreur lors de la création de la commande:", error);
+      return null;
+    }
+  };
+  
+  const proceedToPayment = () => {
+    console.log("Proceeding to payment");
+    
+    // Rediriger vers Wave pour le paiement
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
-    window.location.href = `${paymentRedirectUrl}?amount=${weeklyPackagePrice}&details=Menu_Semaine_Complete&return_url=${returnUrl}`;
+    const paymentUrl = `${paymentRedirectUrl}?amount=${Math.round(weeklyPackagePrice)}&details=Menu_Semaine_Complete&return_url=${returnUrl}`;
+    console.log("Redirecting to payment URL:", paymentUrl);
+    window.location.href = paymentUrl;
+  };
+  
+  const handleLoginSuccess = async (userData: any) => {
+    console.log("Login successful:", userData);
+    
+    // Fermer la boîte de dialogue de connexion
+    setIsLoginDialogOpen(false);
+    
+    // Afficher le toast de redirection
+    toast({
+      title: paymentMessages.redirecting,
+      description: paymentMessages.redirectDescription(weeklyPackagePrice, "Menu Semaine Complete"),
+    });
+    
+    // Créer la commande dans Supabase
+    const orderResult = await createOrder(userData);
+    if (!orderResult) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la création de la commande.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Générer les données du reçu
+    setReceiptData({
+      date: new Date(),
+      receiptId: orderResult.receiptId,
+      orderId: orderResult.orderId
+    });
+    
+    // Afficher la boîte de dialogue du reçu
+    setIsReceiptDialogOpen(true);
+    
+    // Procéder au paiement après un court délai
+    setTimeout(() => {
+      proceedToPayment();
+    }, 1500);
   };
 
   return (
@@ -139,6 +324,24 @@ const Index = () => {
           </div>
         </div>
       </footer>
+      
+      <PaymentLoginDialog 
+        isOpen={isLoginDialogOpen}
+        onClose={() => setIsLoginDialogOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        price={weeklyPackagePrice}
+        details="Menu Semaine Complete"
+      />
+      
+      <PaymentReceiptDialog 
+        isOpen={isReceiptDialogOpen}
+        onClose={() => setIsReceiptDialogOpen(false)}
+        price={weeklyPackagePrice}
+        details="Menu Semaine Complete"
+        date={receiptData.date}
+        receiptId={receiptData.receiptId}
+        orderId={receiptData.orderId}
+      />
     </div>
   );
 };

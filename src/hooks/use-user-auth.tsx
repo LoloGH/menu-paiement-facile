@@ -31,11 +31,10 @@ export const useUserAuth = () => {
               .single();
             
             if (error) {
-              if (error.code !== 'PGRST116') {
-                console.error("Erreur lors de la récupération des données utilisateur:", error);
-              }
+              console.error("Erreur lors de la récupération des données utilisateur:", error);
               
               const fullName = session.user.user_metadata?.name || "";
+              const phone = session.user.user_metadata?.phone || "";
               
               // Create user record if it doesn't exist
               const { error: insertError } = await supabase
@@ -45,19 +44,26 @@ export const useUserAuth = () => {
                     id: session.user.id,
                     email: session.user.email,
                     name: fullName || "Utilisateur",
-                    phone: session.user.user_metadata?.phone || "",
+                    phone: phone,
                   }
                 ]);
                 
               if (insertError) {
                 console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
+                toast({
+                  title: "Erreur",
+                  description: "Impossible d'enregistrer vos informations dans la base de données.",
+                  variant: "destructive",
+                });
+              } else {
+                console.log("Nouvel utilisateur ajouté à la base de données:", session.user.id);
               }
               
               setUserData({
                 id: session.user.id,
                 email: session.user.email || "",
                 fullName: fullName || "Utilisateur",
-                phoneNumber: session.user.user_metadata?.phone || "",
+                phoneNumber: phone || "",
               });
             } else {
               setUserData({
@@ -99,11 +105,10 @@ export const useUserAuth = () => {
             .single();
           
           if (error) {
-            if (error.code !== 'PGRST116') {
-              console.error("Erreur lors de la récupération des données utilisateur:", error);
-            }
+            console.error("Erreur lors de la récupération des données utilisateur:", error);
             
             const fullName = session.user.user_metadata?.name || "";
+            const phone = session.user.user_metadata?.phone || "";
             
             // Create user record if it doesn't exist
             const { error: insertError } = await supabase
@@ -113,19 +118,26 @@ export const useUserAuth = () => {
                   id: session.user.id,
                   email: session.user.email,
                   name: fullName || "Utilisateur",
-                  phone: session.user.user_metadata?.phone || "",
+                  phone: phone,
                 }
               ]);
               
             if (insertError) {
               console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
+              toast({
+                title: "Erreur",
+                description: "Impossible d'enregistrer vos informations dans la base de données.",
+                variant: "destructive",
+              });
+            } else {
+              console.log("Nouvel utilisateur ajouté à la base de données:", session.user.id);
             }
             
             setUserData({
               id: session.user.id,
               email: session.user.email || "",
               fullName: fullName || "Utilisateur",
-              phoneNumber: session.user.user_metadata?.phone || "",
+              phoneNumber: phone || "",
             });
           } else {
             setUserData({
