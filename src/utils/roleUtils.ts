@@ -12,9 +12,9 @@ export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
   try {
     // Appel à une fonction sur mesure via RPC qui récupère tous les utilisateurs admin
     // Use type assertion to bypass TypeScript's strict checking
-    const { data, error } = await (supabase.rpc('get_users_with_role', {
+    const { data, error } = await supabase.rpc('get_users_with_role', {
       role_name: 'admin'
-    }) as unknown as Promise<{data: UserRoleInfo[], error: null} | {data: null, error: Error}>);
+    }) as unknown as { data: UserRoleInfo[] | null; error: Error | null };
 
     if (error) {
       console.error("Erreur lors du chargement des administrateurs:", error);
@@ -33,10 +33,10 @@ export const addAdminRole = async (email: string): Promise<{ success: boolean; m
   try {
     // Appel à une fonction RPC pour ajouter un rôle admin à un utilisateur par email
     // Use type assertion to bypass TypeScript's strict checking
-    const { data, error } = await (supabase.rpc('add_role_to_user_by_email', {
+    const { data, error } = await supabase.rpc('add_role_to_user_by_email', {
       user_email: email,
       role_name: 'admin'
-    }) as unknown as Promise<{data: boolean, error: null} | {data: null, error: {message: string}}>);
+    }) as unknown as { data: boolean | null; error: { message: string } | null };
 
     if (error) {
       return { 
@@ -63,10 +63,10 @@ export const removeAdminRole = async (userId: string): Promise<{ success: boolea
   try {
     // Appel à une fonction RPC pour supprimer un rôle
     // Use type assertion to bypass TypeScript's strict checking
-    const { data, error } = await (supabase.rpc('remove_role_from_user', {
+    const { data, error } = await supabase.rpc('remove_role_from_user', {
       user_id: userId,
       role_name: 'admin'
-    }) as unknown as Promise<{data: boolean, error: null} | {data: null, error: {message: string}}>);
+    }) as unknown as { data: boolean | null; error: { message: string } | null };
 
     if (error) {
       return { 
