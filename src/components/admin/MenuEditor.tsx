@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { 
@@ -55,10 +56,13 @@ export const MenuEditor = () => {
 
   // Charger les menus depuis le localStorage ou les données par défaut
   const loadMenus = () => {
+    console.log("Loading menus...");
     const savedMenus = localStorage.getItem('weeklyMenu');
     if (savedMenus) {
       try {
-        setMenus(JSON.parse(savedMenus));
+        const parsedMenus = JSON.parse(savedMenus);
+        console.log("Loaded menus from localStorage:", parsedMenus);
+        setMenus(parsedMenus);
       } catch (error) {
         console.error("Erreur lors du chargement des menus sauvegardés:", error);
         // Si erreur de chargement, convertir les données du weeklyMenu
@@ -66,53 +70,79 @@ export const MenuEditor = () => {
       }
     } else {
       // Pas de données sauvegardées, convertir les données du weeklyMenu
+      console.log("No saved menus found, converting default data");
       convertAndSetMenus();
     }
   };
 
   const convertAndSetMenus = () => {
     // Convertir les données du weeklyMenu au format MenuDay
+    console.log("Converting menu data from weeklyMenu:", weeklyMenu);
+    
     const convertedMenus: MenuDay[] = weeklyMenu.map(menu => {
+      const mainDishes: MenuItem[] = [];
+      const sideDishes: MenuItem[] = [];
+      const desserts: MenuItem[] = [];
+      
+      // Extraire les plats uniques des options de repas
+      menu.mealOptions.forEach(option => {
+        if (option.mainDish && !mainDishes.some(dish => dish.id === option.mainDish.id)) {
+          mainDishes.push({
+            id: option.mainDish.id,
+            name: option.mainDish.name,
+            price: option.mainDish.price,
+            description: option.mainDish.description,
+            imageUrl: option.mainDish.image
+          });
+        }
+        
+        if (option.sideDish && !sideDishes.some(dish => dish.id === option.sideDish.id)) {
+          sideDishes.push({
+            id: option.sideDish.id,
+            name: option.sideDish.name,
+            price: option.sideDish.price,
+            description: option.sideDish.description,
+            imageUrl: option.sideDish.image
+          });
+        }
+        
+        if (option.dessert && !desserts.some(dish => dish.id === option.dessert.id)) {
+          desserts.push({
+            id: option.dessert.id,
+            name: option.dessert.name,
+            price: option.dessert.price,
+            description: option.dessert.description,
+            imageUrl: option.dessert.image
+          });
+        }
+      });
+      
       return {
         id: menu.id,
         day: menu.day,
         date: menu.date,
-        mainDishes: menu.mealOptions.flatMap(option => ({
-          id: option.mainDish.id,
-          name: option.mainDish.name,
-          price: option.mainDish.price,
-          description: option.mainDish.description,
-          imageUrl: option.mainDish.image
-        })),
-        sideDishes: menu.mealOptions.flatMap(option => ({
-          id: option.sideDish.id,
-          name: option.sideDish.name,
-          price: option.sideDish.price,
-          description: option.sideDish.description,
-          imageUrl: option.sideDish.image
-        })),
-        desserts: menu.mealOptions.flatMap(option => ({
-          id: option.dessert.id,
-          name: option.dessert.name,
-          price: option.dessert.price,
-          description: option.dessert.description,
-          imageUrl: option.dessert.image
-        }))
+        mainDishes,
+        sideDishes,
+        desserts
       };
     });
     
+    console.log("Converted menus:", convertedMenus);
     setMenus(convertedMenus);
   };
 
   const saveMenusToLocalStorage = (updatedMenus: MenuDay[]) => {
     try {
+      console.log("Saving menus to localStorage:", updatedMenus);
       localStorage.setItem('weeklyMenu', JSON.stringify(updatedMenus));
       
-      // Remplacer cette ligne dans l'ancienne implémentation pour vraiment montrer à l'utilisateur
-      // que les modifications ont été sauvegardées
+      // Déclencher un événement personnalisé pour mettre à jour d'autres parties de l'application
+      const event = new CustomEvent('menu-updated', { detail: updatedMenus });
+      window.dispatchEvent(event);
+      
       toast({
         title: "Sauvegarde réussie",
-        description: "Les menus ont été sauvegardés avec succès. Rafraîchissez la page pour voir les changements.",
+        description: "Les menus ont été sauvegardés avec succès. Les changements sont maintenant visibles sur le site.",
       });
     } catch (error) {
       console.error("Erreur lors de la sauvegarde des menus:", error);
@@ -127,6 +157,8 @@ export const MenuEditor = () => {
   const handleSaveMenu = () => {
     if (!editingMenu) return;
     
+    console.log("Saving menu:", editingMenu);
+    
     const updatedMenus = menus.map(menu => 
       menu.id === editingMenu.id ? editingMenu : menu
     );
@@ -134,12 +166,10 @@ export const MenuEditor = () => {
     setMenus(updatedMenus);
     saveMenusToLocalStorage(updatedMenus);
     setEditingMenu(null);
-    
-    // Force a reload of the menu data in the application
-    window.dispatchEvent(new CustomEvent('menu-updated'));
   };
 
   const handleEditMenu = (menu: MenuDay) => {
+    console.log("Editing menu:", menu);
     setEditingMenu({...menu});
   };
 
@@ -150,10 +180,12 @@ export const MenuEditor = () => {
 
   const handleUpdateMenuField = (field: string, value: string) => {
     if (!editingMenu) return;
+    console.log(`Updating menu field "${field}" to "${value}"`);
     setEditingMenu({...editingMenu, [field]: value});
   };
 
   const handleEditItem = (item: MenuItem, type: string) => {
+    console.log(`Editing ${type} item:`, item);
     setEditingItem({item: {...item}, type});
   };
 
@@ -165,6 +197,8 @@ export const MenuEditor = () => {
       parsedValue = parseFloat(value) || 0;
     }
     
+    console.log(`Updating item field "${field}" to "${parsedValue}"`);
+    
     setEditingItem({
       ...editingItem, 
       item: {...editingItem.item, [field]: parsedValue}
@@ -174,6 +208,8 @@ export const MenuEditor = () => {
   const handleSaveItem = () => {
     if (!editingMenu || !editingItem.item || !editingItem.type) return;
     
+    console.log("Saving item:", editingItem.item);
+    
     const itemType = `${editingItem.type}s` as keyof MenuDay;
     const items = [...(editingMenu[itemType] as MenuItem[])];
     
@@ -181,9 +217,11 @@ export const MenuEditor = () => {
     
     if (index !== -1) {
       // Mettre à jour l'élément existant
+      console.log("Updating existing item at index:", index);
       items[index] = editingItem.item;
     } else {
       // Ajouter un nouvel élément
+      console.log("Adding new item");
       items.push({
         ...editingItem.item,
         id: `${editingItem.type}_${Date.now()}`
@@ -199,6 +237,7 @@ export const MenuEditor = () => {
   };
 
   const handleAddNewItem = (type: string) => {
+    console.log(`Adding new ${type} item`);
     const newItem: MenuItem = {
       id: '', // Sera généré lors de la sauvegarde
       name: '',
@@ -213,6 +252,8 @@ export const MenuEditor = () => {
   const handleDeleteItem = (itemId: string, type: string) => {
     if (!editingMenu) return;
     
+    console.log(`Deleting ${type} item with ID:`, itemId);
+    
     const itemType = `${type}s` as keyof MenuDay;
     const items = [...(editingMenu[itemType] as MenuItem[])];
     
@@ -226,8 +267,14 @@ export const MenuEditor = () => {
 
   const resetToDefault = () => {
     if (window.confirm("Êtes-vous sûr de vouloir réinitialiser tous les menus aux valeurs par défaut ? Cette action est irréversible.")) {
+      console.log("Resetting menus to default values");
       convertAndSetMenus();
       localStorage.removeItem('weeklyMenu');
+      
+      // Déclencher un événement personnalisé pour mettre à jour d'autres parties de l'application
+      const event = new CustomEvent('menu-updated');
+      window.dispatchEvent(event);
+      
       toast({
         title: "Menus réinitialisés",
         description: "Les menus ont été réinitialisés aux valeurs par défaut.",

@@ -36,6 +36,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      console.log("Fetching orders...");
+      
       let query = supabase
         .from("orders")
         .select(`
@@ -52,9 +54,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
       
       const { data, error } = await query.order("created_at", { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Query error:", error);
+        throw error;
+      }
+      
+      console.log(`Fetched ${data?.length || 0} orders`);
+      console.log("Orders data:", data);
       setOrders(data || []);
     } catch (error: any) {
+      console.error("Error in fetchOrders:", error);
       toast({
         title: "Erreur",
         description: `Impossible de charger les commandes: ${error.message}`,
@@ -67,14 +76,23 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
 
   const fetchOrderItems = async (orderId: string) => {
     try {
+      console.log(`Fetching order items for order ID: ${orderId}`);
+      
       const { data, error } = await supabase
         .from("order_items")
         .select("*")
         .eq("order_id", orderId);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Query error:", error);
+        throw error;
+      }
+      
+      console.log(`Fetched ${data?.length || 0} order items`);
+      console.log("Order items data:", data);
       setOrderItems(data || []);
     } catch (error: any) {
+      console.error("Error in fetchOrderItems:", error);
       toast({
         title: "Erreur",
         description: `Impossible de charger les articles de la commande: ${error.message}`,
@@ -84,12 +102,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
   };
 
   const handleView = async (order: any) => {
+    console.log("Viewing order:", order);
     setCurrentOrder(order);
     await fetchOrderItems(order.id);
     setIsViewOpen(true);
   };
 
   const handleEdit = (order: any) => {
+    console.log("Editing order:", order);
     setCurrentOrder(order);
     setIsFormOpen(true);
   };
@@ -97,8 +117,29 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
   const handleDelete = async (id: string) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cette commande ?")) {
       try {
-        const { error } = await supabase.from("orders").delete().eq("id", id);
-        if (error) throw error;
+        console.log(`Deleting order with ID: ${id}`);
+        
+        // Supprimer d'abord les order_items associés
+        const { error: itemsError } = await supabase
+          .from("order_items")
+          .delete()
+          .eq("order_id", id);
+          
+        if (itemsError) {
+          console.error("Error deleting order items:", itemsError);
+          // On continue même si la suppression des items échoue
+        }
+        
+        // Supprimer la commande
+        const { error } = await supabase
+          .from("orders")
+          .delete()
+          .eq("id", id);
+          
+        if (error) {
+          console.error("Error deleting order:", error);
+          throw error;
+        }
         
         toast({
           title: "Succès",
@@ -107,6 +148,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
         
         fetchOrders();
       } catch (error: any) {
+        console.error("Error in handleDelete:", error);
         toast({
           title: "Erreur",
           description: `Impossible de supprimer la commande: ${error.message}`,
@@ -118,7 +160,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
 
   const handleFormSubmit = async (orderData: any) => {
     try {
-      console.log("Mise à jour de la commande:", orderData, "pour l'ID:", currentOrder.id);
+      console.log("Mise à jour de la commande:", orderData, "pour l'ID:", currentOrder?.id);
+      
+      if (!currentOrder?.id) {
+        throw new Error("ID de commande manquant");
+      }
       
       const { error } = await supabase
         .from("orders")
@@ -129,7 +175,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
         .eq("id", currentOrder.id);
         
       if (error) {
-        console.error("Erreur lors de la mise à jour de la commande:", error);
+        console.error("Error updating order:", error);
         throw error;
       }
       
@@ -141,6 +187,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
       setIsFormOpen(false);
       fetchOrders();
     } catch (error: any) {
+      console.error("Error in handleFormSubmit:", error);
       toast({
         title: "Erreur",
         description: `Erreur lors de l'enregistrement: ${error.message}`,

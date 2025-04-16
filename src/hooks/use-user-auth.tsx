@@ -17,6 +17,7 @@ export const useUserAuth = () => {
 
   const fetchUserData = async (userId: string) => {
     try {
+      console.log(`Fetching user data for ID: ${userId}`);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -30,6 +31,7 @@ export const useUserAuth = () => {
         return null;
       }
       
+      console.log("User data retrieved:", data);
       return {
         id: data.id,
         email: data.email,
@@ -47,6 +49,8 @@ export const useUserAuth = () => {
     
     // Create user record if it doesn't exist
     try {
+      console.log("Creating user record for:", sessionUser.id);
+      
       const { error: insertError } = await supabase
         .from('users')
         .insert([
@@ -81,6 +85,7 @@ export const useUserAuth = () => {
 
   const handleUserSession = async (session: any) => {
     if (session && session.user) {
+      console.log("Session user:", session.user);
       setIsLoggedIn(true);
       
       // Récupérer les données utilisateur de la base
@@ -88,6 +93,7 @@ export const useUserAuth = () => {
       
       if (!userDataFromDb) {
         // Si l'utilisateur n'existe pas, créer un nouvel enregistrement
+        console.log("User record not found, creating new record");
         const newUserData = await createUserRecord(session.user);
         setUserData(newUserData);
       } else {
@@ -100,15 +106,19 @@ export const useUserAuth = () => {
   };
 
   useEffect(() => {
+    console.log("Setting up auth state listener");
+    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event);
         await handleUserSession(session);
       }
     );
 
     // Then check for existing session
     const checkCurrentSession = async () => {
+      console.log("Checking current session");
       const { data: { session } } = await supabase.auth.getSession();
       await handleUserSession(session);
     };
@@ -121,6 +131,7 @@ export const useUserAuth = () => {
   }, []);
 
   const handleLogout = async () => {
+    console.log("Logging out");
     const { error } = await supabase.auth.signOut();
     
     if (error) {
@@ -209,6 +220,12 @@ export const useUserAuth = () => {
         fullName: newData.fullName || userData.fullName,
         phoneNumber: newData.phoneNumber || userData.phoneNumber
       });
+      
+      // Rafraîchir les données utilisateur depuis la base après la mise à jour
+      const refreshedData = await fetchUserData(userData.id);
+      if (refreshedData) {
+        setUserData(refreshedData);
+      }
       
       toast({
         title: "Succès",

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Table,
@@ -70,6 +71,9 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
+      console.log("Fetching users...");
+      
+      // Count total items
       let countQuery = supabase.from("users").select('*', { count: 'exact' });
       
       if (searchTerm) {
@@ -78,9 +82,15 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
       
       const { count, error: countError } = await countQuery;
       
-      if (countError) throw countError;
+      if (countError) {
+        console.error("Count error:", countError);
+        throw countError;
+      }
+      
+      console.log(`Found ${count} total users`);
       setTotalItems(count || 0);
       
+      // Fetch items for current page
       let query = supabase.from("users").select("*");
       
       if (searchTerm) {
@@ -93,9 +103,16 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
       
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error("Query error:", error);
+        throw error;
+      }
+      
+      console.log(`Fetched ${data?.length || 0} users for page ${page}`);
+      console.log("User data:", data);
       setUsers(data || []);
     } catch (error: any) {
+      console.error("Error in fetchUsers:", error);
       toast({
         title: "Erreur",
         description: `Impossible de charger les utilisateurs: ${error.message}`,
@@ -107,6 +124,7 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
   };
 
   const handleEdit = (user: any) => {
+    console.log("Editing user:", user);
     setCurrentUser(user);
     setIsFormOpen(true);
   };
@@ -148,6 +166,7 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
         
         const { name, email, phone } = userData;
         
+        // Mettre à jour la table users
         const { error: usersError } = await supabase
           .from("users")
           .update({
@@ -162,12 +181,35 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
           throw usersError;
         }
         
-        if (email && email !== currentUser.email) {
-          toast({
-            title: "Attention",
-            description: "La modification d'email nécessite une validation supplémentaire.",
-            variant: "default",
-          });
+        // Mettre à jour les métadonnées utilisateur dans Auth
+        if (email !== currentUser.email || name !== currentUser.name || phone !== currentUser.phone) {
+          const updateMetadata: any = {};
+          
+          if (name) {
+            updateMetadata.full_name = name;
+          }
+          
+          if (phone) {
+            updateMetadata.phone = phone;
+          }
+
+          if (Object.keys(updateMetadata).length > 0) {
+            console.log("Mise à jour des métadonnées Auth avec:", { data: updateMetadata });
+            
+            try {
+              const { error: metadataError } = await supabase.auth.updateUser({ 
+                data: updateMetadata 
+              });
+              
+              if (metadataError) {
+                console.error("Erreur lors de la mise à jour des métadonnées:", metadataError);
+                throw metadataError;
+              }
+            } catch (error) {
+              console.error("Erreur lors de la mise à jour des métadonnées:", error);
+              // On continue même si la mise à jour des métadonnées échoue
+            }
+          }
         }
         
         toast({
