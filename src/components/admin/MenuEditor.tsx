@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { 
@@ -51,6 +50,11 @@ export const MenuEditor = () => {
   
   // Charger les menus depuis le localStorage au démarrage
   useEffect(() => {
+    loadMenus();
+  }, []);
+
+  // Charger les menus depuis le localStorage ou les données par défaut
+  const loadMenus = () => {
     const savedMenus = localStorage.getItem('weeklyMenu');
     if (savedMenus) {
       try {
@@ -64,7 +68,7 @@ export const MenuEditor = () => {
       // Pas de données sauvegardées, convertir les données du weeklyMenu
       convertAndSetMenus();
     }
-  }, []);
+  };
 
   const convertAndSetMenus = () => {
     // Convertir les données du weeklyMenu au format MenuDay
@@ -103,9 +107,12 @@ export const MenuEditor = () => {
   const saveMenusToLocalStorage = (updatedMenus: MenuDay[]) => {
     try {
       localStorage.setItem('weeklyMenu', JSON.stringify(updatedMenus));
+      
+      // Remplacer cette ligne dans l'ancienne implémentation pour vraiment montrer à l'utilisateur
+      // que les modifications ont été sauvegardées
       toast({
         title: "Sauvegarde réussie",
-        description: "Les menus ont été sauvegardés avec succès.",
+        description: "Les menus ont été sauvegardés avec succès. Rafraîchissez la page pour voir les changements.",
       });
     } catch (error) {
       console.error("Erreur lors de la sauvegarde des menus:", error);
@@ -127,6 +134,9 @@ export const MenuEditor = () => {
     setMenus(updatedMenus);
     saveMenusToLocalStorage(updatedMenus);
     setEditingMenu(null);
+    
+    // Force a reload of the menu data in the application
+    window.dispatchEvent(new CustomEvent('menu-updated'));
   };
 
   const handleEditMenu = (menu: MenuDay) => {

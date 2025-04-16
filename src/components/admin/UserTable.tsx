@@ -146,32 +146,15 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
       if (currentUser) {
         console.log("Mise à jour de l'utilisateur:", userData);
         
-        const updateData: any = {};
-        
-        if (userData.name !== currentUser.name) {
-          updateData.name = userData.name;
-        }
-        
-        if (userData.email !== currentUser.email) {
-          updateData.email = userData.email;
-        }
-        
-        if (userData.phone !== currentUser.phone) {
-          updateData.phone = userData.phone;
-        }
-        
-        if (Object.keys(updateData).length === 0) {
-          toast({
-            title: "Information",
-            description: "Aucune modification n'a été détectée.",
-          });
-          setIsFormOpen(false);
-          return;
-        }
+        const { name, email, phone } = userData;
         
         const { error: usersError } = await supabase
           .from("users")
-          .update(updateData)
+          .update({
+            name: name,
+            email: email,
+            phone: phone
+          })
           .eq("id", currentUser.id);
           
         if (usersError) {
@@ -179,7 +162,7 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
           throw usersError;
         }
         
-        if (updateData.email && updateData.email !== currentUser.email) {
+        if (email && email !== currentUser.email) {
           toast({
             title: "Attention",
             description: "La modification d'email nécessite une validation supplémentaire.",
@@ -191,15 +174,13 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
           title: "Succès",
           description: "Utilisateur mis à jour avec succès",
         });
+        
+        setIsFormOpen(false);
+        setCurrentUser(null);
+        fetchUsers();
       } else {
         console.log("Création d'un nouvel utilisateur:", userData);
-        const { error } = await supabase.from("users").insert([
-          {
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone,
-          },
-        ]);
+        const { error } = await supabase.from("users").insert([userData]);
         
         if (error) throw error;
         
@@ -207,11 +188,10 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
           title: "Succès",
           description: "Nouvel utilisateur créé avec succès",
         });
+        
+        setIsFormOpen(false);
+        fetchUsers();
       }
-      
-      setIsFormOpen(false);
-      setCurrentUser(null);
-      fetchUsers();
     } catch (error: any) {
       console.error("Erreur lors de l'enregistrement:", error);
       toast({

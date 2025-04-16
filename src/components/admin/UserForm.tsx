@@ -42,7 +42,7 @@ export const UserForm: React.FC<UserFormProps> = ({
     },
   });
 
-  const handleSubmit = (data: UserFormValues) => {
+  const handleSubmit = async (data: UserFormValues) => {
     // Format data properly for submission
     const formattedData = {
       name: data.name?.trim() || null,

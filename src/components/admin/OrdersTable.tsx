@@ -118,6 +118,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
 
   const handleFormSubmit = async (orderData: any) => {
     try {
+      console.log("Mise à jour de la commande:", orderData, "pour l'ID:", currentOrder.id);
+      
       const { error } = await supabase
         .from("orders")
         .update({
@@ -126,7 +128,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
         })
         .eq("id", currentOrder.id);
         
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur lors de la mise à jour de la commande:", error);
+        throw error;
+      }
       
       toast({
         title: "Succès",

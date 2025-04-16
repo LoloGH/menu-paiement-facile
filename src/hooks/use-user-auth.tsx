@@ -182,18 +182,20 @@ export const useUserAuth = () => {
       
       // Mise à jour des métadonnées utilisateur dans Supabase Auth
       if (newData.fullName || newData.phoneNumber) {
-        const authUpdate: any = { data: {} };
+        const metadataUpdate: any = {};
         
         if (newData.fullName) {
-          authUpdate.data.full_name = newData.fullName;
+          metadataUpdate.full_name = newData.fullName;
         }
         
         if (newData.phoneNumber) {
-          authUpdate.data.phone = newData.phoneNumber;
+          metadataUpdate.phone = newData.phoneNumber;
         }
         
-        console.log("Mise à jour des métadonnées Auth avec:", authUpdate);
-        const { error: metadataError } = await supabase.auth.updateUser(authUpdate);
+        console.log("Mise à jour des métadonnées Auth avec:", { data: metadataUpdate });
+        const { error: metadataError } = await supabase.auth.updateUser({ 
+          data: metadataUpdate 
+        });
         
         if (metadataError) {
           console.error("Erreur lors de la mise à jour des métadonnées:", metadataError);
@@ -201,7 +203,7 @@ export const useUserAuth = () => {
         }
       }
       
-      // Mettre à jour l'état local
+      // Mettre à jour l'état local immédiatement pour refléter les changements
       setUserData({
         ...userData,
         fullName: newData.fullName || userData.fullName,
