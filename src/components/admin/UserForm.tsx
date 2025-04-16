@@ -42,9 +42,21 @@ export const UserForm: React.FC<UserFormProps> = ({
     },
   });
 
+  const handleSubmit = (data: UserFormValues) => {
+    // Assurez-vous que les valeurs vides sont traitées comme NULL ou undefined
+    // plutôt que des chaînes vides pour éviter les problèmes de validation
+    const formattedData = {
+      name: data.name?.trim() || null,
+      email: data.email.trim(),
+      phone: data.phone?.trim() || null,
+    };
+    
+    onSubmit(formattedData);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"

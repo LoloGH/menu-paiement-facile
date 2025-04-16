@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast"; 
 import { supabase } from "@/integrations/supabase/client";
 import { User, Key, Save } from "lucide-react";
+import { useUserAuth } from "@/hooks/use-user-auth";
 
 const profileFormSchema = z.object({
   fullName: z.string().min(3, "Le nom complet doit contenir au moins 3 caractères"),
@@ -32,7 +33,7 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 const UserProfile = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
+  const { userData, isLoggedIn, updateUserData } = useUserAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -55,7 +56,7 @@ const UserProfile = () => {
   });
 
   useEffect(() => {
-    const getUserProfile = async () => {
+    const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -68,85 +69,33 @@ const UserProfile = () => {
         return;
       }
       
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (error) {
-          console.error("Erreur lors de la récupération du profil:", error);
-          toast({
-            title: "Erreur",
-            description: "Impossible de récupérer vos informations.",
-            variant: "destructive",
-          });
-        } else if (data) {
-          setUser({
-            id: data.id,
-            email: data.email,
-            fullName: data.name,
-            phoneNumber: data.phone
-          });
-          
-          profileForm.reset({
-            fullName: data.name || "",
-            phoneNumber: data.phone || ""
-          });
-        }
-      } catch (error) {
-        console.error("Erreur:", error);
-      } finally {
-        setIsLoading(false);
+      if (userData) {
+        profileForm.reset({
+          fullName: userData.fullName || "",
+          phoneNumber: userData.phoneNumber || ""
+        });
       }
+      
+      setIsLoading(false);
     };
     
-    getUserProfile();
-  }, [navigate, toast, profileForm]);
+    checkAuth();
+  }, [navigate, toast, userData, profileForm]);
 
   const onProfileSubmit = async (data: ProfileFormValues) => {
-    if (!user) return;
+    if (!userData) return;
     
     setIsUpdating(true);
     
     try {
-      // Mettre à jour les métadonnées utilisateur dans Supabase Auth
-      const { error: metadataError } = await supabase.auth.updateUser({
-        data: { 
-          full_name: data.fullName,
-          phone: data.phoneNumber 
-        }
-      });
-      
-      if (metadataError) {
-        throw metadataError;
-      }
-      
-      // Mettre à jour également la table users
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-          name: data.fullName,
-          phone: data.phoneNumber 
-        })
-        .eq('id', user.id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Mettre à jour l'état local
-      setUser({
-        ...user,
+      const success = await updateUserData({
         fullName: data.fullName,
         phoneNumber: data.phoneNumber
       });
       
-      toast({
-        title: "Profil mis à jour",
-        description: "Vos informations ont été mises à jour avec succès.",
-      });
+      if (!success) {
+        console.error("Échec de la mise à jour du profil");
+      }
     } catch (error: any) {
       console.error("Erreur de mise à jour:", error);
       toast({
@@ -166,7 +115,7 @@ const UserProfile = () => {
       // Pour des raisons de sécurité, nous devons d'abord vérifier l'ancien mot de passe
       // en essayant de se reconnecter avec celui-ci
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: user.email,
+        email: userData?.email || "",
         password: data.currentPassword,
       });
       

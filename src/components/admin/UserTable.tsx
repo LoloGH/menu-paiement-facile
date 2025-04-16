@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Table,
@@ -62,7 +61,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
     fetchUsers();
   }, [searchTerm, page]);
 
-  // Si la recherche locale change, nous réinitialisons la page à 1
   useEffect(() => {
     if (localSearchTerm !== searchTerm) {
       setPage(1);
@@ -72,7 +70,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Compter le nombre total d'utilisateurs
       let countQuery = supabase.from("users").select('*', { count: 'exact' });
       
       if (searchTerm) {
@@ -84,7 +81,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
       if (countError) throw countError;
       setTotalItems(count || 0);
       
-      // Récupérer les utilisateurs pour la page actuelle
       let query = supabase.from("users").select("*");
       
       if (searchTerm) {
@@ -148,14 +144,34 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
   const handleFormSubmit = async (userData: any) => {
     try {
       if (currentUser) {
-        // Mise à jour
+        console.log("Mise à jour de l'utilisateur:", userData);
+        
+        const updateData: any = {};
+        
+        if (userData.name !== currentUser.name) {
+          updateData.name = userData.name;
+        }
+        
+        if (userData.email !== currentUser.email) {
+          updateData.email = userData.email;
+        }
+        
+        if (userData.phone !== currentUser.phone) {
+          updateData.phone = userData.phone;
+        }
+        
+        if (Object.keys(updateData).length === 0) {
+          toast({
+            title: "Information",
+            description: "Aucune modification n'a été détectée.",
+          });
+          setIsFormOpen(false);
+          return;
+        }
+        
         const { error } = await supabase
           .from("users")
-          .update({
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone,
-          })
+          .update(updateData)
           .eq("id", currentUser.id);
           
         if (error) throw error;
@@ -165,7 +181,7 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
           description: "Utilisateur mis à jour avec succès",
         });
       } else {
-        // Création
+        console.log("Création d'un nouvel utilisateur:", userData);
         const { error } = await supabase.from("users").insert([
           {
             name: userData.name,
@@ -186,6 +202,7 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
       setCurrentUser(null);
       fetchUsers();
     } catch (error: any) {
+      console.error("Erreur lors de l'enregistrement:", error);
       toast({
         title: "Erreur",
         description: `Erreur lors de l'enregistrement: ${error.message}`,
@@ -199,7 +216,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
     setIsFormOpen(true);
   };
 
-  // Fonction pour masquer partiellement les emails
   const maskEmail = (email: string) => {
     if (!email) return "";
     const [username, domain] = email.split("@");
@@ -211,7 +227,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
 
   const exportToCSV = () => {
     try {
-      // Récupérer tous les utilisateurs pour l'export
       supabase
         .from("users")
         .select("*")
@@ -227,7 +242,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
             return;
           }
           
-          // Convertir les données en CSV
           const headers = ["ID", "Nom", "Email", "Téléphone", "Date d'inscription"];
           const csvContent = [
             headers.join(","),
@@ -242,7 +256,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
             })
           ].join("\n");
           
-          // Créer un blob et un lien de téléchargement
           const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
@@ -356,7 +369,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center mt-4">
           <Pagination>
@@ -371,7 +383,6 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter(p => Math.abs(p - page) < 2 || p === 1 || p === totalPages)
                 .map((p, i, arr) => {
-                  // Add ellipsis
                   if (i > 0 && p - arr[i - 1] > 1) {
                     return (
                       <React.Fragment key={`ellipsis-${p}`}>
