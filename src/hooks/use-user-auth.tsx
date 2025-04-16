@@ -153,7 +153,34 @@ export const useUserAuth = () => {
     }
 
     try {
-      // Mettre à jour les métadonnées utilisateur dans Supabase Auth
+      console.log("Mise à jour des données utilisateur:", newData);
+      
+      // Préparation des données pour la table users
+      const usersData: any = {};
+      
+      if (newData.fullName) {
+        usersData.name = newData.fullName;
+      }
+      
+      if (newData.phoneNumber) {
+        usersData.phone = newData.phoneNumber;
+      }
+      
+      // Mise à jour de la table users
+      if (Object.keys(usersData).length > 0) {
+        console.log("Mise à jour de la table users avec:", usersData);
+        const { error: usersError } = await supabase
+          .from('users')
+          .update(usersData)
+          .eq('id', userData.id);
+        
+        if (usersError) {
+          console.error("Erreur lors de la mise à jour de la table users:", usersError);
+          throw usersError;
+        }
+      }
+      
+      // Mise à jour des métadonnées utilisateur dans Supabase Auth
       if (newData.fullName || newData.phoneNumber) {
         const authUpdate: any = { data: {} };
         
@@ -165,45 +192,12 @@ export const useUserAuth = () => {
           authUpdate.data.phone = newData.phoneNumber;
         }
         
+        console.log("Mise à jour des métadonnées Auth avec:", authUpdate);
         const { error: metadataError } = await supabase.auth.updateUser(authUpdate);
         
         if (metadataError) {
           console.error("Erreur lors de la mise à jour des métadonnées:", metadataError);
-          toast({
-            title: "Erreur",
-            description: "Impossible de mettre à jour les informations d'authentification.",
-            variant: "destructive",
-          });
-          return false;
-        }
-      }
-      
-      // Mettre à jour la table users
-      const updateData: any = {};
-      
-      if (newData.fullName) {
-        updateData.name = newData.fullName;
-      }
-      
-      if (newData.phoneNumber) {
-        updateData.phone = newData.phoneNumber;
-      }
-      
-      if (Object.keys(updateData).length > 0) {
-        console.log("Mise à jour de la table users avec:", updateData);
-        const { error } = await supabase
-          .from('users')
-          .update(updateData)
-          .eq('id', userData.id);
-        
-        if (error) {
-          console.error("Erreur lors de la mise à jour de la table users:", error);
-          toast({
-            title: "Erreur",
-            description: "Impossible de mettre à jour la base de données utilisateurs.",
-            variant: "destructive",
-          });
-          return false;
+          throw metadataError;
         }
       }
       

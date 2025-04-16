@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -70,6 +69,7 @@ const UserProfile = () => {
       }
       
       if (userData) {
+        console.log("Réinitialisation du formulaire avec les données utilisateur:", userData);
         profileForm.reset({
           fullName: userData.fullName || "",
           phoneNumber: userData.phoneNumber || ""
@@ -83,6 +83,7 @@ const UserProfile = () => {
   }, [navigate, toast, userData, profileForm]);
 
   const onProfileSubmit = async (data: ProfileFormValues) => {
+    console.log("Soumission du formulaire de profil:", data);
     if (!userData) return;
     
     setIsUpdating(true);
@@ -95,6 +96,8 @@ const UserProfile = () => {
       
       if (!success) {
         console.error("Échec de la mise à jour du profil");
+      } else {
+        console.log("Profil mis à jour avec succès");
       }
     } catch (error: any) {
       console.error("Erreur de mise à jour:", error);

@@ -16,7 +16,7 @@ import {
   Search
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { UserForm } from "./UserForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
@@ -169,12 +169,23 @@ export const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
           return;
         }
         
-        const { error } = await supabase
+        const { error: usersError } = await supabase
           .from("users")
           .update(updateData)
           .eq("id", currentUser.id);
           
-        if (error) throw error;
+        if (usersError) {
+          console.error("Erreur lors de la mise à jour de users:", usersError);
+          throw usersError;
+        }
+        
+        if (updateData.email && updateData.email !== currentUser.email) {
+          toast({
+            title: "Attention",
+            description: "La modification d'email nécessite une validation supplémentaire.",
+            variant: "default",
+          });
+        }
         
         toast({
           title: "Succès",
