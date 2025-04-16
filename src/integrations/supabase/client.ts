@@ -19,12 +19,12 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
-// Check if a user has admin privileges using the new user_roles table
+// Check if a user has admin privileges using the has_role RPC function
 export const isAdminUser = async (userId: string | undefined): Promise<boolean> => {
   if (!userId) return false;
   
   try {
-    // Check if the user has the 'admin' role in the user_roles table
+    // Check if the user has the 'admin' role using the RPC function
     const { data, error } = await supabase
       .rpc('has_role', { 
         user_id: userId, 

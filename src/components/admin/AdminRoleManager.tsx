@@ -1,61 +1,24 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ShieldAlert, Trash2, UserPlus } from "lucide-react";
-
-interface UserRole {
-  id: string;
-  user_id: string;
-  email: string;
-  role: 'admin' | 'user';
-}
+import { fetchAdminUsers, addAdminRole, removeAdminRole, UserRoleInfo } from "@/utils/roleUtils";
 
 export const AdminRoleManager = () => {
-  const [adminUsers, setAdminUsers] = useState<UserRole[]>([]);
+  const [adminUsers, setAdminUsers] = useState<UserRoleInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [emailToAdd, setEmailToAdd] = useState("");
   const { toast } = useToast();
 
-  const fetchAdminUsers = async () => {
+  const loadAdminUsers = async () => {
     setIsLoading(true);
     try {
-      // Requête pour obtenir tous les utilisateurs avec le rôle admin
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('id, user_id, role')
-        .eq('role', 'admin');
-
-      if (roleError) {
-        throw roleError;
-      }
-
-      if (roleData && roleData.length > 0) {
-        // Récupérer les emails pour chaque utilisateur admin
-        const userPromises = roleData.map(async (role) => {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('email')
-            .eq('id', role.user_id)
-            .single();
-
-          if (userError) {
-            console.error("Erreur lors de la récupération de l'email:", userError);
-            return { ...role, email: "Email non disponible" };
-          }
-
-          return { ...role, email: userData?.email || "Email non disponible" };
-        });
-
-        const usersWithEmails = await Promise.all(userPromises);
-        setAdminUsers(usersWithEmails as UserRole[]);
-      } else {
-        setAdminUsers([]);
-      }
+      const users = await fetchAdminUsers();
+      setAdminUsers(users);
     } catch (error) {
       console.error("Erreur lors du chargement des administrateurs:", error);
       toast({
@@ -69,10 +32,10 @@ export const AdminRoleManager = () => {
   };
 
   useEffect(() => {
-    fetchAdminUsers();
+    loadAdminUsers();
   }, []);
 
-  const addAdminByEmail = async () => {
+  const handleAddAdmin = async () => {
     if (!emailToAdd.trim()) {
       toast({
         title: "Erreur",
@@ -83,54 +46,23 @@ export const AdminRoleManager = () => {
     }
 
     try {
-      // Rechercher l'utilisateur par email
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', emailToAdd)
-        .single();
-
-      if (userError) {
+      const result = await addAdminRole(emailToAdd);
+      
+      if (result.success) {
         toast({
-          title: "Utilisateur non trouvé",
-          description: "Aucun utilisateur trouvé avec cette adresse email.",
+          title: "Succès",
+          description: result.message,
+        });
+        
+        setEmailToAdd("");
+        loadAdminUsers();
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.message,
           variant: "destructive",
         });
-        return;
       }
-
-      // Vérifier si l'utilisateur a déjà le rôle admin
-      const { data: existingRole } = await supabase
-        .from('user_roles')
-        .select('id')
-        .eq('user_id', userData.id)
-        .eq('role', 'admin')
-        .single();
-
-      if (existingRole) {
-        toast({
-          title: "Information",
-          description: "Cet utilisateur possède déjà les droits administrateur.",
-        });
-        return;
-      }
-
-      // Ajouter le rôle admin à l'utilisateur
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert([{ user_id: userData.id, role: 'admin' }]);
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      toast({
-        title: "Succès",
-        description: "Droits administrateur attribués avec succès.",
-      });
-      
-      setEmailToAdd("");
-      fetchAdminUsers();
     } catch (error) {
       console.error("Erreur lors de l'ajout de l'administrateur:", error);
       toast({
@@ -141,23 +73,24 @@ export const AdminRoleManager = () => {
     }
   };
 
-  const removeAdmin = async (roleId: string, email: string) => {
+  const handleRemoveAdmin = async (userId: string, email: string) => {
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('id', roleId);
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Succès",
-        description: `Droits administrateur retirés pour ${email}.`,
-      });
+      const result = await removeAdminRole(userId);
       
-      fetchAdminUsers();
+      if (result.success) {
+        toast({
+          title: "Succès",
+          description: `Droits administrateur retirés pour ${email}.`,
+        });
+        
+        loadAdminUsers();
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Erreur lors de la suppression de l'administrateur:", error);
       toast({
@@ -188,7 +121,7 @@ export const AdminRoleManager = () => {
               className="flex-1"
             />
             <Button 
-              onClick={addAdminByEmail} 
+              onClick={handleAddAdmin} 
               disabled={isLoading || !emailToAdd.trim()}
               className="whitespace-nowrap"
             >
@@ -217,7 +150,7 @@ export const AdminRoleManager = () => {
                   <Button 
                     variant="destructive" 
                     size="sm" 
-                    onClick={() => removeAdmin(user.id, user.email)}
+                    onClick={() => handleRemoveAdmin(user.id, user.email)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
