@@ -32,8 +32,6 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
       const urlParams = new URLSearchParams(window.location.search);
       const paymentStatus = urlParams.get('payment_status');
       
-      console.log("Checking payment status:", paymentStatus);
-      
       if (paymentStatus === 'success') {
         // Clear URL parameters without refreshing the page
         const newUrl = window.location.pathname;
@@ -41,11 +39,9 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
         
         // Récupérer l'ID de commande temporaire du localStorage pour mise à jour
         const tempOrderId = localStorage.getItem('temp_order_id');
-        console.log("Retrieved temp order ID:", tempOrderId);
-        
         if (tempOrderId) {
           // Mettre à jour le statut de la commande dans Supabase
-          updateOrderStatus(tempOrderId, 'completed');
+          updateOrderStatus(tempOrderId, 'paid');
           localStorage.removeItem('temp_order_id');
         }
         
@@ -73,80 +69,44 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [toast]);
+  }, []);
 
-  const handlePayment = async () => {
-    console.log("Payment button clicked");
-    
-    // Check if user is already logged in
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session && session.user) {
-      console.log("User already logged in:", session.user.id);
-      
-      // Récupérer les informations utilisateur
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-      
-      if (userError) {
-        console.error("Erreur lors de la récupération des données utilisateur:", userError);
-        toast({
-          title: "Erreur",
-          description: "Impossible de récupérer vos informations. Veuillez réessayer.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // User is already logged in, proceed with payment
-      const orderResult = await createOrder({
-        id: session.user.id,
-        email: session.user.email || "",
-        fullName: userData?.name || session.user.user_metadata?.name || "Utilisateur",
-        phoneNumber: userData?.phone || session.user.user_metadata?.phone || ""
-      });
-      
-      if (!orderResult) {
-        toast({
-          title: "Erreur",
-          description: "Une erreur s'est produite lors de la création de la commande.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // Generate receipt data
-      setReceiptData({
-        date: new Date(),
-        receiptId: orderResult.receiptId,
-        orderId: orderResult.orderId
-      });
-      
-      // Show receipt dialog
-      setIsReceiptDialogOpen(true);
-      
-      // Redirect to payment
-      proceedToPayment();
-    } else {
-      // Not logged in, open login dialog
-      setIsLoginDialogOpen(true);
-    }
+  const handlePayment = () => {
+    // Open login dialog - let the user login first
+    setIsLoginDialogOpen(true);
   };
 
   // Fonction pour créer un utilisateur et une commande dans Supabase
-  const createOrder = async (userData: any) => {
+  const createOrder = async (userData) => {
     try {
-      console.log("Creating order for user:", userData);
-      
       // 1. Insérer l'utilisateur (ou le récupérer s'il existe déjà)
-      let userId = userData.id;
+      let userId;
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userData.email)
+        .single();
+      
+      if (userCheckError || !existingUser) {
+        // L'utilisateur n'existe pas, on le crée
+        const { data: newUser, error: userInsertError } = await supabase
+          .from('users')
+          .insert({
+            email: userData.email,
+            name: userData.fullName,
+            phone: userData.phoneNumber
+          })
+          .select('id')
+          .single();
+        
+        if (userInsertError) throw userInsertError;
+        userId = newUser.id;
+      } else {
+        userId = existingUser.id;
+      }
       
       // 2. Générer un ID de reçu
       const receiptId = generateReceiptId();
-      console.log("Generated receipt ID:", receiptId);
 
       // 3. Créer la commande
       const { data: orderData, error: orderError } = await supabase
@@ -161,12 +121,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
         .select('id')
         .single();
       
-      if (orderError) {
-        console.error("Error creating order:", orderError);
-        throw orderError;
-      }
-      
-      console.log("Order created successfully:", orderData);
+      if (orderError) throw orderError;
       
       // Stocker l'ID de commande temporairement dans le localStorage
       localStorage.setItem('temp_order_id', orderData.id);
@@ -183,29 +138,20 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
   };
 
   // Fonction pour mettre à jour le statut de paiement d'une commande
-  const updateOrderStatus = async (orderId: string, status: string) => {
+  const updateOrderStatus = async (orderId, status) => {
     try {
-      console.log("Updating order status:", orderId, status);
-      
       const { error } = await supabase
         .from('orders')
         .update({ payment_status: status })
         .eq('id', orderId);
       
-      if (error) {
-        console.error("Error updating order status:", error);
-        throw error;
-      }
-      
-      console.log("Order status updated successfully");
+      if (error) throw error;
     } catch (error) {
       console.error("Erreur lors de la mise à jour du statut de la commande:", error);
     }
   };
 
-  const handleLoginSuccess = async (userData: any) => {
-    console.log("Login successful:", userData);
-    
+  const handleLoginSuccess = async (userData) => {
     // Fermer la boîte de dialogue de connexion
     setIsLoginDialogOpen(false);
     
@@ -236,37 +182,24 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({ price, label, deta
     // Afficher la boîte de dialogue du reçu
     setIsReceiptDialogOpen(true);
     
-    // Procéder au paiement
-    proceedToPayment();
-  };
-  
-  const proceedToPayment = () => {
-    console.log("Proceeding to payment");
-    
     // Rediriger vers Wave pour le paiement
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     
     // Délai court pour permettre à l'utilisateur de voir le reçu avant redirection
     setTimeout(() => {
-      const paymentUrl = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
-      console.log("Redirecting to payment URL:", paymentUrl);
-      window.location.href = paymentUrl;
+      window.location.href = `${paymentRedirectUrl}?amount=${Math.round(price)}&details=${encodeURIComponent(details || '')}&return_url=${returnUrl}`;
     }, 1500);
   };
 
   const handlePaymentSuccess = () => {
-    console.log("Payment success handler called");
-    
     // Si nous n'avons pas d'ID de reçu (par exemple, après retour de paiement),
     // en générer un nouveau
     if (!receiptData.receiptId) {
-      const newReceiptData = {
+      setReceiptData({
         date: new Date(),
         receiptId: generateReceiptId(),
         orderId: ''
-      };
-      console.log("Generated new receipt data:", newReceiptData);
-      setReceiptData(newReceiptData);
+      });
     }
     
     // Afficher la boîte de dialogue du reçu

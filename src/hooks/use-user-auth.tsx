@@ -19,7 +19,6 @@ export const useUserAuth = () => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.id);
         if (session && session.user) {
           setIsLoggedIn(true);
           
@@ -31,10 +30,11 @@ export const useUserAuth = () => {
               .single();
             
             if (error) {
-              console.error("Erreur lors de la récupération des données utilisateur:", error);
+              if (error.code !== 'PGRST116') {
+                console.error("Erreur lors de la récupération des données utilisateur:", error);
+              }
               
-              const fullName = session.user.user_metadata?.name || "";
-              const phone = session.user.user_metadata?.phone || "";
+              const fullName = session.user.user_metadata?.full_name || "";
               
               // Create user record if it doesn't exist
               const { error: insertError } = await supabase
@@ -44,26 +44,19 @@ export const useUserAuth = () => {
                     id: session.user.id,
                     email: session.user.email,
                     name: fullName || "Utilisateur",
-                    phone: phone,
+                    phone: session.user.user_metadata?.phone || "",
                   }
                 ]);
                 
               if (insertError) {
                 console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
-                toast({
-                  title: "Erreur",
-                  description: "Impossible d'enregistrer vos informations dans la base de données.",
-                  variant: "destructive",
-                });
-              } else {
-                console.log("Nouvel utilisateur ajouté à la base de données:", session.user.id);
               }
               
               setUserData({
                 id: session.user.id,
                 email: session.user.email || "",
                 fullName: fullName || "Utilisateur",
-                phoneNumber: phone || "",
+                phoneNumber: session.user.user_metadata?.phone || "",
               });
             } else {
               setUserData({
@@ -78,7 +71,7 @@ export const useUserAuth = () => {
             setUserData({
               id: session.user.id,
               email: session.user.email || "",
-              fullName: session.user.user_metadata?.name || "Utilisateur",
+              fullName: session.user.user_metadata?.full_name || "Utilisateur",
               phoneNumber: session.user.user_metadata?.phone || "",
             });
           }
@@ -92,8 +85,6 @@ export const useUserAuth = () => {
     // Then check for existing session
     const checkCurrentSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("Current session:", session?.user?.id);
-      
       if (session && session.user) {
         setIsLoggedIn(true);
         
@@ -105,10 +96,11 @@ export const useUserAuth = () => {
             .single();
           
           if (error) {
-            console.error("Erreur lors de la récupération des données utilisateur:", error);
+            if (error.code !== 'PGRST116') {
+              console.error("Erreur lors de la récupération des données utilisateur:", error);
+            }
             
-            const fullName = session.user.user_metadata?.name || "";
-            const phone = session.user.user_metadata?.phone || "";
+            const fullName = session.user.user_metadata?.full_name || "";
             
             // Create user record if it doesn't exist
             const { error: insertError } = await supabase
@@ -118,26 +110,19 @@ export const useUserAuth = () => {
                   id: session.user.id,
                   email: session.user.email,
                   name: fullName || "Utilisateur",
-                  phone: phone,
+                  phone: session.user.user_metadata?.phone || "",
                 }
               ]);
               
             if (insertError) {
               console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
-              toast({
-                title: "Erreur",
-                description: "Impossible d'enregistrer vos informations dans la base de données.",
-                variant: "destructive",
-              });
-            } else {
-              console.log("Nouvel utilisateur ajouté à la base de données:", session.user.id);
             }
             
             setUserData({
               id: session.user.id,
               email: session.user.email || "",
               fullName: fullName || "Utilisateur",
-              phoneNumber: phone || "",
+              phoneNumber: session.user.user_metadata?.phone || "",
             });
           } else {
             setUserData({
@@ -152,13 +137,10 @@ export const useUserAuth = () => {
           setUserData({
             id: session.user.id,
             email: session.user.email || "",
-            fullName: session.user.user_metadata?.name || "Utilisateur",
+            fullName: session.user.user_metadata?.full_name || "Utilisateur",
             phoneNumber: session.user.user_metadata?.phone || "",
           });
         }
-      } else {
-        setIsLoggedIn(false);
-        setUserData(null);
       }
     };
 
@@ -170,34 +152,25 @@ export const useUserAuth = () => {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error("Erreur de déconnexion:", error);
-        toast({
-          title: "Erreur",
-          description: "Un problème est survenu lors de la déconnexion.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setIsLoggedIn(false);
-      setUserData(null);
-      
-      toast({
-        title: "Déconnexion réussie",
-        description: "Vous avez été déconnecté de votre compte.",
-      });
-    } catch (err) {
-      console.error("Exception lors de la déconnexion:", err);
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      console.error("Erreur de déconnexion:", error);
       toast({
         title: "Erreur",
-        description: "Un problème inattendu est survenu lors de la déconnexion.",
+        description: "Un problème est survenu lors de la déconnexion.",
         variant: "destructive",
       });
+      return;
     }
+    
+    setIsLoggedIn(false);
+    setUserData(null);
+    
+    toast({
+      title: "Déconnexion réussie",
+      description: "Vous avez été déconnecté de votre compte.",
+    });
   };
 
   return {

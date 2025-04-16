@@ -79,22 +79,6 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
 
         if (userError && userError.code !== 'PGRST116') {
           console.error("Erreur lors de la récupération des données utilisateur:", userError);
-          
-          // Create user record if it doesn't exist
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert([
-              { 
-                id: authData.user.id,
-                email: data.email,
-                name: authData.user.user_metadata?.name || "Utilisateur",
-                phone: authData.user.user_metadata?.phone || "",
-              }
-            ]);
-            
-          if (insertError) {
-            console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
-          }
         }
 
         // Connexion réussie
@@ -107,8 +91,8 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
         onLoginSuccess({
           id: authData.user.id,
           email: authData.user.email,
-          phoneNumber: userData?.phone || authData.user.user_metadata?.phone || "",
-          fullName: userData?.name || authData.user.user_metadata?.name || "Utilisateur"
+          phoneNumber: userData?.phone || "",
+          fullName: userData?.name || "Utilisateur"
         });
       }
     } catch (error: any) {
