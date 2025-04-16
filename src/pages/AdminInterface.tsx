@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,9 +16,10 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 const AdminInterface = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const { isLoggedIn, adminData, isLoading, handleLogout } = useAdminAuth();
+  const { isLoggedIn, isAdmin, adminData, isLoading, handleLogout } = useAdminAuth();
 
   const handleLoginClick = () => {
     setIsLoginDialogOpen(true);
@@ -32,6 +33,18 @@ const AdminInterface = () => {
       description: "Bienvenue dans l'interface d'administration.",
     });
   };
+
+  useEffect(() => {
+    // If user is logged in but not admin, redirect to home and show message
+    if (isLoggedIn && !isAdmin && !isLoading) {
+      toast({
+        title: "Accès refusé",
+        description: "Votre compte n'a pas les droits administrateur nécessaires.",
+        variant: "destructive",
+      });
+      navigate('/');
+    }
+  }, [isLoggedIn, isAdmin, isLoading, navigate, toast]);
 
   if (isLoading) {
     return (
@@ -95,6 +108,46 @@ const AdminInterface = () => {
     );
   }
 
+  if (!isAdmin) {
+    return (
+      <div className="bg-gray-50 min-h-screen">
+        <header className="bg-restaurant-purple text-white p-4 shadow-md">
+          <div className="container mx-auto">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className="bg-white p-2 rounded-md mr-3">
+                  <img 
+                    src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png"
+                    alt="Logo"
+                    className="h-10 w-auto"
+                  />
+                </div>
+                <h1 className="text-2xl font-bold">Interface Administrateur</h1>
+              </div>
+              <Button variant="outline" onClick={() => window.location.href = "/"}>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Retour à l'accueil
+              </Button>
+            </div>
+          </div>
+        </header>
+        
+        <div className="container mx-auto flex flex-col items-center justify-center py-20 px-4">
+          <ShieldAlert className="w-20 h-20 text-restaurant-red mb-6" />
+          <h1 className="text-3xl font-bold mb-3">Accès refusé</h1>
+          <p className="text-gray-600 mb-6 text-center max-w-md">
+            Votre compte n'a pas les permissions d'administrateur nécessaires pour accéder à cette interface.
+          </p>
+          <Button variant="outline" onClick={() => window.location.href = "/"}>
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Retour à l'accueil
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // From here on, we know the user is both logged in and an admin
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-restaurant-purple text-white p-4 shadow-md">

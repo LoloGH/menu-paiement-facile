@@ -18,3 +18,34 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'implicit'
   }
 });
+
+// Check if a user has admin privileges
+export const isAdminUser = async (userId: string | undefined): Promise<boolean> => {
+  if (!userId) return false;
+  
+  try {
+    // Get user email from auth.users (only works server-side, but we'll check on client side as a first layer)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', userId)
+      .single();
+    
+    if (userError || !userData) {
+      console.error("Error fetching user data:", userError);
+      return false;
+    }
+    
+    // List of admin emails - THIS SHOULD BE MOVED TO A DATABASE TABLE IN PRODUCTION
+    const adminEmails = [
+      'admin@example.com', 
+      'admin@axess.com',
+      // Add other admin emails here
+    ];
+    
+    return adminEmails.includes(userData.email);
+  } catch (err) {
+    console.error("Error checking admin status:", err);
+    return false;
+  }
+};

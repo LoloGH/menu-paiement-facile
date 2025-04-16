@@ -1,15 +1,17 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isAdminUser } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface AdminData {
   id: string;
   email: string;
+  isAdmin: boolean;
 }
 
 export const useAdminAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [adminData, setAdminData] = useState<AdminData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -19,15 +21,19 @@ export const useAdminAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session && session.user) {
-          // We'll consider any authenticated user as an admin for now
-          // In a real app, you would check if the user has admin role
+          // Check if the user has admin privileges
+          const adminStatus = await isAdminUser(session.user.id);
+          setIsAdmin(adminStatus);
+          
           setIsLoggedIn(true);
           setAdminData({
             id: session.user.id,
-            email: session.user.email || ""
+            email: session.user.email || "",
+            isAdmin: adminStatus
           });
         } else {
           setIsLoggedIn(false);
+          setIsAdmin(false);
           setAdminData(null);
         }
         setIsLoading(false);
@@ -38,11 +44,15 @@ export const useAdminAuth = () => {
     const checkCurrentSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user) {
-        // Consider any authenticated user as an admin for now
+        // Check if user has admin privileges
+        const adminStatus = await isAdminUser(session.user.id);
+        setIsAdmin(adminStatus);
+        
         setIsLoggedIn(true);
         setAdminData({
           id: session.user.id,
-          email: session.user.email || ""
+          email: session.user.email || "",
+          isAdmin: adminStatus
         });
       }
       setIsLoading(false);
@@ -71,6 +81,7 @@ export const useAdminAuth = () => {
     }
     
     setIsLoggedIn(false);
+    setIsAdmin(false);
     setAdminData(null);
     setIsLoading(false);
     
@@ -82,6 +93,7 @@ export const useAdminAuth = () => {
 
   return {
     isLoggedIn,
+    isAdmin,
     adminData,
     isLoading,
     handleLogout
