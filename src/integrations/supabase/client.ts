@@ -24,12 +24,12 @@ export const isAdminUser = async (userId: string | undefined): Promise<boolean> 
   if (!userId) return false;
   
   try {
-    // Check if the user has the 'admin' role using the RPC function
-    const { data, error } = await supabase
+    // Use type assertion to bypass TypeScript's strict checking for RPC function
+    const { data, error } = await (supabase
       .rpc('has_role', { 
         user_id: userId, 
         required_role: 'admin' 
-      });
+      }) as any);
     
     if (error) {
       console.error("Error checking admin role:", error);

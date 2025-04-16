@@ -11,9 +11,10 @@ export type UserRoleInfo = {
 export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
   try {
     // Appel à une fonction sur mesure via RPC qui récupère tous les utilisateurs admin
-    const { data, error } = await supabase.rpc('get_users_with_role', {
+    // Use type assertion to bypass TypeScript's strict checking
+    const { data, error } = await (supabase.rpc('get_users_with_role', {
       role_name: 'admin'
-    });
+    }) as any);
 
     if (error) {
       console.error("Erreur lors du chargement des administrateurs:", error);
@@ -31,10 +32,11 @@ export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
 export const addAdminRole = async (email: string): Promise<{ success: boolean; message: string }> => {
   try {
     // Appel à une fonction RPC pour ajouter un rôle admin à un utilisateur par email
-    const { data, error } = await supabase.rpc('add_role_to_user_by_email', {
+    // Use type assertion to bypass TypeScript's strict checking
+    const { data, error } = await (supabase.rpc('add_role_to_user_by_email', {
       user_email: email,
       role_name: 'admin'
-    });
+    }) as any);
 
     if (error) {
       return { 
@@ -60,10 +62,11 @@ export const addAdminRole = async (email: string): Promise<{ success: boolean; m
 export const removeAdminRole = async (userId: string): Promise<{ success: boolean; message: string }> => {
   try {
     // Appel à une fonction RPC pour supprimer un rôle
-    const { data, error } = await supabase.rpc('remove_role_from_user', {
+    // Use type assertion to bypass TypeScript's strict checking
+    const { data, error } = await (supabase.rpc('remove_role_from_user', {
       user_id: userId,
       role_name: 'admin'
-    });
+    }) as any);
 
     if (error) {
       return { 
