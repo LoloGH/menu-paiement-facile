@@ -97,23 +97,30 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
   const handleSaveItem = (savedItem: MenuItem) => {
     if (!editingMenu || !editingItem.type) return;
 
+    console.log(`Saving ${editingItem.type} item:`, savedItem);
+
     const itemType = `${editingItem.type}s` as keyof MenuDay;
     const items = [...(editingMenu[itemType] as MenuItem[])];
     const index = items.findIndex((item) => item.id === savedItem.id);
 
     if (index !== -1) {
       items[index] = savedItem;
+      console.log(`Updated existing ${editingItem.type} at index ${index}:`, savedItem);
     } else {
       items.push({
         ...savedItem,
         id: `${editingItem.type}_${Date.now()}`,
       });
+      console.log(`Added new ${editingItem.type}:`, savedItem);
     }
 
-    setEditingMenu({
+    const updatedMenu = {
       ...editingMenu,
       [itemType]: items,
-    });
+    };
+    
+    console.log(`Updated ${itemType} in menu:`, updatedMenu[itemType]);
+    setEditingMenu(updatedMenu);
 
     setEditingItem({ item: null, type: "" });
 
@@ -299,7 +306,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
         )}
       </div>
 
-      {editingItem.item !== null && (
+      {editingItem.type !== "" && (
         <EditItemDialog
           item={editingItem.item}
           type={editingItem.type}

@@ -61,7 +61,11 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
       setAvailableArticles(data);
       
-      if (item?.name) {
+      if (item?.articleId) {
+        // Si l'élément a déjà un articleId, utiliser celui-ci
+        setSelectedArticleId(item.articleId);
+      } else if (item?.name) {
+        // Sinon, essayer de trouver un article correspondant par nom
         const matchingArticle = data.find(article => article.name === item.name);
         if (matchingArticle) {
           setSelectedArticleId(matchingArticle.id);
@@ -73,8 +77,13 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   }, [type, item]);
 
   const handleSave = async () => {
+    console.log("Saving item with articleId:", selectedArticleId);
+    
     const selectedArticle = availableArticles.find(article => article.id === selectedArticleId);
-    if (!selectedArticle) return;
+    if (!selectedArticle) {
+      console.error("No article selected or article not found");
+      return;
+    }
 
     const menuItem: MenuItem = {
       id: item?.id || `${type}_${Date.now()}`,
@@ -82,9 +91,10 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
       price: selectedArticle.price,
       description: selectedArticle.description || '',
       imageUrl: selectedArticle.image_url || '',
-      articleId: selectedArticle.id // Ajouter l'ID de l'article pour la référence
+      articleId: selectedArticle.id
     };
 
+    console.log("Menu item to save:", menuItem);
     onSave(menuItem);
   };
 
