@@ -44,9 +44,10 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
   const [activeMenuTab, setActiveMenuTab] = useState("mainDish");
   const [previewMode, setPreviewMode] = useState(false);
 
-  // Initialize editing menu when menu prop changes
+  // Initialize editing menu immediately when the component mounts or menu changes
   useEffect(() => {
     if (menu) {
+      console.log("Menu changed, initializing editing menu:", menu);
       setEditingMenu({ ...menu });
     }
   }, [menu]);
@@ -78,14 +79,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     );
     setMenus(updatedMenus);
     saveMenusToLocalStorage(updatedMenus);
-    setEditingMenu(null);
-    setPreviewMode(false);
     
-    // Reinitialize editing menu with updated data
-    const updatedMenu = updatedMenus.find(m => m.id === menu.id);
-    if (updatedMenu) {
-      setEditingMenu({ ...updatedMenu });
-    }
+    // Nous gardons editingMenu à jour au lieu de le réinitialiser
+    toast({
+      title: "Menu sauvegardé",
+      description: "Les modifications ont été enregistrées avec succès.",
+    });
   };
 
   const handleUpdateMenuField = (field: string, value: string) => {
@@ -212,6 +211,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     setPreviewMode(!previewMode);
   };
 
+  // Afficher un indicateur de chargement pendant que editingMenu est null
   if (!editingMenu) {
     return (
       <div className="text-center py-10 text-gray-500">
@@ -221,6 +221,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     );
   }
 
+  // Rendu principal une fois que editingMenu est chargé
   return (
     <div className="relative w-full">
       <div className="flex justify-between items-center mb-6">

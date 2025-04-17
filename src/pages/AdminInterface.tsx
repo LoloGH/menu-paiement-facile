@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -103,6 +102,7 @@ const AdminInterface = () => {
   };
 
   const handleSelectMenu = (menuId: string) => {
+    console.log("Changing active menu to:", menuId);
     setActiveMenuId(menuId);
   };
 
@@ -289,7 +289,7 @@ const AdminInterface = () => {
                           <TabsTrigger
                             key={menu.id}
                             value={menu.id}
-                            onClick={() => setActiveMenuId(menu.id)}
+                            onClick={() => handleSelectMenu(menu.id)}
                             className={`${
                               activeMenuId === menu.id
                                 ? "bg-restaurant-purple text-white"
@@ -305,7 +305,7 @@ const AdminInterface = () => {
                   <CardContent className="pt-6">
                     {selectedMenu && (
                       <MenuEditor 
-                        key={activeMenuId} /* Ajout d'une clé unique pour forcer le re-rendu */
+                        key={activeMenuId}
                         menu={selectedMenu}
                         menus={menus}
                         setMenus={setMenus}
