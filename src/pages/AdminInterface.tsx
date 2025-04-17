@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -282,26 +283,29 @@ const AdminInterface = () => {
               <TabsContent value="menus" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <TabsList className="w-full justify-start border-b pb-2">
-                      {menus.map((menu) => (
-                        <TabsTrigger
-                          key={menu.id}
-                          value={menu.id}
-                          onClick={() => setActiveMenuId(menu.id)}
-                          className={`${
-                            activeMenuId === menu.id
-                              ? "bg-restaurant-purple text-white"
-                              : "text-restaurant-purple"
-                          }`}
-                        >
-                          {menu.day}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
+                    <div className="overflow-x-auto">
+                      <TabsList className="w-full justify-start border-b pb-2 flex space-x-2">
+                        {menus.map((menu) => (
+                          <TabsTrigger
+                            key={menu.id}
+                            value={menu.id}
+                            onClick={() => setActiveMenuId(menu.id)}
+                            className={`${
+                              activeMenuId === menu.id
+                                ? "bg-restaurant-purple text-white"
+                                : "text-restaurant-purple"
+                            }`}
+                          >
+                            {menu.day}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </div>
                   </CardHeader>
                   <CardContent className="pt-6">
                     {selectedMenu && (
                       <MenuEditor 
+                        key={activeMenuId} /* Ajout d'une clé unique pour forcer le re-rendu */
                         menu={selectedMenu}
                         menus={menus}
                         setMenus={setMenus}
