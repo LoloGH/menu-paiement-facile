@@ -190,6 +190,8 @@ const AdminInterface = () => {
     );
   }
 
+  const selectedMenu = menus.find(menu => menu.id === activeMenuId);
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-restaurant-purple text-white p-4 shadow-md">
@@ -298,11 +300,13 @@ const AdminInterface = () => {
                     </TabsList>
                   </CardHeader>
                   <CardContent className="pt-6">
-                    {menus.map((menu) => (
-                      <TabsContent key={menu.id} value={menu.id}>
-                        <MenuEditor />
-                      </TabsContent>
-                    ))}
+                    {selectedMenu && (
+                      <MenuEditor 
+                        menu={selectedMenu}
+                        menus={menus}
+                        setMenus={setMenus}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
