@@ -211,6 +211,10 @@ const AdminInterface = () => {
               <h1 className="text-2xl font-bold">Interface Administrateur</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <Link to="/cuisine" className="flex items-center bg-white/20 px-3 py-1 rounded hover:bg-white/30 transition">
+                <UtensilsCrossed className="h-4 w-4 mr-2" />
+                Interface Cuisine
+              </Link>
               <div className="text-sm bg-white/20 px-3 py-1 rounded">
                 Admin: {adminData?.email}
               </div>

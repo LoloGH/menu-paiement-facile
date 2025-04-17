@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { 
   Table, 
@@ -43,6 +43,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Link } from "react-router-dom";
 import { 
   Printer, 
   MoreVertical, 
@@ -53,7 +54,9 @@ import {
   CheckCircle,
   Clock,
   Package,
-  Truck
+  Truck,
+  UtensilsCrossed,
+  Bell
 } from "lucide-react";
 
 interface OrdersTableProps {
@@ -74,6 +77,23 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
 
   useEffect(() => {
     fetchOrders();
+
+    // Subscribe to order changes
+    const channel = supabase
+      .channel('order-status-changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('Order status changed:', payload);
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [searchTerm, filterStatus, filterDate, filterClient]);
 
   const fetchOrders = async () => {
@@ -371,12 +391,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Gestion des commandes</h2>
-        <Button 
-          variant="outline" 
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? "Masquer les filtres" : "Afficher les filtres"}
-        </Button>
+        <div className="flex space-x-2">
+          <Link to="/cuisine">
+            <Button variant="outline" className="flex items-center">
+              <UtensilsCrossed className="h-4 w-4 mr-2" />
+              Interface Cuisine
+            </Button>
+          </Link>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? "Masquer les filtres" : "Afficher les filtres"}
+          </Button>
+        </div>
       </div>
 
       {showFilters && (
@@ -472,7 +500,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
           <TableBody>
             {orders.map((order) => (
               <React.Fragment key={order.id}>
-                <TableRow>
+                <TableRow className={order.payment_status === 'ready' ? 'bg-green-50' : ''}>
                   <TableCell>{order.receipt_id}</TableCell>
                   <TableCell>
                     {order.users ? `${order.users.name || 'Sans nom'} (${order.users.email})` : 'Client anonyme'}
@@ -499,6 +527,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
                           <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'preparing')}>
                             <Package className="h-4 w-4 mr-2 text-blue-500" />
                             En préparation
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ready')}>
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                            Marquer prête
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'delivered')}>
                             <Truck className="h-4 w-4 mr-2 text-indigo-500" />
