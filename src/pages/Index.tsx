@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
-import { weeklyMenu } from '@/data/menuData';
+import { weeklyMenu as defaultWeeklyMenu, DayMenu } from '@/data/menuData';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { CalendarCheck, ShoppingCart } from "lucide-react";
@@ -13,25 +13,126 @@ import { UserHeader } from '@/components/user-header/UserHeader';
 
 const Index = () => {
   const [activeDay, setActiveDay] = useState("");
+  const [menus, setMenus] = useState<DayMenu[]>(defaultWeeklyMenu);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    // Charger les menus depuis le localStorage s'ils sont disponibles
+    const loadMenus = () => {
+      try {
+        const savedMenus = localStorage.getItem('weeklyMenu');
+        if (savedMenus) {
+          // Convertir les menus enregistrés au format attendu par l'application
+          const adminMenus = JSON.parse(savedMenus);
+          const convertedMenus = convertAdminMenusToAppFormat(adminMenus);
+          
+          if (convertedMenus && convertedMenus.length > 0) {
+            console.log("Menus chargés depuis localStorage:", convertedMenus);
+            setMenus(convertedMenus);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des menus:", error);
+      }
+    };
+
+    loadMenus();
+
+    // Écouter les événements de mise à jour des menus
+    const handleMenuUpdate = (event: CustomEvent) => {
+      console.log("Événement de mise à jour des menus détecté");
+      loadMenus();
+    };
+
+    window.addEventListener('menu-updated', handleMenuUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('menu-updated', handleMenuUpdate as EventListener);
+    };
+  }, []);
+
+  // Convertir les données de menu du format admin au format de l'application
+  const convertAdminMenusToAppFormat = (adminMenus: any[]): DayMenu[] => {
+    if (!adminMenus || !Array.isArray(adminMenus)) return defaultWeeklyMenu;
+
+    return adminMenus.map(adminMenu => {
+      // Créer les options de repas à partir des plats disponibles
+      const mealOptions = [];
+      
+      // Pour chaque plat principal, créer une option avec un accompagnement et un dessert
+      for (const mainDish of adminMenu.mainDishes) {
+        // Prendre le premier accompagnement et dessert disponibles ou utiliser des valeurs par défaut
+        const sideDish = adminMenu.sideDishes[0] || { 
+          id: `default_side_${Date.now()}`,
+          name: "Accompagnement standard",
+          price: 0,
+          description: "Accompagnement du jour"
+        };
+        
+        const dessert = adminMenu.desserts[0] || {
+          id: `default_dessert_${Date.now()}`,
+          name: "Dessert standard",
+          price: 0,
+          description: "Dessert du jour"
+        };
+        
+        // Calculer le prix total
+        const totalPrice = (mainDish.price || 0) + (sideDish.price || 0) + (dessert.price || 0);
+        
+        // Créer l'option de repas
+        mealOptions.push({
+          id: `option_${mainDish.id}`,
+          mainDish: {
+            id: mainDish.id,
+            name: mainDish.name,
+            description: mainDish.description || "",
+            price: mainDish.price || 0,
+            image: mainDish.imageUrl || "/placeholder.svg"
+          },
+          sideDish: {
+            id: sideDish.id,
+            name: sideDish.name,
+            description: sideDish.description || "",
+            price: sideDish.price || 0,
+            image: sideDish.imageUrl || "/placeholder.svg"
+          },
+          dessert: {
+            id: dessert.id,
+            name: dessert.name,
+            description: dessert.description || "",
+            price: dessert.price || 0,
+            image: dessert.imageUrl || "/placeholder.svg"
+          },
+          totalPrice
+        });
+      }
+      
+      return {
+        id: adminMenu.id,
+        day: adminMenu.day,
+        date: adminMenu.date || "",
+        mealOptions
+      };
+    });
+  };
 
   useEffect(() => {
     const getCurrentDay = () => {
       const daysOfWeek = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
       const currentDayName = daysOfWeek[new Date().getDay()];
       
-      const todayMenu = weeklyMenu.find(menu => menu.day.includes(currentDayName));
+      const todayMenu = menus.find(menu => menu.day.includes(currentDayName));
       
       if (todayMenu) {
         setActiveDay(todayMenu.id);
       } else {
-        setActiveDay(weeklyMenu[0].id);
+        setActiveDay(menus[0]?.id || "");
       }
     };
     
     getCurrentDay();
-  }, []);
+  }, [menus]);
 
   const handleWeeklyPayment = () => {
     toast({
@@ -95,13 +196,13 @@ const Index = () => {
         {activeDay && (
           <>
             <WeekNavigation 
-              menus={weeklyMenu} 
+              menus={menus} 
               activeDay={activeDay} 
               setActiveDay={setActiveDay} 
             />
 
             <div className="animate-fade-in">
-              {weeklyMenu.map((menu) => (
+              {menus.map((menu) => (
                 <div 
                   key={menu.id} 
                   className={`transition-all duration-500 ${
