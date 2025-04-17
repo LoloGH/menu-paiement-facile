@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,8 +8,6 @@ import { UserTable } from "@/components/admin/UserTable";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
-import { MenuEditorSidebar } from "@/components/admin/menu-editor/MenuEditorSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
 import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -29,7 +26,6 @@ const AdminInterface = () => {
   const [activeMenuId, setActiveMenuId] = useState("");
 
   useEffect(() => {
-    // Load menus on component mount
     loadMenus();
   }, []);
 
@@ -39,7 +35,6 @@ const AdminInterface = () => {
       try {
         const parsedMenus = JSON.parse(savedMenus);
         setMenus(parsedMenus);
-        // Set first menu as active if available
         if (parsedMenus.length > 0) {
           setActiveMenuId(parsedMenus[0].id);
         }
@@ -53,7 +48,6 @@ const AdminInterface = () => {
   };
 
   const convertAndSetMenus = () => {
-    // Convert weeklyMenu data to MenuDay format
     const convertedMenus = weeklyMenu.map((menu) => {
       const mainDishes: any[] = [];
       const sideDishes: any[] = [];
@@ -102,7 +96,6 @@ const AdminInterface = () => {
     });
 
     setMenus(convertedMenus);
-    // Set first menu as active if available
     if (convertedMenus.length > 0) {
       setActiveMenuId(convertedMenus[0].id);
     }
@@ -118,7 +111,6 @@ const AdminInterface = () => {
 
   const handleLoginSuccess = (user: any) => {
     setIsLoginDialogOpen(false);
-    
     toast({
       title: "Connexion administrateur réussie",
       description: "Bienvenue dans l'interface d'administration.",
@@ -144,7 +136,7 @@ const AdminInterface = () => {
     );
   }
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn || !isAdmin) {
     return (
       <div className="bg-gray-50 min-h-screen">
         <header className="bg-restaurant-purple text-white p-4 shadow-md">
@@ -194,45 +186,6 @@ const AdminInterface = () => {
           onClose={() => setIsLoginDialogOpen(false)}
           onLoginSuccess={handleLoginSuccess}
         />
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="bg-gray-50 min-h-screen">
-        <header className="bg-restaurant-purple text-white p-4 shadow-md">
-          <div className="container mx-auto">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <div className="bg-white p-2 rounded-md mr-3">
-                  <img 
-                    src="/lovable-uploads/5936ebd2-a679-4024-b0c9-40785b7dcf47.png"
-                    alt="Logo"
-                    className="h-10 w-auto"
-                  />
-                </div>
-                <h1 className="text-2xl font-bold">Interface Administrateur</h1>
-              </div>
-              <Button variant="outline" onClick={() => window.location.href = "/"}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Retour à l'accueil
-              </Button>
-            </div>
-          </div>
-        </header>
-        
-        <div className="container mx-auto flex flex-col items-center justify-center py-20 px-4">
-          <ShieldAlert className="w-20 h-20 text-restaurant-red mb-6" />
-          <h1 className="text-3xl font-bold mb-3">Accès refusé</h1>
-          <p className="text-gray-600 mb-6 text-center max-w-md">
-            Votre compte n'a pas les permissions d'administrateur nécessaires pour accéder à cette interface.
-          </p>
-          <Button variant="outline" onClick={() => window.location.href = "/"}>
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Retour à l'accueil
-          </Button>
-        </div>
       </div>
     );
   }
@@ -325,18 +278,33 @@ const AdminInterface = () => {
               </TabsContent>
               
               <TabsContent value="menus" className="space-y-4">
-                <SidebarProvider>
-                  <div className="flex min-h-[calc(100vh-20rem)] w-full bg-background rounded-lg border">
-                    <MenuEditorSidebar 
-                      menus={menus} 
-                      activeMenuId={activeMenuId} 
-                      onSelectMenu={handleSelectMenu} 
-                    />
-                    <div className="flex-1">
-                      <MenuEditor />
-                    </div>
-                  </div>
-                </SidebarProvider>
+                <Card>
+                  <CardHeader>
+                    <TabsList className="w-full justify-start border-b pb-2">
+                      {menus.map((menu) => (
+                        <TabsTrigger
+                          key={menu.id}
+                          value={menu.id}
+                          onClick={() => setActiveMenuId(menu.id)}
+                          className={`${
+                            activeMenuId === menu.id
+                              ? "bg-restaurant-purple text-white"
+                              : "text-restaurant-purple"
+                          }`}
+                        >
+                          {menu.day}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    {menus.map((menu) => (
+                      <TabsContent key={menu.id} value={menu.id}>
+                        <MenuEditor />
+                      </TabsContent>
+                    ))}
+                  </CardContent>
+                </Card>
               </TabsContent>
               
               <TabsContent value="admins" className="space-y-4">
