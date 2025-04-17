@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +9,7 @@ import { OrdersTable } from "@/components/admin/OrdersTable";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
 import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
-import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users } from "lucide-react";
+import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -254,10 +253,14 @@ const AdminInterface = () => {
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
-              <TabsList className="grid grid-cols-5 gap-4">
+              <TabsList className="grid grid-cols-6 gap-4">
                 <TabsTrigger value="users">Utilisateurs</TabsTrigger>
                 <TabsTrigger value="orders">Commandes</TabsTrigger>
                 <TabsTrigger value="order-items">Articles commandés</TabsTrigger>
+                <TabsTrigger value="articles">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Articles
+                </TabsTrigger>
                 <TabsTrigger value="menus">
                   <UtensilsCrossed className="h-4 w-4 mr-2" />
                   Menus
@@ -279,6 +282,10 @@ const AdminInterface = () => {
               
               <TabsContent value="order-items" className="space-y-4">
                 <OrderItemsTable searchTerm={searchTerm} />
+              </TabsContent>
+              
+              <TabsContent value="articles" className="space-y-4">
+                <ArticlesManager />
               </TabsContent>
               
               <TabsContent value="menus" className="space-y-4">

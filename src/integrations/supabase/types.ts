@@ -9,6 +9,68 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      articles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          type: Database["public"]["Enums"]["article_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          type: Database["public"]["Enums"]["article_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          type?: Database["public"]["Enums"]["article_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      menu_articles: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          id: string
+          menu_day: string
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          id?: string
+          menu_day: string
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          id?: string
+          menu_day?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_articles_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -163,6 +225,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      article_type: "main_dish" | "side_dish" | "dessert" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -279,6 +342,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      article_type: ["main_dish", "side_dish", "dessert", "other"],
     },
   },
 } as const
