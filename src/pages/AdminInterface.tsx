@@ -235,7 +235,14 @@ const AdminInterface = () => {
               </TabsContent>
               
               <TabsContent value="menus" className="space-y-4">
-                <MenuEditor />
+                <SidebarProvider>
+                  <div className="flex min-h-[calc(100vh-20rem)] w-full bg-background rounded-lg border">
+                    <MenuEditorSidebar />
+                    <div className="flex-1">
+                      <MenuEditor />
+                    </div>
+                  </div>
+                </SidebarProvider>
               </TabsContent>
               
               <TabsContent value="admins" className="space-y-4">
