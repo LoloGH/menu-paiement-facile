@@ -8,9 +8,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { weeklyMenu } from "@/data/menuData";
 import {
   Save,
@@ -232,76 +230,78 @@ export const MenuEditor = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
-        <MenuEditorSidebar 
-          menus={menus}
-          activeMenuId={editingMenu?.id || ''}
-          onSelectMenu={handleSelectMenu}
-        />
-        
-        <div className="flex-1 p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold flex items-center">
-              <Utensils className="h-6 w-6 mr-2 text-restaurant-purple" />
-              Gestion des Menus
-            </h2>
-            <Button 
-              variant="outline" 
-              onClick={() => setConfirmResetOpen(true)}
-              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-            >
-              <AlertCircle className="h-4 w-4 mr-2" />
-              Réinitialiser aux valeurs par défaut
-            </Button>
-          </div>
-
-          {editingMenu ? (
-            <div className="space-y-6">
-              {/* Main editing interface */}
-              <div className="grid gap-6">
-                <MenuItemsTable
-                  items={editingMenu.mainDishes}
-                  type="mainDish"
-                  title="Plats principaux"
-                  icon={<Utensils className="h-5 w-5 text-restaurant-purple" />}
-                  onEdit={(item) => setEditingItem({ item, type: "mainDish" })}
-                  onDelete={(id) => handleDeleteItem(id, "mainDish")}
-                  onAdd={() => setEditingItem({ item: null, type: "mainDish" })}
-                  isEditing={true}
-                />
-                
-                <MenuItemsTable
-                  items={editingMenu.sideDishes}
-                  type="sideDish"
-                  title="Accompagnements"
-                  icon={<Coffee className="h-5 w-5 text-restaurant-terracotta" />}
-                  onEdit={(item) => setEditingItem({ item, type: "sideDish" })}
-                  onDelete={(id) => handleDeleteItem(id, "sideDish")}
-                  onAdd={() => setEditingItem({ item: null, type: "sideDish" })}
-                  isEditing={true}
-                />
-                
-                <MenuItemsTable
-                  items={editingMenu.desserts}
-                  type="dessert"
-                  title="Desserts"
-                  icon={<IceCream className="h-5 w-5 text-restaurant-red" />}
-                  onEdit={(item) => setEditingItem({ item, type: "dessert" })}
-                  onDelete={(id) => handleDeleteItem(id, "dessert")}
-                  onAdd={() => setEditingItem({ item: null, type: "dessert" })}
-                  isEditing={true}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-lg">Sélectionnez un jour dans le menu latéral pour commencer l'édition</p>
-            </div>
-          )}
-        </div>
+    <div className="relative w-full">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold flex items-center">
+          <Utensils className="h-6 w-6 mr-2 text-restaurant-purple" />
+          Gestion des Menus
+        </h2>
+        <Button 
+          variant="outline" 
+          onClick={resetToDefault}
+          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+        >
+          <AlertCircle className="h-4 w-4 mr-2" />
+          Réinitialiser aux valeurs par défaut
+        </Button>
       </div>
+
+      <SidebarProvider>
+        <div className="flex min-h-[calc(100vh-13rem)] w-full bg-background rounded-lg border">
+          <MenuEditorSidebar 
+            menus={menus}
+            activeMenuId={editingMenu?.id || ''}
+            onSelectMenu={handleSelectMenu}
+          />
+          
+          <div className="flex-1 p-6">
+            {editingMenu ? (
+              <div className="space-y-6">
+                {/* Main editing interface */}
+                <div className="grid gap-6">
+                  <MenuItemsTable
+                    items={editingMenu.mainDishes}
+                    type="mainDish"
+                    title="Plats principaux"
+                    icon={<Utensils className="h-5 w-5 text-restaurant-purple" />}
+                    onEdit={(item) => setEditingItem({ item, type: "mainDish" })}
+                    onDelete={(id) => handleDeleteItem(id, "mainDish")}
+                    onAdd={() => setEditingItem({ item: null, type: "mainDish" })}
+                    isEditing={true}
+                  />
+                  
+                  <MenuItemsTable
+                    items={editingMenu.sideDishes}
+                    type="sideDish"
+                    title="Accompagnements"
+                    icon={<Coffee className="h-5 w-5 text-restaurant-terracotta" />}
+                    onEdit={(item) => setEditingItem({ item, type: "sideDish" })}
+                    onDelete={(id) => handleDeleteItem(id, "sideDish")}
+                    onAdd={() => setEditingItem({ item: null, type: "sideDish" })}
+                    isEditing={true}
+                  />
+                  
+                  <MenuItemsTable
+                    items={editingMenu.desserts}
+                    type="dessert"
+                    title="Desserts"
+                    icon={<IceCream className="h-5 w-5 text-restaurant-red" />}
+                    onEdit={(item) => setEditingItem({ item, type: "dessert" })}
+                    onDelete={(id) => handleDeleteItem(id, "dessert")}
+                    onAdd={() => setEditingItem({ item: null, type: "dessert" })}
+                    isEditing={true}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-10 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg">Sélectionnez un jour dans le menu latéral pour commencer l'édition</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </SidebarProvider>
 
       {editingItem.item !== null && (
         <EditItemDialog
@@ -334,6 +334,6 @@ export const MenuEditor = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </div>
   );
 };
