@@ -35,7 +35,6 @@ const AdminInterface = () => {
   };
 
   useEffect(() => {
-    // If user is logged in but not admin, redirect to home and show message
     if (isLoggedIn && !isAdmin && !isLoading) {
       toast({
         title: "Accès refusé",
@@ -147,7 +146,6 @@ const AdminInterface = () => {
     );
   }
 
-  // From here on, we know the user is both logged in and an admin
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-restaurant-purple text-white p-4 shadow-md">
