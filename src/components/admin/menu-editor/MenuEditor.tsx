@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -28,6 +27,8 @@ import { MenuDay, MenuItem } from "./types";
 import { EditItemDialog } from "./EditItemDialog";
 import { MenuPreview } from "./MenuPreview";
 import { MenuItemsTable } from "./MenuItemsTable";
+import { MenuEditorSidebar } from "./MenuEditorSidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 export const MenuEditor = () => {
   const { toast } = useToast();
@@ -136,6 +137,15 @@ export const MenuEditor = () => {
     }
   };
 
+  const handleSelectMenu = (menuId: string) => {
+    const selectedMenu = menus.find(menu => menu.id === menuId);
+    if (selectedMenu) {
+      setEditingMenu(selectedMenu);
+      setActiveMenuTab("mainDish");
+      setPreviewMode(false);
+    }
+  };
+
   const handleSaveMenu = () => {
     if (!editingMenu) return;
     const updatedMenus = menus.map((menu) =>
@@ -144,18 +154,6 @@ export const MenuEditor = () => {
     setMenus(updatedMenus);
     saveMenusToLocalStorage(updatedMenus);
     setEditingMenu(null);
-    setPreviewMode(false);
-  };
-
-  const handleEditMenu = (menu: MenuDay) => {
-    setEditingMenu({ ...menu });
-    setActiveMenuTab("mainDish");
-    setPreviewMode(false);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingMenu(null);
-    setEditingItem({ item: null, type: "" });
     setPreviewMode(false);
   };
 
@@ -234,20 +232,75 @@ export const MenuEditor = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold flex items-center">
-          <Utensils className="h-6 w-6 mr-2 text-restaurant-purple" />
-          Gestion des Menus
-        </h2>
-        <Button
-          variant="outline"
-          onClick={resetToDefault}
-          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-        >
-          <AlertCircle className="h-4 w-4 mr-2" />
-          Réinitialiser aux valeurs par défaut
-        </Button>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <MenuEditorSidebar 
+          menus={menus}
+          activeMenuId={editingMenu?.id || ''}
+          onSelectMenu={handleSelectMenu}
+        />
+        
+        <div className="flex-1 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold flex items-center">
+              <Utensils className="h-6 w-6 mr-2 text-restaurant-purple" />
+              Gestion des Menus
+            </h2>
+            <Button 
+              variant="outline" 
+              onClick={() => setConfirmResetOpen(true)}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Réinitialiser aux valeurs par défaut
+            </Button>
+          </div>
+
+          {editingMenu ? (
+            <div className="space-y-6">
+              {/* Main editing interface */}
+              <div className="grid gap-6">
+                <MenuItemsTable
+                  items={editingMenu.mainDishes}
+                  type="mainDish"
+                  title="Plats principaux"
+                  icon={<Utensils className="h-5 w-5 text-restaurant-purple" />}
+                  onEdit={(item) => setEditingItem({ item, type: "mainDish" })}
+                  onDelete={(id) => handleDeleteItem(id, "mainDish")}
+                  onAdd={() => setEditingItem({ item: null, type: "mainDish" })}
+                  isEditing={true}
+                />
+                
+                <MenuItemsTable
+                  items={editingMenu.sideDishes}
+                  type="sideDish"
+                  title="Accompagnements"
+                  icon={<Coffee className="h-5 w-5 text-restaurant-terracotta" />}
+                  onEdit={(item) => setEditingItem({ item, type: "sideDish" })}
+                  onDelete={(id) => handleDeleteItem(id, "sideDish")}
+                  onAdd={() => setEditingItem({ item: null, type: "sideDish" })}
+                  isEditing={true}
+                />
+                
+                <MenuItemsTable
+                  items={editingMenu.desserts}
+                  type="dessert"
+                  title="Desserts"
+                  icon={<IceCream className="h-5 w-5 text-restaurant-red" />}
+                  onEdit={(item) => setEditingItem({ item, type: "dessert" })}
+                  onDelete={(id) => handleDeleteItem(id, "dessert")}
+                  onAdd={() => setEditingItem({ item: null, type: "dessert" })}
+                  isEditing={true}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-gray-500">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-lg">Sélectionnez un jour dans le menu latéral pour commencer l'édition</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {editingItem.item !== null && (
@@ -281,203 +334,6 @@ export const MenuEditor = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {editingMenu && (
-        <Card className="border-2 border-blue-200 mb-4">
-          <CardHeader className="bg-blue-50 pb-2">
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <CardTitle>
-                  <Input
-                    value={editingMenu.day}
-                    onChange={(e) => handleUpdateMenuField("day", e.target.value)}
-                    className="font-bold text-xl"
-                    placeholder="Jour de la semaine"
-                  />
-                </CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <Input
-                    value={editingMenu.date || ""}
-                    onChange={(e) => handleUpdateMenuField("date", e.target.value)}
-                    className="text-sm"
-                    placeholder="Date (ex: 10 avril)"
-                  />
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={togglePreviewMode}
-                  className="text-purple-600"
-                >
-                  {previewMode ? (
-                    <>
-                      <Edit className="h-4 w-4 mr-1" /> Éditer
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-4 w-4 mr-1" /> Aperçu
-                    </>
-                  )}
-                </Button>
-                <Button variant="outline" onClick={handleCancelEdit} className="text-gray-500">
-                  <X className="h-4 w-4 mr-1" /> Annuler
-                </Button>
-                <Button onClick={handleSaveMenu} className="bg-restaurant-purple">
-                  <Save className="h-4 w-4 mr-1" /> Enregistrer
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {previewMode ? (
-              <div className="p-4">
-                <MenuPreview menu={editingMenu} />
-              </div>
-            ) : (
-              <Tabs value={activeMenuTab} onValueChange={setActiveMenuTab} className="w-full">
-                <TabsList className="w-full bg-gray-100 p-0 rounded-none">
-                  <TabsTrigger
-                    value="mainDish"
-                    className="flex-1 data-[state=active]:bg-restaurant-purple data-[state=active]:text-white"
-                  >
-                    <Utensils className="h-4 w-4 mr-2" />
-                    Plats principaux
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="sideDish"
-                    className="flex-1 data-[state=active]:bg-restaurant-terracotta data-[state=active]:text-white"
-                  >
-                    <Coffee className="h-4 w-4 mr-2" />
-                    Accompagnements
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="dessert"
-                    className="flex-1 data-[state=active]:bg-restaurant-red data-[state=active]:text-white"
-                  >
-                    <IceCream className="h-4 w-4 mr-2" />
-                    Desserts
-                  </TabsTrigger>
-                </TabsList>
-                <div className="p-4">
-                  <TabsContent value="mainDish">
-                    <MenuItemsTable
-                      items={editingMenu.mainDishes}
-                      type="mainDish"
-                      title="Plats principaux"
-                      icon={<Utensils className="h-5 w-5 text-restaurant-purple" />}
-                      onEdit={(item) => setEditingItem({ item, type: "mainDish" })}
-                      onDelete={(id) => handleDeleteItem(id, "mainDish")}
-                      onAdd={() => setEditingItem({ item: null, type: "mainDish" })}
-                      isEditing={true}
-                    />
-                  </TabsContent>
-                  <TabsContent value="sideDish">
-                    <MenuItemsTable
-                      items={editingMenu.sideDishes}
-                      type="sideDish"
-                      title="Accompagnements"
-                      icon={<Coffee className="h-5 w-5 text-restaurant-terracotta" />}
-                      onEdit={(item) => setEditingItem({ item, type: "sideDish" })}
-                      onDelete={(id) => handleDeleteItem(id, "sideDish")}
-                      onAdd={() => setEditingItem({ item: null, type: "sideDish" })}
-                      isEditing={true}
-                    />
-                  </TabsContent>
-                  <TabsContent value="dessert">
-                    <MenuItemsTable
-                      items={editingMenu.desserts}
-                      type="dessert"
-                      title="Desserts"
-                      icon={<IceCream className="h-5 w-5 text-restaurant-red" />}
-                      onEdit={(item) => setEditingItem({ item, type: "dessert" })}
-                      onDelete={(id) => handleDeleteItem(id, "dessert")}
-                      onAdd={() => setEditingItem({ item: null, type: "dessert" })}
-                      isEditing={true}
-                    />
-                  </TabsContent>
-                </div>
-              </Tabs>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-6">
-        {menus.map((menu) => (
-          <Card
-            key={menu.id}
-            className={`overflow-hidden transition-all duration-300 hover:shadow-md ${
-              editingMenu?.id === menu.id ? "border-2 border-blue-400" : ""
-            }`}
-          >
-            <CardHeader className="bg-gray-50 pb-3">
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center">
-                  <Calendar className="h-5 w-5 mr-2 text-restaurant-purple" />
-                  <span>{menu.day}</span>
-                  {menu.date && (
-                    <span className="ml-2 text-sm text-gray-500">({menu.date})</span>
-                  )}
-                </CardTitle>
-                {editingMenu?.id === menu.id ? (
-                  <div className="flex space-x-2">
-                    <Button variant="outline" onClick={handleCancelEdit}>
-                      <X className="h-4 w-4 mr-1" /> Annuler
-                    </Button>
-                    <Button onClick={handleSaveMenu} className="bg-restaurant-purple">
-                      <Save className="h-4 w-4 mr-1" /> Enregistrer
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleEditMenu(menu)}
-                    className="bg-white text-restaurant-purple hover:bg-restaurant-purple hover:text-white transition-colors"
-                  >
-                    <Edit className="h-4 w-4 mr-1" /> Modifier
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 gap-4">
-                <MenuItemsTable
-                  items={menu.mainDishes}
-                  type="mainDish"
-                  title="Plats principaux"
-                  icon={<Utensils className="h-5 w-5 text-restaurant-purple" />}
-                  onEdit={(item) => setEditingItem({ item, type: "mainDish" })}
-                  onDelete={(id) => handleDeleteItem(id, "mainDish")}
-                  onAdd={() => setEditingItem({ item: null, type: "mainDish" })}
-                  isEditing={editingMenu?.id === menu.id}
-                />
-                <MenuItemsTable
-                  items={menu.sideDishes}
-                  type="sideDish"
-                  title="Accompagnements"
-                  icon={<Coffee className="h-5 w-5 text-restaurant-terracotta" />}
-                  onEdit={(item) => setEditingItem({ item, type: "sideDish" })}
-                  onDelete={(id) => handleDeleteItem(id, "sideDish")}
-                  onAdd={() => setEditingItem({ item: null, type: "sideDish" })}
-                  isEditing={editingMenu?.id === menu.id}
-                />
-                <MenuItemsTable
-                  items={menu.desserts}
-                  type="dessert"
-                  title="Desserts"
-                  icon={<IceCream className="h-5 w-5 text-restaurant-red" />}
-                  onEdit={(item) => setEditingItem({ item, type: "dessert" })}
-                  onDelete={(id) => handleDeleteItem(id, "dessert")}
-                  onAdd={() => setEditingItem({ item: null, type: "dessert" })}
-                  isEditing={editingMenu?.id === menu.id}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+    </SidebarProvider>
   );
 };
