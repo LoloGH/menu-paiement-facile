@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -284,11 +285,11 @@ const AdminInterface = () => {
                 <Card>
                   <CardHeader>
                     <div className="overflow-x-auto">
-                      <TabsList className="w-full justify-start border-b pb-2 flex space-x-2">
+                      <div className="w-full justify-start border-b pb-2 flex space-x-2">
                         {menus.map((menu) => (
-                          <TabsTrigger
+                          <Button
                             key={menu.id}
-                            value={menu.id}
+                            variant={activeMenuId === menu.id ? "default" : "outline"}
                             onClick={() => handleSelectMenu(menu.id)}
                             className={`${
                               activeMenuId === menu.id
@@ -297,9 +298,9 @@ const AdminInterface = () => {
                             }`}
                           >
                             {menu.day}
-                          </TabsTrigger>
+                          </Button>
                         ))}
-                      </TabsList>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-6">

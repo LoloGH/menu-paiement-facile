@@ -44,7 +44,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
   const [activeMenuTab, setActiveMenuTab] = useState("mainDish");
   const [previewMode, setPreviewMode] = useState(false);
 
-  // Initialize editing menu immediately when the component mounts or menu changes
+  // Initialiser le menu édité à chaque changement de menu ou au montage du composant
   useEffect(() => {
     if (menu) {
       console.log("Menu changed, initializing editing menu:", menu);
@@ -74,13 +74,15 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
 
   const handleSaveMenu = () => {
     if (!editingMenu) return;
+    
+    console.log("Saving menu:", editingMenu);
+    
     const updatedMenus = menus.map((m) =>
       m.id === editingMenu.id ? editingMenu : m
     );
     setMenus(updatedMenus);
     saveMenusToLocalStorage(updatedMenus);
     
-    // Nous gardons editingMenu à jour au lieu de le réinitialiser
     toast({
       title: "Menu sauvegardé",
       description: "Les modifications ont été enregistrées avec succès.",
