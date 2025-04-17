@@ -39,6 +39,7 @@ interface EditItemDialogProps {
 export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogProps) => {
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
+  const [isOpen, setIsOpen] = useState(true);
   
   useEffect(() => {
     const fetchArticles = async () => {
@@ -74,6 +75,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
     };
 
     fetchArticles();
+    setIsOpen(true);
   }, [type, item]);
 
   const handleSave = async () => {
@@ -96,6 +98,12 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
     console.log("Menu item to save:", menuItem);
     onSave(menuItem);
+    setIsOpen(false);
+  };
+
+  const handleCloseDialog = () => {
+    setIsOpen(false);
+    onClose();
   };
 
   const typeLabel = type === "mainDish" 
@@ -105,7 +113,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
       : "dessert";
 
   return (
-    <Dialog open={true} onOpenChange={() => onClose()}>
+    <Dialog open={isOpen} onOpenChange={handleCloseDialog}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -154,7 +162,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         </div>
 
         <DialogFooter className="sm:justify-end">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleCloseDialog}>
             Annuler
           </Button>
           <Button 
