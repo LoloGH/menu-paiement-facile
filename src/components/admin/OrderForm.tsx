@@ -55,7 +55,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
           name="payment_status"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Statut de paiement</FormLabel>
+              <FormLabel>Statut de la commande</FormLabel>
               <Select 
                 onValueChange={field.onChange} 
                 defaultValue={field.value}
@@ -67,8 +67,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="completed">Complété</SelectItem>
-                  <SelectItem value="failed">Échoué</SelectItem>
+                  <SelectItem value="validated">Validée</SelectItem>
+                  <SelectItem value="preparing">En préparation</SelectItem>
+                  <SelectItem value="delivered">Livrée</SelectItem>
+                  <SelectItem value="completed">Complétée</SelectItem>
+                  <SelectItem value="cancelled">Annulée</SelectItem>
+                  <SelectItem value="failed">Échouée</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
