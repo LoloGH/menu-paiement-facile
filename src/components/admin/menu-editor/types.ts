@@ -5,6 +5,7 @@ export interface MenuItem {
   price: number;
   description?: string;
   imageUrl?: string;
+  articleId?: string; // Add articleId to store reference to article
 }
 
 export interface MenuDay {
