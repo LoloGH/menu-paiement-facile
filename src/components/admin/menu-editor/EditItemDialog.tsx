@@ -1,8 +1,6 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +9,25 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Check } from "lucide-react";
 import { MenuItem } from "./types";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Article {
+  id: string;
+  name: string;
+  price: number;
+  description: string | null;
+  image_url: string | null;
+  type: 'main_dish' | 'side_dish' | 'dessert' | 'other';
+}
 
 interface EditItemDialogProps {
   item: MenuItem | null;
@@ -22,28 +37,54 @@ interface EditItemDialogProps {
 }
 
 export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogProps) => {
-  const [editingItem, setEditingItem] = React.useState<MenuItem>(
-    item || {
-      id: "",
-      name: "",
-      price: 0,
-      description: "",
-      imageUrl: "",
-    }
-  );
+  const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
+  const [selectedArticleId, setSelectedArticleId] = useState<string>("");
+  
+  // Charger les articles disponibles selon le type
+  useEffect(() => {
+    const fetchArticles = async () => {
+      const articleType = type === 'mainDish' 
+        ? 'main_dish' 
+        : type === 'sideDish' 
+          ? 'side_dish' 
+          : 'dessert';
 
-  const handleUpdateField = (field: keyof MenuItem, value: string) => {
-    setEditingItem((prev) => ({
-      ...prev,
-      [field]: field === "price" ? parseFloat(value) || 0 : value,
-    }));
-  };
+      const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('type', articleType)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching articles:', error);
+        return;
+      }
+
+      setAvailableArticles(data);
+      
+      // Si on modifie un item existant, sélectionner l'article correspondant
+      if (item?.name) {
+        const matchingArticle = data.find(article => article.name === item.name);
+        if (matchingArticle) {
+          setSelectedArticleId(matchingArticle.id);
+        }
+      }
+    };
+
+    fetchArticles();
+  }, [type, item]);
 
   const handleSave = () => {
-    if (!editingItem.name || editingItem.price === undefined) {
-      return;
-    }
-    onSave(editingItem);
+    const selectedArticle = availableArticles.find(article => article.id === selectedArticleId);
+    if (!selectedArticle) return;
+
+    onSave({
+      id: item?.id || `${type}_${Date.now()}`,
+      name: selectedArticle.name,
+      price: selectedArticle.price,
+      description: selectedArticle.description || '',
+      imageUrl: selectedArticle.image_url || '',
+    });
   };
 
   const typeLabel = type === "mainDish" 
@@ -60,63 +101,58 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
             {item?.id ? "Modifier" : "Ajouter"} un {typeLabel}
           </DialogTitle>
           <DialogDescription>
-            {item?.id
-              ? "Modifiez les détails de l'élément ci-dessous."
-              : "Remplissez les détails pour ajouter un nouvel élément."}
+            Sélectionnez un article dans la liste des articles disponibles.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Nom <span className="text-red-500">*</span>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Article disponible
             </label>
-            <Input
-              value={editingItem.name}
-              onChange={(e) => handleUpdateField("name", e.target.value)}
-              placeholder={`Nom du ${typeLabel}`}
-            />
+            <Select
+              value={selectedArticleId}
+              onValueChange={setSelectedArticleId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionnez un article" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableArticles.map((article) => (
+                  <SelectItem key={article.id} value={article.id}>
+                    {article.name} - {article.price} FCFA
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Prix (FCFA) <span className="text-red-500">*</span>
-            </label>
-            <Input
-              type="number"
-              value={editingItem.price}
-              onChange={(e) => handleUpdateField("price", e.target.value)}
-              placeholder="Prix en FCFA"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <Textarea
-              value={editingItem.description || ""}
-              onChange={(e) => handleUpdateField("description", e.target.value)}
-              placeholder="Décrivez brièvement ce plat"
-              rows={3}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">URL de l'image</label>
-            <Input
-              value={editingItem.imageUrl || ""}
-              onChange={(e) => handleUpdateField("imageUrl", e.target.value)}
-              placeholder="https://exemple.com/image.jpg"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Laissez vide pour utiliser l'image par défaut.
-            </p>
-          </div>
+
+          {selectedArticleId && (
+            <div className="space-y-2 p-4 bg-gray-50 rounded-md">
+              <h4 className="font-medium">Détails de l'article sélectionné</h4>
+              {availableArticles.find(a => a.id === selectedArticleId)?.description && (
+                <p className="text-sm text-gray-600">
+                  {availableArticles.find(a => a.id === selectedArticleId)?.description}
+                </p>
+              )}
+              <p className="text-sm font-medium">
+                Prix: {availableArticles.find(a => a.id === selectedArticleId)?.price} FCFA
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="sm:justify-end">
           <Button variant="outline" onClick={onClose}>
             Annuler
           </Button>
-          <Button onClick={handleSave} className="bg-restaurant-purple">
+          <Button 
+            onClick={handleSave} 
+            className="bg-restaurant-purple"
+            disabled={!selectedArticleId}
+          >
             <Check className="h-4 w-4 mr-2" />
-            {item?.id ? "Mettre à jour" : "Ajouter"}
+            {item?.id ? 'Mettre à jour' : 'Ajouter'}
           </Button>
         </DialogFooter>
       </DialogContent>
