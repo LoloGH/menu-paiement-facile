@@ -40,7 +40,6 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
   
-  // Charger les articles disponibles selon le type
   useEffect(() => {
     const fetchArticles = async () => {
       const articleType = type === 'mainDish' 
@@ -62,7 +61,6 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
       setAvailableArticles(data);
       
-      // Si on modifie un item existant, sélectionner l'article correspondant
       if (item?.name) {
         const matchingArticle = data.find(article => article.name === item.name);
         if (matchingArticle) {
@@ -74,17 +72,20 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
     fetchArticles();
   }, [type, item]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const selectedArticle = availableArticles.find(article => article.id === selectedArticleId);
     if (!selectedArticle) return;
 
-    onSave({
+    const menuItem: MenuItem = {
       id: item?.id || `${type}_${Date.now()}`,
       name: selectedArticle.name,
       price: selectedArticle.price,
       description: selectedArticle.description || '',
       imageUrl: selectedArticle.image_url || '',
-    });
+      articleId: selectedArticle.id // Ajouter l'ID de l'article pour la référence
+    };
+
+    onSave(menuItem);
   };
 
   const typeLabel = type === "mainDish" 

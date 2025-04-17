@@ -71,6 +71,48 @@ export type Database = {
           },
         ]
       }
+      menu_items: {
+        Row: {
+          article_id: string | null
+          article_type: Database["public"]["Enums"]["article_type"]
+          created_at: string
+          id: string
+          menu_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          article_id?: string | null
+          article_type: Database["public"]["Enums"]["article_type"]
+          created_at?: string
+          id?: string
+          menu_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string | null
+          article_type?: Database["public"]["Enums"]["article_type"]
+          created_at?: string
+          id?: string
+          menu_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -201,6 +243,33 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_menus: {
+        Row: {
+          created_at: string
+          date: string
+          day: Database["public"]["Enums"]["day_of_week"]
+          id: string
+          is_active: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          day: Database["public"]["Enums"]["day_of_week"]
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          day?: Database["public"]["Enums"]["day_of_week"]
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -226,6 +295,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       article_type: "main_dish" | "side_dish" | "dessert" | "other"
+      day_of_week: "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -343,6 +413,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       article_type: ["main_dish", "side_dish", "dessert", "other"],
+      day_of_week: ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"],
     },
   },
 } as const
