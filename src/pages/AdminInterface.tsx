@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +16,8 @@ import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users
 import { useToast } from "@/components/ui/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { MenuDay } from "@/components/admin/menu-editor/types";
+import { weeklyMenu } from "@/data/menuData";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -22,6 +25,92 @@ const AdminInterface = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const { isLoggedIn, isAdmin, adminData, isLoading, handleLogout } = useAdminAuth();
+  const [menus, setMenus] = useState<MenuDay[]>([]);
+  const [activeMenuId, setActiveMenuId] = useState("");
+
+  useEffect(() => {
+    // Load menus on component mount
+    loadMenus();
+  }, []);
+
+  const loadMenus = () => {
+    const savedMenus = localStorage.getItem("weeklyMenu");
+    if (savedMenus) {
+      try {
+        const parsedMenus = JSON.parse(savedMenus);
+        setMenus(parsedMenus);
+        // Set first menu as active if available
+        if (parsedMenus.length > 0) {
+          setActiveMenuId(parsedMenus[0].id);
+        }
+      } catch (error) {
+        console.error("Error loading menus:", error);
+        convertAndSetMenus();
+      }
+    } else {
+      convertAndSetMenus();
+    }
+  };
+
+  const convertAndSetMenus = () => {
+    // Convert weeklyMenu data to MenuDay format
+    const convertedMenus = weeklyMenu.map((menu) => {
+      const mainDishes: any[] = [];
+      const sideDishes: any[] = [];
+      const desserts: any[] = [];
+
+      menu.mealOptions.forEach((option) => {
+        if (option.mainDish && !mainDishes.some((dish) => dish.id === option.mainDish.id)) {
+          mainDishes.push({
+            id: option.mainDish.id,
+            name: option.mainDish.name,
+            price: option.mainDish.price,
+            description: option.mainDish.description,
+            imageUrl: option.mainDish.image,
+          });
+        }
+
+        if (option.sideDish && !sideDishes.some((dish) => dish.id === option.sideDish.id)) {
+          sideDishes.push({
+            id: option.sideDish.id,
+            name: option.sideDish.name,
+            price: option.sideDish.price,
+            description: option.sideDish.description,
+            imageUrl: option.sideDish.image,
+          });
+        }
+
+        if (option.dessert && !desserts.some((dish) => dish.id === option.dessert.id)) {
+          desserts.push({
+            id: option.dessert.id,
+            name: option.dessert.name,
+            price: option.dessert.price,
+            description: option.dessert.description,
+            imageUrl: option.dessert.image,
+          });
+        }
+      });
+
+      return {
+        id: menu.id,
+        day: menu.day,
+        date: menu.date,
+        mainDishes,
+        sideDishes,
+        desserts,
+      };
+    });
+
+    setMenus(convertedMenus);
+    // Set first menu as active if available
+    if (convertedMenus.length > 0) {
+      setActiveMenuId(convertedMenus[0].id);
+    }
+  };
+
+  const handleSelectMenu = (menuId: string) => {
+    setActiveMenuId(menuId);
+  };
 
   const handleLoginClick = () => {
     setIsLoginDialogOpen(true);
@@ -238,7 +327,11 @@ const AdminInterface = () => {
               <TabsContent value="menus" className="space-y-4">
                 <SidebarProvider>
                   <div className="flex min-h-[calc(100vh-20rem)] w-full bg-background rounded-lg border">
-                    <MenuEditorSidebar />
+                    <MenuEditorSidebar 
+                      menus={menus} 
+                      activeMenuId={activeMenuId} 
+                      onSelectMenu={handleSelectMenu} 
+                    />
                     <div className="flex-1">
                       <MenuEditor />
                     </div>
