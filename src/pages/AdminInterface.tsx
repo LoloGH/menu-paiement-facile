@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,9 +9,10 @@ import { UserTable } from "@/components/admin/UserTable";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
+import { ArticlesManager } from "@/components/admin/articles/ArticlesManager";
 import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
 import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { MenuDay } from "@/components/admin/menu-editor/types";
