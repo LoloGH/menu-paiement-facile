@@ -19,6 +19,17 @@ interface PaymentButtonProps {
   };
 }
 
+// Define an interface for the order item to fix TypeScript errors
+interface OrderItem {
+  order_id: string;
+  main_dish: string;
+  price: number;
+  day: string;
+  meal_option_id: string;
+  side_dish?: string;
+  dessert?: string;
+}
+
 export const PaymentButton: React.FC<PaymentButtonProps> = ({ 
   price, 
   label, 
@@ -73,7 +84,8 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
       // Vous pourriez également enregistrer des éléments de commande individuels si nécessaire
       // dans la table order_items
       if (orderData && orderData.id) {
-        const orderItem = {
+        // Create the orderItem with the correct type
+        const orderItem: OrderItem = {
           order_id: orderData.id,
           main_dish: details,
           price: roundedPrice,
