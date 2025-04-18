@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
   orderId
 }) => {
   const { toast } = useToast();
+  const roundedPrice = Math.round(price);
   
   const formatDate = (date: Date): string => {
     return new Intl.DateTimeFormat('fr-FR', {
@@ -38,7 +38,6 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
   };
 
   const handleDownloadTextReceipt = () => {
-    // Create receipt content as text
     const receiptContent = `
 =======================================================
                 REÇU DE COMMANDE
@@ -49,13 +48,12 @@ ${orderId ? `Référence DB: ${orderId}` : ''}
 Date: ${formatDate(date)}
 
 Détails: ${details || 'Menu personnalisé'}
-Montant: ${price.toFixed(0)} FCFA
+Montant: ${roundedPrice} FCFA
 
 Merci pour votre commande !
 =======================================================
     `;
 
-    // Create a blob and download
     const blob = new Blob([receiptContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -73,18 +71,14 @@ Merci pour votre commande !
   };
 
   const handleDownloadPdfReceipt = () => {
-    // Create new PDF document
     const doc = new jsPDF();
     
-    // Set font style
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     doc.setTextColor(128, 0, 128); // Purple color
     
-    // Add title
     doc.text("REÇU DE COMMANDE", 105, 20, { align: "center" });
     
-    // Add logo placeholder
     doc.setDrawColor(200, 200, 200);
     doc.setFillColor(240, 240, 240);
     doc.roundedRect(20, 30, 170, 15, 3, 3, 'FD');
@@ -93,7 +87,6 @@ Merci pour votre commande !
     doc.setTextColor(0, 0, 0);
     doc.text("Menu Paiement Facile", 105, 40, { align: "center" });
     
-    // Add receipt details
     doc.setDrawColor(200, 200, 200);
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(20, 50, 170, 100, 3, 3, 'FD');
@@ -110,17 +103,15 @@ Merci pour votre commande !
     doc.text(`Produit: ${details || 'Menu personnalisé'}`, 40, orderId ? 110 : 100);
     
     doc.setFont("helvetica", "bold");
-    doc.text(`Montant total: ${price.toFixed(0)} FCFA`, 40, orderId ? 130 : 120);
+    doc.text(`Montant total: ${roundedPrice} FCFA`, 40, orderId ? 130 : 120);
     
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);
     doc.text("Merci pour votre commande !", 105, 140, { align: "center" });
     
-    // Add footer
     doc.setFontSize(9);
     doc.text("Ce reçu est une preuve d'achat. Pour toute question, contactez notre service client.", 105, 180, { align: "center" });
     
-    // Save the PDF
     doc.save(`recu-${receiptId}.pdf`);
     
     toast({
@@ -132,7 +123,9 @@ Merci pour votre commande !
   return (
     <Dialog 
       open={isOpen} 
-      onOpenChange={(open) => !open && onClose()}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -165,7 +158,7 @@ Merci pour votre commande !
             </div>
             <div className="flex justify-between font-medium">
               <span className="text-gray-600">Total:</span>
-              <span>{price.toFixed(0)} FCFA</span>
+              <span>{roundedPrice} FCFA</span>
             </div>
           </div>
         </div>

@@ -27,37 +27,37 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   const { toast } = useToast();
 
   const handlePayment = () => {
-    // Generate a receipt ID
     const newReceiptId = generateReceiptId();
     setReceiptId(newReceiptId);
-    
-    // Show the receipt dialog
     setShowReceiptDialog(true);
     
-    // Format details for the payment URL
     const fullDetails = {
       items: details,
       ...(additionalData?.tableNumber && { table: additionalData.tableNumber }),
       ...(additionalData?.clientNote && { note: additionalData.clientNote })
     };
 
-    // Notify user
     toast({
       title: "Reçu disponible",
-      description: "Votre reçu est disponible pour téléchargement. Vous allez être redirigé vers la page de paiement."
+      description: "Votre reçu est disponible pour téléchargement."
     });
+
+    // Préparer l'URL de redirection (ne rediriger que lorsque le client ferme le reçu)
+    const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
+    const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
+    const roundedPrice = Math.round(price);
     
-    // Prepare the redirect URL (delayed to allow user to see the receipt)
-    setTimeout(() => {
-      const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
-      const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
-      
-      window.location.href = `${paymentRedirectUrl}?amount=${price}&details=${encodedDetails}&return_url=${returnUrl}`;
-    }, 500);
+    sessionStorage.setItem('paymentRedirectURL', `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`);
   };
 
   const handleCloseReceipt = () => {
     setShowReceiptDialog(false);
+    // Rediriger vers la page de paiement après la fermeture du reçu
+    const redirectURL = sessionStorage.getItem('paymentRedirectURL');
+    if (redirectURL) {
+      sessionStorage.removeItem('paymentRedirectURL');
+      window.location.href = redirectURL;
+    }
   };
 
   return (
@@ -67,14 +67,14 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors"
       >
         <ShoppingCart className="mr-2 h-5 w-5" />
-        {label}
+        {label} - {Math.round(price)} FCFA
       </Button>
       
       {showReceiptDialog && (
         <PaymentReceiptDialog
           isOpen={showReceiptDialog}
           onClose={handleCloseReceipt}
-          price={price}
+          price={Math.round(price)}
           details={details}
           date={new Date()}
           receiptId={receiptId}
