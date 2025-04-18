@@ -26,16 +26,22 @@ export const useAdminAuth = () => {
           
           // Defer admin check to prevent blocking the UI
           setTimeout(async () => {
-            // Check if the user has admin privileges using the user_roles table
-            const adminStatus = await isAdminUser(session.user.id);
-            setIsAdmin(adminStatus);
-            
-            setAdminData({
-              id: session.user.id,
-              email: session.user.email || "",
-              isAdmin: adminStatus
-            });
-            setIsLoading(false);
+            try {
+              // Check if the user has admin privileges using the user_roles table
+              const adminStatus = await isAdminUser(session.user.id);
+              setIsAdmin(adminStatus);
+              
+              setAdminData({
+                id: session.user.id,
+                email: session.user.email || "",
+                isAdmin: adminStatus
+              });
+            } catch (error) {
+              console.error("Error checking admin status:", error);
+              setIsAdmin(false);
+            } finally {
+              setIsLoading(false);
+            }
           }, 0);
         } else {
           setIsLoggedIn(false);
@@ -48,22 +54,27 @@ export const useAdminAuth = () => {
 
     // Then check for existing session
     const checkCurrentSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user) {
-        // Store user login status immediately
-        setIsLoggedIn(true);
-        
-        // Check if user has admin privileges
-        const adminStatus = await isAdminUser(session.user.id);
-        setIsAdmin(adminStatus);
-        
-        setAdminData({
-          id: session.user.id,
-          email: session.user.email || "",
-          isAdmin: adminStatus
-        });
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+          // Store user login status immediately
+          setIsLoggedIn(true);
+          
+          // Check if user has admin privileges
+          const adminStatus = await isAdminUser(session.user.id);
+          setIsAdmin(adminStatus);
+          
+          setAdminData({
+            id: session.user.id,
+            email: session.user.email || "",
+            isAdmin: adminStatus
+          });
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     checkCurrentSession();
