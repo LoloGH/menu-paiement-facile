@@ -26,6 +26,7 @@ export const MealOption: React.FC<MealOptionProps> = ({
   dessert, 
   basePrice 
 }) => {
+  const [includeMain, setIncludeMain] = useState(true);
   const [includeSide, setIncludeSide] = useState(true);
   const [includeDessert, setIncludeDessert] = useState(true);
   const [tableNumber, setTableNumber] = useState('');
@@ -33,9 +34,10 @@ export const MealOption: React.FC<MealOptionProps> = ({
   const [previewImage, setPreviewImage] = useState<{url: string; name: string} | null>(null);
 
   const calculateTotal = (): number => {
-    let total = basePrice;
-    if (!includeSide) total -= sideDish.price;
-    if (!includeDessert) total -= dessert.price;
+    let total = 0;
+    if (includeMain) total += mainDish.price;
+    if (includeSide) total += sideDish.price;
+    if (includeDessert) total += dessert.price;
     return total;
   };
 
@@ -55,29 +57,44 @@ export const MealOption: React.FC<MealOptionProps> = ({
           <div className="space-y-4">
             {/* Plat Principal */}
             <div className="space-y-2">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-md overflow-hidden relative group">
-                  <img 
-                    src={mainDish.image} 
-                    alt={mainDish.name} 
-                    className="w-full h-full object-cover cursor-pointer"
-                    onClick={() => handlePreviewImage(mainDish.image, mainDish.name)}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`main-${id}`}
+                    checked={includeMain}
+                    onCheckedChange={(checked) => setIncludeMain(checked as boolean)}
                   />
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => handlePreviewImage(mainDish.image, mainDish.name)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <Label htmlFor={`main-${id}`} className="font-serif text-lg font-semibold text-restaurant-purple">
+                    Plat Principal
+                  </Label>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold">Plat Principal</h4>
-                  <p className="text-sm text-muted-foreground">{mainDish.description}</p>
-                  <p className="text-sm font-medium mt-1 text-restaurant-red">{mainDish.price.toFixed(0)} FCFA</p>
-                </div>
+                <span className="text-sm font-medium text-restaurant-red">{mainDish.price.toFixed(0)} FCFA</span>
               </div>
+              
+              {includeMain && (
+                <div className="flex items-center gap-4 pl-6">
+                  <div className="w-16 h-16 rounded-md overflow-hidden relative group">
+                    <img 
+                      src={mainDish.image} 
+                      alt={mainDish.name} 
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => handlePreviewImage(mainDish.image, mainDish.name)}
+                    />
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handlePreviewImage(mainDish.image, mainDish.name)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold">{mainDish.name}</h4>
+                    <p className="text-sm text-muted-foreground">{mainDish.description}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Accompagnement */}
@@ -196,8 +213,8 @@ export const MealOption: React.FC<MealOptionProps> = ({
           </div>
           <PaymentButton 
             price={total} 
-            label="Payez Maintenant" 
-            details={`${mainDish.name}${includeSide ? ` + ${sideDish.name}` : ''}${includeDessert ? ` + ${dessert.name}` : ''}`}
+            label={total > 0 ? "Payez Maintenant" : "Sélectionnez au moins un article"} 
+            details={`${includeMain ? mainDish.name : ''}${includeSide ? ` + ${sideDish.name}` : ''}${includeDessert ? ` + ${dessert.name}` : ''}`}
             additionalData={{
               tableNumber,
               clientNote,
