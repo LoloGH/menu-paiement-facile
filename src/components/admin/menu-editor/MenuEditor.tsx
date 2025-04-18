@@ -95,7 +95,10 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
   };
 
   const handleSaveItem = (savedItem: MenuItem) => {
-    if (!editingMenu || !editingItem.type) return;
+    if (!editingMenu || !editingItem.type) {
+      console.error("Missing editingMenu or editingItem.type");
+      return;
+    }
 
     console.log(`Saving ${editingItem.type} item:`, savedItem);
 
@@ -109,7 +112,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     } else {
       items.push({
         ...savedItem,
-        id: `${editingItem.type}_${Date.now()}`,
+        id: savedItem.id || `${editingItem.type}_${Date.now()}`,
       });
       console.log(`Added new ${editingItem.type}:`, savedItem);
     }

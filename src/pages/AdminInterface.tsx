@@ -11,7 +11,7 @@ import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
 import { ArticlesManager } from "@/components/admin/articles/ArticlesManager";
 import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
-import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText } from "lucide-react";
+import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -26,18 +26,37 @@ const AdminInterface = () => {
   const { isLoggedIn, isAdmin, adminData, isLoading, handleLogout } = useAdminAuth();
   const [menus, setMenus] = useState<MenuDay[]>([]);
   const [activeMenuId, setActiveMenuId] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     loadMenus();
+    
+    // Écouter les événements de mise à jour du menu
+    const handleMenuUpdated = (event: CustomEvent) => {
+      console.log("Menu updated event received:", event.detail);
+      if (event.detail) {
+        setMenus(event.detail);
+      } else {
+        loadMenus();
+      }
+    };
+    
+    window.addEventListener('menu-updated', handleMenuUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('menu-updated', handleMenuUpdated as EventListener);
+    };
   }, []);
 
   const loadMenus = () => {
+    console.log("Loading menus from storage or default...");
     const savedMenus = localStorage.getItem("weeklyMenu");
     if (savedMenus) {
       try {
         const parsedMenus = JSON.parse(savedMenus);
+        console.log("Loaded menus from localStorage:", parsedMenus);
         setMenus(parsedMenus);
-        if (parsedMenus.length > 0) {
+        if (parsedMenus.length > 0 && !activeMenuId) {
           setActiveMenuId(parsedMenus[0].id);
         }
       } catch (error) {
@@ -45,11 +64,13 @@ const AdminInterface = () => {
         convertAndSetMenus();
       }
     } else {
+      console.log("No menus in localStorage, loading defaults");
       convertAndSetMenus();
     }
   };
 
   const convertAndSetMenus = () => {
+    console.log("Converting default menus...");
     const convertedMenus = weeklyMenu.map((menu) => {
       const mainDishes: any[] = [];
       const sideDishes: any[] = [];
@@ -97,15 +118,31 @@ const AdminInterface = () => {
       };
     });
 
+    console.log("Converted menus:", convertedMenus);
     setMenus(convertedMenus);
     if (convertedMenus.length > 0) {
       setActiveMenuId(convertedMenus[0].id);
     }
+    
+    // Sauvegarder dans le localStorage
+    localStorage.setItem("weeklyMenu", JSON.stringify(convertedMenus));
   };
 
   const handleSelectMenu = (menuId: string) => {
     console.log("Changing active menu to:", menuId);
     setActiveMenuId(menuId);
+  };
+
+  const handleRefreshMenus = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      loadMenus();
+      setIsRefreshing(false);
+      toast({
+        title: "Menus actualisés",
+        description: "Les menus ont été rechargés avec succès.",
+      });
+    }, 500);
   };
 
   const handleLoginClick = () => {
@@ -297,6 +334,18 @@ const AdminInterface = () => {
               <TabsContent value="menus" className="space-y-4">
                 <Card>
                   <CardHeader>
+                    <div className="flex justify-between items-center mb-3">
+                      <CardTitle>Gestion des Menus Hebdomadaires</CardTitle>
+                      <Button
+                        variant="outline"
+                        onClick={handleRefreshMenus}
+                        className="flex items-center"
+                        disabled={isRefreshing}
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Actualiser
+                      </Button>
+                    </div>
                     <div className="overflow-x-auto">
                       <div className="w-full justify-start border-b pb-2 flex space-x-2">
                         {menus.map((menu) => (

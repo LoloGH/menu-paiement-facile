@@ -40,9 +40,12 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
   const [isOpen, setIsOpen] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     const fetchArticles = async () => {
+      setIsLoading(true);
+      
       const articleType = type === 'mainDish' 
         ? 'main_dish' 
         : type === 'sideDish' 
@@ -57,21 +60,27 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
       if (error) {
         console.error('Error fetching articles:', error);
+        setIsLoading(false);
         return;
       }
 
+      console.log('Fetched articles:', data);
       setAvailableArticles(data);
       
+      // Si l'élément a déjà un articleId, utiliser celui-ci
       if (item?.articleId) {
-        // Si l'élément a déjà un articleId, utiliser celui-ci
+        console.log('Setting selected article ID from item:', item.articleId);
         setSelectedArticleId(item.articleId);
       } else if (item?.name) {
         // Sinon, essayer de trouver un article correspondant par nom
         const matchingArticle = data.find(article => article.name === item.name);
         if (matchingArticle) {
+          console.log('Found matching article by name:', matchingArticle.id);
           setSelectedArticleId(matchingArticle.id);
         }
       }
+      
+      setIsLoading(false);
     };
 
     fetchArticles();
@@ -125,26 +134,32 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Article disponible
-            </label>
-            <Select
-              value={selectedArticleId}
-              onValueChange={setSelectedArticleId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionnez un article" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableArticles.map((article) => (
-                  <SelectItem key={article.id} value={article.id}>
-                    {article.name} - {article.price} FCFA
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isLoading ? (
+            <div className="flex justify-center py-4">
+              <div className="w-6 h-6 border-2 border-restaurant-purple border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Article disponible
+              </label>
+              <Select
+                value={selectedArticleId}
+                onValueChange={setSelectedArticleId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionnez un article" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableArticles.map((article) => (
+                    <SelectItem key={article.id} value={article.id}>
+                      {article.name} - {article.price} FCFA
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {selectedArticleId && (
             <div className="space-y-2 p-4 bg-gray-50 rounded-md">
@@ -168,7 +183,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
           <Button 
             onClick={handleSave} 
             className="bg-restaurant-purple"
-            disabled={!selectedArticleId}
+            disabled={!selectedArticleId || isLoading}
           >
             <Check className="h-4 w-4 mr-2" />
             {item?.id ? 'Mettre à jour' : 'Ajouter'}
