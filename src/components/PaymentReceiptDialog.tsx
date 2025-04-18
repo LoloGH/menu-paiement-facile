@@ -16,7 +16,7 @@ interface PaymentReceiptDialogProps {
   orderId?: string;
   tableNumber?: string;
   clientNote?: string;
-  clientName?: string;  // Added clientName prop
+  clientName?: string;
 }
 
 export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
@@ -186,6 +186,12 @@ Merci pour votre commande !
               <span className="text-gray-600">Date:</span>
               <span>{formatDate(date)}</span>
             </div>
+            {clientName && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Client:</span>
+                <span>{clientName}</span>
+              </div>
+            )}
             {tableNumber && (
               <div className="flex justify-between">
                 <span className="text-gray-600">N° de Table:</span>

@@ -7,6 +7,7 @@ import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
 import { PaymentLoginDialog } from '@/components/PaymentLoginDialog';
 import { useToast } from "@/hooks/use-toast";
 import { useUserAuth } from '@/hooks/use-user-auth';
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentButtonProps {
   price: number;
@@ -40,6 +41,70 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     proceedWithPayment();
   };
 
+  const saveOrderToDatabase = async (receiptId: string, fullDetails: any) => {
+    if (!isLoggedIn || !userData) {
+      console.log("Non connecté, commande non enregistrée");
+      return;
+    }
+
+    try {
+      console.log("Enregistrement de la commande dans la base de données");
+      
+      // Enregistrer la commande principale
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          receipt_id: receiptId,
+          user_id: userData.id,
+          total_amount: roundedPrice,
+          details: JSON.stringify(fullDetails),
+          payment_status: 'pending'
+        })
+        .select('id')
+        .single();
+      
+      if (orderError) {
+        console.error("Erreur lors de l'enregistrement de la commande:", orderError);
+        return;
+      }
+      
+      console.log("Commande enregistrée avec succès:", orderData);
+      
+      // Vous pourriez également enregistrer des éléments de commande individuels si nécessaire
+      // dans la table order_items
+      if (orderData && orderData.id) {
+        const orderItem = {
+          order_id: orderData.id,
+          main_dish: details,
+          price: roundedPrice,
+          day: new Date().toLocaleDateString('fr-FR', { weekday: 'long' }),
+          meal_option_id: `manual-${Date.now()}`
+        };
+        
+        if (additionalData?.tableNumber) {
+          orderItem.side_dish = `Table: ${additionalData.tableNumber}`;
+        }
+        
+        if (additionalData?.clientNote) {
+          orderItem.dessert = additionalData.clientNote;
+        }
+        
+        const { error: itemError } = await supabase
+          .from('order_items')
+          .insert(orderItem);
+          
+        if (itemError) {
+          console.error("Erreur lors de l'enregistrement des éléments de commande:", itemError);
+        } else {
+          console.log("Éléments de commande enregistrés avec succès");
+        }
+      }
+      
+    } catch (err) {
+      console.error("Erreur lors de l'enregistrement de la commande:", err);
+    }
+  };
+
   const proceedWithPayment = () => {
     const newReceiptId = generateReceiptId();
     setReceiptId(newReceiptId);
@@ -48,8 +113,12 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     const fullDetails = {
       items: details,
       ...(additionalData?.tableNumber && { table: additionalData.tableNumber }),
-      ...(additionalData?.clientNote && { note: additionalData.clientNote })
+      ...(additionalData?.clientNote && { note: additionalData.clientNote }),
+      ...(userData?.fullName && { client: userData.fullName })
     };
+
+    // Sauvegarder la commande dans la base de données
+    saveOrderToDatabase(newReceiptId, fullDetails);
 
     toast({
       title: "Reçu disponible",
@@ -95,7 +164,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           orderId={`ORD-${Date.now()}`}
           tableNumber={additionalData?.tableNumber}
           clientNote={additionalData?.clientNote}
-          clientName={userData?.fullName}  // Added client name from userData
+          clientName={userData?.fullName}
         />
       )}
 
