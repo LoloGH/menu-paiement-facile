@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { paymentRedirectUrl, generateReceiptId } from '@/config/paymentConfig';
 import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
+import { PaymentLoginDialog } from '@/components/PaymentLoginDialog';
 import { useToast } from "@/hooks/use-toast";
+import { useUserAuth } from '@/hooks/use-user-auth';
 
 interface PaymentButtonProps {
   price: number;
@@ -23,10 +25,22 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   additionalData 
 }) => {
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [receiptId, setReceiptId] = useState("");
   const { toast } = useToast();
+  const { isLoggedIn, userData } = useUserAuth();
+  const roundedPrice = Math.round(price);
 
   const handlePayment = () => {
+    if (!isLoggedIn) {
+      setShowLoginDialog(true);
+      return;
+    }
+
+    proceedWithPayment();
+  };
+
+  const proceedWithPayment = () => {
     const newReceiptId = generateReceiptId();
     setReceiptId(newReceiptId);
     setShowReceiptDialog(true);
@@ -45,27 +59,36 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     // Préparer l'URL de redirection
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
-    const roundedPrice = Math.round(price);
     
-    // Rediriger vers la page de paiement immédiatement
+    // Rediriger vers la page de paiement
     window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`;
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginDialog(false);
+    proceedWithPayment();
   };
 
   return (
     <>
-      <Button 
-        onClick={handlePayment}
-        className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors"
-      >
-        <ShoppingCart className="mr-2 h-5 w-5" />
-        {label} - {Math.round(price)} FCFA
-      </Button>
+      <div className="flex flex-col items-center gap-2">
+        <div className="text-lg font-bold text-restaurant-purple">
+          Prix total : {roundedPrice} FCFA
+        </div>
+        <Button 
+          onClick={handlePayment}
+          className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors"
+        >
+          <ShoppingCart className="mr-2 h-5 w-5" />
+          {label}
+        </Button>
+      </div>
       
       {showReceiptDialog && (
         <PaymentReceiptDialog
           isOpen={showReceiptDialog}
           onClose={() => setShowReceiptDialog(false)}
-          price={Math.round(price)}
+          price={roundedPrice}
           details={details}
           date={new Date()}
           receiptId={receiptId}
@@ -74,6 +97,14 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           clientNote={additionalData?.clientNote}
         />
       )}
+
+      <PaymentLoginDialog
+        isOpen={showLoginDialog}
+        onClose={() => setShowLoginDialog(false)}
+        onLoginSuccess={handleLoginSuccess}
+        price={roundedPrice}
+        details={details}
+      />
     </>
   );
 };
