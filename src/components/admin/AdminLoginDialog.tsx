@@ -28,7 +28,7 @@ export const AdminLoginDialog: React.FC<AdminLoginDialogProps> = ({
     try {
       let result;
       if (isSignUp) {
-        // Création de compte avec vérification d'email admin
+        // Vérification que l'email contient "admin" pour la création de compte
         if (!email.toLowerCase().includes('admin')) {
           toast({
             title: "Création refusée",
@@ -49,7 +49,7 @@ export const AdminLoginDialog: React.FC<AdminLoginDialogProps> = ({
         });
 
         if (result.data.user) {
-          // Insérer le rôle admin automatiquement
+          // Ajouter le rôle admin automatiquement
           const { error: roleError } = await supabase
             .from('user_roles')
             .insert({ 
