@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ interface PaymentReceiptDialogProps {
   date: Date;
   receiptId: string;
   orderId?: string;
+  tableNumber?: string;
+  clientNote?: string;
 }
 
 export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
@@ -22,7 +25,9 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
   details,
   date,
   receiptId,
-  orderId
+  orderId,
+  tableNumber,
+  clientNote
 }) => {
   const { toast } = useToast();
   const roundedPrice = Math.round(price);
@@ -46,6 +51,9 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
 ID Commande: ${receiptId}
 ${orderId ? `Référence DB: ${orderId}` : ''}
 Date: ${formatDate(date)}
+
+${tableNumber ? `N° de Table: ${tableNumber}` : ''}
+${clientNote ? `Notes spéciales: ${clientNote}` : ''}
 
 Détails: ${details || 'Menu personnalisé'}
 Montant: ${roundedPrice} FCFA
@@ -95,15 +103,34 @@ Merci pour votre commande !
     doc.text("Détails de la commande:", 30, 65);
     
     doc.setFontSize(11);
-    doc.text(`Numéro de commande: ${receiptId}`, 40, 80);
+    let yPos = 80;
+    
+    doc.text(`Numéro de commande: ${receiptId}`, 40, yPos);
+    yPos += 10;
+    
     if (orderId) {
-      doc.text(`Référence interne: ${orderId}`, 40, 90);
+      doc.text(`Référence interne: ${orderId}`, 40, yPos);
+      yPos += 10;
     }
-    doc.text(`Date: ${formatDate(date)}`, 40, orderId ? 100 : 90);
-    doc.text(`Produit: ${details || 'Menu personnalisé'}`, 40, orderId ? 110 : 100);
+    
+    if (tableNumber) {
+      doc.text(`N° de Table: ${tableNumber}`, 40, yPos);
+      yPos += 10;
+    }
+    
+    if (clientNote) {
+      doc.text(`Notes spéciales: ${clientNote}`, 40, yPos);
+      yPos += 10;
+    }
+    
+    doc.text(`Date: ${formatDate(date)}`, 40, yPos);
+    yPos += 10;
+    
+    doc.text(`Produit: ${details || 'Menu personnalisé'}`, 40, yPos);
+    yPos += 20;
     
     doc.setFont("helvetica", "bold");
-    doc.text(`Montant total: ${roundedPrice} FCFA`, 40, orderId ? 130 : 120);
+    doc.text(`Montant total: ${roundedPrice} FCFA`, 40, yPos);
     
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);
@@ -134,7 +161,7 @@ Merci pour votre commande !
             Reçu Téléchargeable
           </DialogTitle>
           <DialogDescription>
-            Votre reçu est disponible. Vous serez redirigé vers la page de paiement pour confirmer la transaction.
+            Votre reçu est disponible. Le paiement est en cours de traitement...
           </DialogDescription>
         </DialogHeader>
 
@@ -152,6 +179,18 @@ Merci pour votre commande !
               <span className="text-gray-600">Date:</span>
               <span>{formatDate(date)}</span>
             </div>
+            {tableNumber && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">N° de Table:</span>
+                <span>{tableNumber}</span>
+              </div>
+            )}
+            {clientNote && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Notes:</span>
+                <span>{clientNote}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-600">Détails:</span>
               <span>{details || 'Menu personnalisé'}</span>
@@ -178,9 +217,6 @@ Merci pour votre commande !
           >
             <Download className="mr-2 h-4 w-4" />
             Télécharger en format texte
-          </Button>
-          <Button variant="outline" onClick={onClose}>
-            Fermer
           </Button>
         </div>
       </DialogContent>
