@@ -16,6 +16,7 @@ interface PaymentReceiptDialogProps {
   orderId?: string;
   tableNumber?: string;
   clientNote?: string;
+  clientName?: string;  // Added clientName prop
 }
 
 export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
@@ -27,7 +28,8 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
   receiptId,
   orderId,
   tableNumber,
-  clientNote
+  clientNote,
+  clientName
 }) => {
   const { toast } = useToast();
   const roundedPrice = Math.round(price);
@@ -51,7 +53,7 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
 ID Commande: ${receiptId}
 ${orderId ? `Référence DB: ${orderId}` : ''}
 Date: ${formatDate(date)}
-
+${clientName ? `Client: ${clientName}` : ''}
 ${tableNumber ? `N° de Table: ${tableNumber}` : ''}
 ${clientNote ? `Notes spéciales: ${clientNote}` : ''}
 
@@ -110,6 +112,11 @@ Merci pour votre commande !
     
     if (orderId) {
       doc.text(`Référence interne: ${orderId}`, 40, yPos);
+      yPos += 10;
+    }
+    
+    if (clientName) {
+      doc.text(`Client: ${clientName}`, 40, yPos);
       yPos += 10;
     }
     

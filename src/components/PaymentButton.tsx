@@ -95,6 +95,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           orderId={`ORD-${Date.now()}`}
           tableNumber={additionalData?.tableNumber}
           clientNote={additionalData?.clientNote}
+          clientName={userData?.fullName}  // Added client name from userData
         />
       )}
 
