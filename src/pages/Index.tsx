@@ -1,29 +1,44 @@
-
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
 import { weeklyMenu as defaultWeeklyMenu, DayMenu } from '@/data/menuData';
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { CalendarCheck, ShoppingCart } from "lucide-react";
-import { weeklyPackagePrice, paymentRedirectUrl, paymentMessages } from '@/config/paymentConfig';
+import { weeklyPackagePrice, paymentRedirectUrl, paymentMessages, generateReceiptId } from '@/config/paymentConfig';
 import { SocialMediaButtons } from '@/components/SocialMediaButtons';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { UserHeader } from '@/components/user-header/UserHeader';
+import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
 
 const Index = () => {
   const [activeDay, setActiveDay] = useState("");
   const [menus, setMenus] = useState<DayMenu[]>(defaultWeeklyMenu);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const [showWeeklyReceipt, setShowWeeklyReceipt] = useState(false);
+  const [weeklyReceiptId, setWeeklyReceiptId] = useState("");
 
   useEffect(() => {
-    // Charger les menus depuis le localStorage s'ils sont disponibles
+    const queryParams = new URLSearchParams(window.location.search);
+    const paymentStatus = queryParams.get('payment_status');
+    
+    if (paymentStatus === 'success') {
+      toast({
+        title: paymentMessages.paymentSuccess,
+        description: paymentMessages.paymentSuccessDescription,
+      });
+      
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, [toast]);
+
+  useEffect(() => {
     const loadMenus = () => {
       try {
         const savedMenus = localStorage.getItem('weeklyMenu');
         if (savedMenus) {
-          // Convertir les menus enregistrés au format attendu par l'application
           const adminMenus = JSON.parse(savedMenus);
           const convertedMenus = convertAdminMenusToAppFormat(adminMenus);
           
@@ -39,7 +54,6 @@ const Index = () => {
 
     loadMenus();
 
-    // Écouter les événements de mise à jour des menus
     const handleMenuUpdate = (event: CustomEvent) => {
       console.log("Événement de mise à jour des menus détecté");
       loadMenus();
@@ -52,17 +66,13 @@ const Index = () => {
     };
   }, []);
 
-  // Convertir les données de menu du format admin au format de l'application
   const convertAdminMenusToAppFormat = (adminMenus: any[]): DayMenu[] => {
     if (!adminMenus || !Array.isArray(adminMenus)) return defaultWeeklyMenu;
 
     return adminMenus.map(adminMenu => {
-      // Créer les options de repas à partir des plats disponibles
       const mealOptions = [];
       
-      // Pour chaque plat principal, créer une option avec un accompagnement et un dessert
       for (const mainDish of adminMenu.mainDishes) {
-        // Prendre le premier accompagnement et dessert disponibles ou utiliser des valeurs par défaut
         const sideDish = adminMenu.sideDishes[0] || { 
           id: `default_side_${Date.now()}`,
           name: "Accompagnement standard",
@@ -77,10 +87,8 @@ const Index = () => {
           description: "Dessert du jour"
         };
         
-        // Calculer le prix total
         const totalPrice = (mainDish.price || 0) + (sideDish.price || 0) + (dessert.price || 0);
         
-        // Créer l'option de repas
         mealOptions.push({
           id: `option_${mainDish.id}`,
           mainDish: {
@@ -135,11 +143,19 @@ const Index = () => {
   }, [menus]);
 
   const handleWeeklyPayment = () => {
+    const receiptId = generateReceiptId();
+    setWeeklyReceiptId(receiptId);
+    setShowWeeklyReceipt(true);
+    
     toast({
       title: paymentMessages.weeklyTitle,
       description: paymentMessages.weeklyDescription(weeklyPackagePrice),
     });
+  };
 
+  const handleCloseWeeklyReceipt = () => {
+    setShowWeeklyReceipt(false);
+    
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     window.location.href = `${paymentRedirectUrl}?amount=${weeklyPackagePrice}&details=Menu_Semaine_Complete&return_url=${returnUrl}`;
   };
@@ -216,6 +232,17 @@ const Index = () => {
           </>
         )}
       </main>
+
+      {showWeeklyReceipt && (
+        <PaymentReceiptDialog
+          isOpen={showWeeklyReceipt}
+          onClose={handleCloseWeeklyReceipt}
+          price={weeklyPackagePrice}
+          details="Menu complet de la semaine"
+          date={new Date()}
+          receiptId={weeklyReceiptId}
+        />
+      )}
 
       <footer className="bg-restaurant-purple text-white py-8 px-4">
         <div className="container mx-auto">

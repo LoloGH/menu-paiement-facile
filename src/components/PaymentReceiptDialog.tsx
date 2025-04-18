@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Check, Download, FileText, File } from "lucide-react";
 import { jsPDF } from "jspdf";
+import { useToast } from "@/hooks/use-toast";
 
 interface PaymentReceiptDialogProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
   receiptId,
   orderId
 }) => {
+  const { toast } = useToast();
   
   const formatDate = (date: Date): string => {
     return new Intl.DateTimeFormat('fr-FR', {
@@ -63,6 +65,11 @@ Merci pour votre commande !
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Reçu téléchargé",
+      description: "Votre reçu a été téléchargé avec succès au format texte.",
+    });
   };
 
   const handleDownloadPdfReceipt = () => {
@@ -115,6 +122,11 @@ Merci pour votre commande !
     
     // Save the PDF
     doc.save(`recu-${receiptId}.pdf`);
+    
+    toast({
+      title: "Reçu téléchargé",
+      description: "Votre reçu a été téléchargé avec succès au format PDF.",
+    });
   };
 
   return (
