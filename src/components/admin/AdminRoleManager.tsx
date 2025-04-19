@@ -12,7 +12,7 @@ import {
 } from "@/utils/roleUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { logAdminAction } from "@/integrations/supabase/client";
+import { logAdminAction, supabase } from "@/integrations/supabase/client";
 
 export const AdminRoleManager = () => {
   const [users, setUsers] = useState<{[key: string]: UserRoleInfo[]}>({

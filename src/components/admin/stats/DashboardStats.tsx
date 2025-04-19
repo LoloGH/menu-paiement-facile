@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -31,6 +30,7 @@ interface DashboardStatsProps {
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('day');
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     orderCount: 0,
     ordersByStatus: {
@@ -70,10 +70,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      // Fetch orders with counts by status
       const { start, end } = getDateRange(timeRange);
       
-      // Use type assertion to bypass TypeScript checking
       let query = (supabase as any)
         .from("orders")
         .select("id, total_amount, created_at, payment_status")
@@ -84,7 +82,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       if (ordersError) throw ordersError;
 
-      // Calculate counts by status
       const ordersByStatus = {
         validated: orders?.filter(order => order.payment_status === 'validated').length || 0,
         delivered: orders?.filter(order => order.payment_status === 'delivered').length || 0,
@@ -93,7 +90,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         deleted: orders?.filter(order => order.payment_status === 'deleted').length || 0
       };
 
-      // Fetch top dishes
       const { data: orderItems, error: itemsError } = await supabase
         .from('order_items')
         .select('main_dish, created_at')
@@ -102,11 +98,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       if (itemsError) throw itemsError;
 
-      // Calculate statistics
       const orderCount = orders?.length || 0;
       const revenue = orders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
 
-      // Calculate top dishes
       const dishCounts: Record<string, number> = {};
       orderItems?.forEach(item => {
         dishCounts[item.main_dish] = (dishCounts[item.main_dish] || 0) + 1;
@@ -117,23 +111,22 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      // Prepare revenue data for chart
       const revenueByDate = orders?.reduce((acc: Record<string, number>, order) => {
         const date = format(new Date(order.created_at), 'dd/MM');
-        acc[date] = (acc[date] || 0) + (order.total_amount || 0);
+        acc[date] = (acc[date] || 0) + (Number(order.total_amount) || 0);
         return acc;
       }, {});
 
       const revenueData = Object.entries(revenueByDate || {}).map(([date, amount]) => ({
         date,
-        amount,
+        amount: Number(amount),
       }));
 
       setStats({
         orderCount,
         ordersByStatus,
         revenue,
-        avgPrepTime: 30, // This would need to be calculated based on actual prep time data
+        avgPrepTime: 30,
         topDishes,
         revenueData
       });
@@ -145,12 +138,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     }
   };
 
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetchStats();
 
-    // Souscrire aux changements des commandes
     const channel = supabase
       .channel('dashboard-stats-changes')
       .on(
@@ -163,7 +153,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         },
         (payload) => {
           console.log('Order validated:', payload);
-          fetchStats(); // Rafraîchir les statistiques
+          fetchStats();
         }
       )
       .subscribe();
