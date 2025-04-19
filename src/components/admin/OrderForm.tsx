@@ -13,6 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,10 @@ import {
 const orderSchema = z.object({
   payment_status: z.string(),
   details: z.string().optional(),
+  table: z.string().optional(),
+  client: z.string().optional(),
+  note: z.string().optional(),
+  items: z.string().optional(),
 });
 
 type OrderFormValues = z.infer<typeof orderSchema>;
@@ -39,17 +44,42 @@ export const OrderForm: React.FC<OrderFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
+  // Try to parse the details from the initialData
+  const parsedDetails = typeof initialData?.details === 'string' 
+    ? JSON.parse(initialData.details || '{}') 
+    : (initialData?.details || {});
+
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
       payment_status: initialData?.payment_status || "pending",
-      details: initialData?.details || "",
+      details: initialData?.details,
+      table: parsedDetails.table || '',
+      client: parsedDetails.client || '',
+      note: parsedDetails.note || '',
+      items: parsedDetails.items || '',
     },
   });
 
+  const handleSubmit = (formData: OrderFormValues) => {
+    // Reconstruct the details object
+    const detailsObject = {
+      items: formData.items,
+      table: formData.table,
+      note: formData.note,
+      client: formData.client,
+    };
+
+    // Submit with the stringified details
+    onSubmit({
+      payment_status: formData.payment_status,
+      details: JSON.stringify(detailsObject),
+    });
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="payment_status"
@@ -82,13 +112,65 @@ export const OrderForm: React.FC<OrderFormProps> = ({
 
         <FormField
           control={form.control}
-          name="details"
+          name="table"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Détails</FormLabel>
+              <FormLabel>Numéro de table</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="Numéro de table" 
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="client"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nom du client</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="Nom du client" 
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="items"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Articles commandés</FormLabel>
               <FormControl>
                 <Textarea 
-                  placeholder="Détails supplémentaires sur la commande" 
+                  placeholder="Détails des articles commandés" 
+                  {...field} 
+                  rows={4}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="note"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes supplémentaires</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Notes supplémentaires sur la commande" 
                   {...field} 
                   rows={4}
                 />

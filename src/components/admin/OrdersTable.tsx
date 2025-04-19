@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -315,7 +314,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
   const printOrder = (order: any) => {
     const items = orderDetails[order.id] || [];
     
-    // Créer une fenêtre d'impression
+    // Parse the details if it's a string
+    const details = typeof order.details === 'string' 
+      ? JSON.parse(order.details || '{}') 
+      : (order.details || {});
+    
+    // Create a window for printing
     const printWindow = window.open('', '_blank');
     
     if (!printWindow) {
@@ -344,10 +348,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
         <body>
           <h1>Bon de commande #${order.receipt_id}</h1>
           <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleDateString()}</p>
-          <p><strong>Client:</strong> ${order.users ? `${order.users.name || 'Sans nom'} (${order.users.email})` : 'Client anonyme'}</p>
+          
+          ${details.table ? `<p><strong>Table:</strong> ${details.table}</p>` : ''}
+          ${details.client ? `<p><strong>Client:</strong> ${details.client}</p>` : ''}
+          
           <p><strong>Statut:</strong> ${getStatusLabel(order.payment_status)}</p>
           
           <h2>Articles commandés</h2>
+          ${details.items ? `<p><strong>Détails:</strong> ${details.items}</p>` : ''}
+          
+          ${details.note ? `<p><strong>Notes supplémentaires:</strong> ${details.note}</p>` : ''}
+          
           <table>
             <thead>
               <tr>
@@ -372,8 +383,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
           </table>
           
           <p><strong>Montant total:</strong> ${order.total_amount} €</p>
-          
-          ${order.details ? `<p><strong>Détails:</strong> ${order.details}</p>` : ''}
           
           <div class="footer">
             <p>Bon de commande généré le ${new Date().toLocaleDateString()} à ${new Date().toLocaleTimeString()}</p>
