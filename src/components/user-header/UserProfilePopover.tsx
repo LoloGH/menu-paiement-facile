@@ -50,7 +50,7 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
             </p>
           </div>
           <div className="pt-2 border-t space-y-2">
-            <Link to="/mon-compte" className="block w-full">
+            <Link to="/profil" className="block w-full">
               <Button 
                 variant="outline" 
                 className="w-full text-gray-700 hover:bg-gray-100"
