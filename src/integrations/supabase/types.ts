@@ -82,7 +82,7 @@ export type Database = {
         }
         Insert: {
           article_id?: string | null
-          article_type: Database["public"]["Enums"]["article_type"]
+          article_type?: Database["public"]["Enums"]["article_type"]
           created_at?: string
           id?: string
           menu_id?: string | null

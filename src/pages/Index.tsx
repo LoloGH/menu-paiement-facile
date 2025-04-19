@@ -10,6 +10,7 @@ import { SocialMediaButtons } from '@/components/SocialMediaButtons';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { UserHeader } from '@/components/user-header/UserHeader';
 import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [activeDay, setActiveDay] = useState("");
@@ -35,7 +36,71 @@ const Index = () => {
   }, [toast]);
 
   useEffect(() => {
-    const loadMenus = () => {
+    const loadMenus = async () => {
+      try {
+        // First try to load from Supabase
+        const { data: weeklyMenus, error: weeklyMenuError } = await supabase
+          .from('weekly_menus')
+          .select('*')
+          .eq('is_active', true);
+
+        if (weeklyMenuError) throw weeklyMenuError;
+
+        const { data: menuArticles, error: menuArticlesError } = await supabase
+          .from('menu_articles')
+          .select(`
+            id,
+            menu_day,
+            articles (
+              id,
+              name,
+              price,
+              description,
+              image_url,
+              type
+            )
+          `);
+
+        if (menuArticlesError) throw menuArticlesError;
+
+        // Group articles by menu day and type
+        const menusByDay = new Map();
+        menuArticles.forEach((menuArticle: any) => {
+          const article = menuArticle.articles;
+          const menuDay = menuArticle.menu_day;
+          
+          if (!menusByDay.has(menuDay)) {
+            menusByDay.set(menuDay, {
+              mainDishes: [],
+              sideDishes: [],
+              desserts: []
+            });
+          }
+          
+          const menu = menusByDay.get(menuDay);
+          if (article.type === 'main_dish') menu.mainDishes.push(article);
+          else if (article.type === 'side_dish') menu.sideDishes.push(article);
+          else if (article.type === 'dessert') menu.desserts.push(article);
+        });
+
+        // Convert to app format
+        const convertedMenus = Array.from(menusByDay.entries()).map(([day, items]) => ({
+          id: `menu_${day}`,
+          day,
+          date: weeklyMenus?.find(wm => wm.day === day)?.date || '',
+          mealOptions: convertToMealOptions(items)
+        }));
+
+        if (convertedMenus && convertedMenus.length > 0) {
+          console.log("Menus chargés depuis Supabase:", convertedMenus);
+          setMenus(convertedMenus);
+          return;
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des menus depuis Supabase:", error);
+      }
+
+      // Fallback to localStorage or default menus
       try {
         const savedMenus = localStorage.getItem('weeklyMenu');
         if (savedMenus) {
@@ -45,11 +110,15 @@ const Index = () => {
           if (convertedMenus && convertedMenus.length > 0) {
             console.log("Menus chargés depuis localStorage:", convertedMenus);
             setMenus(convertedMenus);
+            return;
           }
         }
       } catch (error) {
-        console.error("Erreur lors du chargement des menus:", error);
+        console.error("Erreur lors du chargement des menus depuis localStorage:", error);
       }
+
+      // Fallback to default menus
+      setMenus(defaultWeeklyMenu);
     };
 
     loadMenus();
@@ -123,6 +192,56 @@ const Index = () => {
         mealOptions
       };
     });
+  };
+
+  const convertToMealOptions = (items: any) => {
+    const mealOptions = [];
+
+    for (const mainDish of items.mainDishes) {
+      const sideDish = items.sideDishes[0] || {
+        id: `default_side_${Date.now()}`,
+        name: "Accompagnement standard",
+        price: 0,
+        description: "Accompagnement du jour"
+      };
+
+      const dessert = items.desserts[0] || {
+        id: `default_dessert_${Date.now()}`,
+        name: "Dessert standard",
+        price: 0,
+        description: "Dessert du jour"
+      };
+
+      const totalPrice = (mainDish.price || 0) + (sideDish.price || 0) + (dessert.price || 0);
+
+      mealOptions.push({
+        id: `option_${mainDish.id}`,
+        mainDish: {
+          id: mainDish.id,
+          name: mainDish.name,
+          description: mainDish.description || "",
+          price: mainDish.price || 0,
+          image: mainDish.image_url || "/placeholder.svg"
+        },
+        sideDish: {
+          id: sideDish.id,
+          name: sideDish.name,
+          description: sideDish.description || "",
+          price: sideDish.price || 0,
+          image: sideDish.image_url || "/placeholder.svg"
+        },
+        dessert: {
+          id: dessert.id,
+          name: dessert.name,
+          description: dessert.description || "",
+          price: dessert.price || 0,
+          image: sideDish.image_url || "/placeholder.svg"
+        },
+        totalPrice
+      });
+    }
+
+    return mealOptions;
   };
 
   useEffect(() => {

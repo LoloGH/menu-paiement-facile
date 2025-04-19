@@ -5,7 +5,8 @@ export interface MenuItem {
   price: number;
   description?: string;
   imageUrl?: string;
-  articleId?: string; // Add articleId to store reference to article
+  articleId?: string;
+  type?: 'main_dish' | 'side_dish' | 'dessert';
 }
 
 export interface MenuDay {
@@ -15,4 +16,20 @@ export interface MenuDay {
   mainDishes: MenuItem[];
   sideDishes: MenuItem[];
   desserts: MenuItem[];
+}
+
+export interface WeeklyMenu {
+  id: string;
+  day: 'Lundi' | 'Mardi' | 'Mercredi' | 'Jeudi' | 'Vendredi' | 'Samedi' | 'Dimanche';
+  date: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MenuArticle {
+  id: string;
+  menu_day: string;
+  article_id: string;
+  created_at: string;
 }

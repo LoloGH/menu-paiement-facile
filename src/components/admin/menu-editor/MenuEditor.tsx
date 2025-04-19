@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -22,10 +21,11 @@ import {
   IceCream,
   Eye,
 } from "lucide-react";
-import { MenuDay, MenuItem } from "./types";
+import { MenuDay, MenuItem, WeeklyMenu, MenuArticle } from "./types";
 import { EditItemDialog } from "./EditItemDialog";
 import { MenuPreview } from "./MenuPreview";
 import { MenuItemsTable } from "./MenuItemsTable";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MenuEditorProps {
   menu: MenuDay;
@@ -41,10 +41,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     type: "",
   });
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
-  const [activeMenuTab, setActiveMenuTab] = useState("mainDish");
   const [previewMode, setPreviewMode] = useState(false);
 
-  // Initialiser le menu édité à chaque changement de menu ou au montage du composant
   useEffect(() => {
     if (menu) {
       console.log("Menu changed, initializing editing menu:", menu);
@@ -52,15 +50,62 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     }
   }, [menu]);
 
-  const saveMenusToLocalStorage = (updatedMenus: MenuDay[]) => {
+  const saveMenusToLocalStorage = async (updatedMenus: MenuDay[]) => {
     try {
       localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+
+      if (editingMenu) {
+        const { data: weeklyMenuData, error: weeklyMenuError } = await supabase
+          .from('weekly_menus')
+          .upsert({
+            day: editingMenu.day as any,
+            date: editingMenu.date,
+            is_active: true
+          })
+          .select()
+          .single();
+
+        if (weeklyMenuError) {
+          console.error("Error saving weekly menu:", weeklyMenuError);
+          throw weeklyMenuError;
+        }
+
+        await supabase
+          .from('menu_articles')
+          .delete()
+          .eq('menu_day', editingMenu.day);
+
+        const menuArticles: Partial<MenuArticle>[] = [
+          ...editingMenu.mainDishes.map(dish => ({
+            menu_day: editingMenu.day,
+            article_id: dish.articleId
+          })),
+          ...editingMenu.sideDishes.map(dish => ({
+            menu_day: editingMenu.day,
+            article_id: dish.articleId
+          })),
+          ...editingMenu.desserts.map(dish => ({
+            menu_day: editingMenu.day,
+            article_id: dish.articleId
+          }))
+        ];
+
+        const { error: menuArticlesError } = await supabase
+          .from('menu_articles')
+          .insert(menuArticles);
+
+        if (menuArticlesError) {
+          console.error("Error saving menu articles:", menuArticlesError);
+          throw menuArticlesError;
+        }
+      }
+
       const event = new CustomEvent("menu-updated", { detail: updatedMenus });
       window.dispatchEvent(event);
+      
       toast({
         title: "Sauvegarde réussie",
-        description:
-          "Les menus ont été sauvegardés avec succès. Les changements sont maintenant visibles sur le site.",
+        description: "Les menus ont été sauvegardés avec succès dans la base de données et sont maintenant visibles sur le site.",
       });
     } catch (error) {
       console.error("Erreur lors de la sauvegarde des menus:", error);
@@ -158,11 +203,9 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
   };
 
   const confirmReset = () => {
-    // Get the original data for this menu from weeklyMenu
     const originalMenuData = weeklyMenu.find(m => m.id === menu.id);
     if (!originalMenuData) return;
 
-    // Convert the original menu data to the MenuDay format
     const convertedMenu = {
       id: originalMenuData.id,
       day: originalMenuData.day,
@@ -172,7 +215,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
       desserts: [] as MenuItem[]
     };
 
-    // Extract unique dishes from the original menu
     originalMenuData.mealOptions.forEach((option) => {
       if (option.mainDish && !convertedMenu.mainDishes.some(dish => dish.id === option.mainDish.id)) {
         convertedMenu.mainDishes.push({
@@ -205,7 +247,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
       }
     });
 
-    // Update just this menu in the menus array
     const updatedMenus = menus.map(m => m.id === menu.id ? convertedMenu : m);
     setMenus(updatedMenus);
     saveMenusToLocalStorage(updatedMenus);
@@ -223,7 +264,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     setPreviewMode(!previewMode);
   };
 
-  // Afficher un indicateur de chargement pendant que editingMenu est null
   if (!editingMenu) {
     return (
       <div className="text-center py-10 text-gray-500">
@@ -233,7 +273,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
     );
   }
 
-  // Rendu principal une fois que editingMenu est chargé
   return (
     <div className="relative w-full">
       <div className="flex justify-between items-center mb-6">
