@@ -35,3 +35,58 @@ export const isAdminUser = async (userId: string): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Checks if a user has the specified role in the database
+ * @param userId User ID to check
+ * @param role Role to check
+ * @returns Promise resolving to boolean
+ */
+export const hasUserRole = async (userId: string, role: string): Promise<boolean> => {
+  try {
+    // Call the RPC function to check if the user has the specified role
+    const { data, error } = await supabase.rpc('has_role', {
+      user_id: userId,
+      required_role: role
+    });
+
+    if (error) {
+      console.error(`Error checking ${role} role:`, error);
+      return false;
+    }
+
+    return !!data;
+  } catch (error) {
+    console.error(`Exception checking ${role} role:`, error);
+    return false;
+  }
+};
+
+/**
+ * Logs an admin action to the audit log
+ * @param userId User ID performing the action
+ * @param action Description of the action
+ * @param resource Resource being acted upon
+ * @param details Additional details
+ */
+export const logAdminAction = async (
+  userId: string,
+  action: string,
+  resource: string,
+  details?: any
+): Promise<void> => {
+  try {
+    const { error } = await supabase.from('admin_audit_log').insert({
+      user_id: userId,
+      action,
+      resource,
+      details: details ? JSON.stringify(details) : null
+    });
+
+    if (error) {
+      console.error("Error logging admin action:", error);
+    }
+  } catch (error) {
+    console.error("Exception logging admin action:", error);
+  }
+};

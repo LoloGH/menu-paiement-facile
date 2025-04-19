@@ -5,25 +5,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Trash2, UserPlus } from "lucide-react";
-import { fetchAdminUsers, addAdminRole, removeAdminRole, UserRoleInfo } from "@/utils/roleUtils";
+import { ShieldAlert, Trash2, UserPlus, Users } from "lucide-react";
+import { 
+  fetchAdminUsers, fetchOrderManagerUsers, fetchViewerUsers, 
+  addRoleToUser, removeRoleFromUser, UserRoleInfo, AdminRoleType, getRoleDisplayName
+} from "@/utils/roleUtils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { logAdminAction } from "@/integrations/supabase/client";
 
 export const AdminRoleManager = () => {
-  const [adminUsers, setAdminUsers] = useState<UserRoleInfo[]>([]);
+  const [users, setUsers] = useState<{[key: string]: UserRoleInfo[]}>({
+    [AdminRoleType.ADMIN]: [],
+    [AdminRoleType.ORDER_MANAGER]: [],
+    [AdminRoleType.VIEWER]: [],
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [emailToAdd, setEmailToAdd] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>(AdminRoleType.ADMIN);
   const { toast } = useToast();
+  const { adminData } = useAdminAuth();
 
-  const loadAdminUsers = async () => {
+  const loadUsers = async () => {
     setIsLoading(true);
     try {
-      const users = await fetchAdminUsers();
-      setAdminUsers(users);
+      const [admins, orderManagers, viewers] = await Promise.all([
+        fetchAdminUsers(),
+        fetchOrderManagerUsers(),
+        fetchViewerUsers()
+      ]);
+      
+      setUsers({
+        [AdminRoleType.ADMIN]: admins,
+        [AdminRoleType.ORDER_MANAGER]: orderManagers,
+        [AdminRoleType.VIEWER]: viewers,
+      });
     } catch (error) {
-      console.error("Erreur lors du chargement des administrateurs:", error);
+      console.error("Erreur lors du chargement des utilisateurs:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger la liste des administrateurs.",
+        description: "Impossible de charger la liste des utilisateurs avec rôles.",
         variant: "destructive",
       });
     } finally {
@@ -32,10 +53,10 @@ export const AdminRoleManager = () => {
   };
 
   useEffect(() => {
-    loadAdminUsers();
+    loadUsers();
   }, []);
 
-  const handleAddAdmin = async () => {
+  const handleAddUser = async () => {
     if (!emailToAdd.trim()) {
       toast({
         title: "Erreur",
@@ -46,7 +67,7 @@ export const AdminRoleManager = () => {
     }
 
     try {
-      const result = await addAdminRole(emailToAdd);
+      const result = await addRoleToUser(emailToAdd, selectedRole);
       
       if (result.success) {
         toast({
@@ -55,7 +76,17 @@ export const AdminRoleManager = () => {
         });
         
         setEmailToAdd("");
-        loadAdminUsers();
+        loadUsers();
+
+        // Log the action
+        if (adminData) {
+          await logAdminAction(
+            adminData.id,
+            "add_user_role",
+            "user_roles",
+            { email: emailToAdd, role: selectedRole }
+          );
+        }
       } else {
         toast({
           title: "Erreur",
@@ -64,26 +95,36 @@ export const AdminRoleManager = () => {
         });
       }
     } catch (error) {
-      console.error("Erreur lors de l'ajout de l'administrateur:", error);
+      console.error("Erreur lors de l'ajout de l'utilisateur:", error);
       toast({
         title: "Erreur",
-        description: "Impossible d'attribuer les droits administrateur.",
+        description: "Impossible d'attribuer le rôle.",
         variant: "destructive",
       });
     }
   };
 
-  const handleRemoveAdmin = async (userId: string, email: string) => {
+  const handleRemoveUser = async (userId: string, email: string, role: string) => {
     try {
-      const result = await removeAdminRole(userId);
+      const result = await removeRoleFromUser(userId, role);
       
       if (result.success) {
         toast({
           title: "Succès",
-          description: `Droits administrateur retirés pour ${email}.`,
+          description: `${getRoleDisplayName(role)} retiré pour ${email}.`,
         });
         
-        loadAdminUsers();
+        loadUsers();
+
+        // Log the action
+        if (adminData) {
+          await logAdminAction(
+            adminData.id,
+            "remove_user_role",
+            "user_roles",
+            { userId, email, role }
+          );
+        }
       } else {
         toast({
           title: "Erreur",
@@ -92,10 +133,10 @@ export const AdminRoleManager = () => {
         });
       }
     } catch (error) {
-      console.error("Erreur lors de la suppression de l'administrateur:", error);
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de retirer les droits administrateur.",
+        description: "Impossible de retirer le rôle.",
         variant: "destructive",
       });
     }
@@ -106,58 +147,89 @@ export const AdminRoleManager = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldAlert className="h-5 w-5 text-restaurant-purple" />
-          Gestion des Administrateurs
+          Gestion des Rôles et Permissions
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="mb-6">
-          <Label htmlFor="admin-email" className="mb-2 block">Ajouter un administrateur par email</Label>
-          <div className="flex gap-2">
-            <Input
-              id="admin-email"
-              placeholder="email@exemple.com"
-              value={emailToAdd}
-              onChange={(e) => setEmailToAdd(e.target.value)}
-              className="flex-1"
-            />
-            <Button 
-              onClick={handleAddAdmin} 
-              disabled={isLoading || !emailToAdd.trim()}
-              className="whitespace-nowrap"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Ajouter Admin
-            </Button>
+          <Label htmlFor="role-email" className="mb-2 block">Ajouter un utilisateur par email</Label>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                id="role-email"
+                placeholder="email@exemple.com"
+                value={emailToAdd}
+                onChange={(e) => setEmailToAdd(e.target.value)}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleAddUser} 
+                disabled={isLoading || !emailToAdd.trim()}
+                className="whitespace-nowrap"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Ajouter Utilisateur
+              </Button>
+            </div>
+            <div>
+              <Label htmlFor="role-select" className="mb-2 block">Avec le rôle</Label>
+              <select 
+                id="role-select"
+                className="w-full p-2 border rounded-md"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              >
+                <option value={AdminRoleType.ADMIN}>Admin principal (accès total)</option>
+                <option value={AdminRoleType.ORDER_MANAGER}>Gestionnaire de commandes</option>
+                <option value={AdminRoleType.VIEWER}>Visualiseur (lecture seule)</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <div>
-          <h3 className="font-medium mb-2">Administrateurs actuels</h3>
-          {isLoading ? (
-            <div className="text-center p-4">Chargement...</div>
-          ) : adminUsers.length === 0 ? (
-            <div className="text-center p-4 bg-gray-50 rounded-md">
-              Aucun administrateur trouvé.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {adminUsers.map((user) => (
-                <div 
-                  key={user.id} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                >
-                  <span>{user.email}</span>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={() => handleRemoveAdmin(user.id, user.email)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <h3 className="font-medium mb-4">Utilisateurs avec rôles</h3>
+          
+          <Tabs defaultValue={AdminRoleType.ADMIN}>
+            <TabsList className="mb-4">
+              <TabsTrigger value={AdminRoleType.ADMIN}>Admins principaux</TabsTrigger>
+              <TabsTrigger value={AdminRoleType.ORDER_MANAGER}>Gestionnaires</TabsTrigger>
+              <TabsTrigger value={AdminRoleType.VIEWER}>Visualiseurs</TabsTrigger>
+            </TabsList>
+            
+            {Object.entries(users).map(([role, roleUsers]) => (
+              <TabsContent key={role} value={role}>
+                {isLoading ? (
+                  <div className="text-center p-4">Chargement...</div>
+                ) : roleUsers.length === 0 ? (
+                  <div className="text-center p-4 bg-gray-50 rounded-md">
+                    Aucun utilisateur trouvé avec le rôle {getRoleDisplayName(role)}.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {roleUsers.map((user) => (
+                      <div 
+                        key={`${user.id}-${role}`} 
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                      >
+                        <div>
+                          <span className="font-medium">{user.email}</span>
+                          <span className="ml-2 text-xs text-gray-500">({user.id.substring(0, 8)}...)</span>
+                        </div>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => handleRemoveUser(user.id, user.email, role)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            ))}
+          </Tabs>
         </div>
       </CardContent>
     </Card>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { Menu, Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw } from "lucide-react";
+import { Menu, Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -19,6 +19,11 @@ import { ArticlesManager } from "@/components/admin/articles/ArticlesManager";
 import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
 import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
 import { DashboardStats } from "@/components/admin/stats/DashboardStats";
+import { useRoleBasedAccess } from "@/hooks/use-role-based-access";
+import { AccessDenied } from "@/components/admin/AccessDenied";
+import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
+import { StatCard } from "@/components/admin/stats/StatCard";
+import { logAdminAction } from "@/integrations/supabase/client";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -31,6 +36,7 @@ const AdminInterface = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMenusOpen, setIsMenusOpen] = useState(false);
   const isMobile = useIsMobile();
+  const permissions = useRoleBasedAccess();
 
   useEffect(() => {
     loadMenus();
@@ -160,17 +166,17 @@ const AdminInterface = () => {
   };
 
   useEffect(() => {
-    if (isLoggedIn && !isAdmin && !isLoading) {
+    if (isLoggedIn && !isAdmin && !isLoading && !permissions.canViewDashboard) {
       toast({
         title: "Accès refusé",
-        description: "Votre compte n'a pas les droits administrateur nécessaires.",
+        description: "Votre compte n'a pas les droits nécessaires pour accéder à cette interface.",
         variant: "destructive",
       });
       navigate('/');
     }
-  }, [isLoggedIn, isAdmin, isLoading, navigate, toast]);
+  }, [isLoggedIn, isAdmin, isLoading, permissions, navigate, toast]);
 
-  if (isLoading) {
+  if (isLoading || permissions.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-16 h-16 border-4 border-t-4 border-t-restaurant-red border-restaurant-purple rounded-full animate-spin"></div>
@@ -178,7 +184,7 @@ const AdminInterface = () => {
     );
   }
 
-  if (!isLoggedIn || !isAdmin) {
+  if (!isLoggedIn || (!permissions.canViewDashboard && !isAdmin)) {
     return (
       <div className="bg-gray-50 min-h-screen">
         <header className="bg-restaurant-purple text-white p-4 shadow-md">
@@ -209,7 +215,7 @@ const AdminInterface = () => {
           <ShieldAlert className="w-20 h-20 text-restaurant-red mb-6" />
           <h1 className="text-3xl font-bold mb-3">Accès réservé</h1>
           <p className="text-gray-600 mb-6 text-center max-w-md">
-            Vous devez être connecté en tant qu'administrateur pour accéder à cette page.
+            Vous devez être connecté avec un compte disposant des droits nécessaires pour accéder à cette page.
           </p>
           <div className="flex space-x-4">
             <Button onClick={handleLoginClick} className="bg-restaurant-purple text-white">
@@ -313,7 +319,7 @@ const AdminInterface = () => {
                 Interface Cuisine
               </Link>
               <div className="text-sm bg-white/20 px-3 py-1 rounded">
-                Admin: {adminData?.email}
+                {adminData?.email}
               </div>
               <Button 
                 variant="destructive" 
@@ -356,42 +362,51 @@ const AdminInterface = () => {
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
-              <TabsList className={`${isMobile ? 'grid-cols-3' : 'grid-cols-7'} grid gap-4`}>
+              <TabsList className={`${isMobile ? 'grid-cols-2' : 'grid-cols-8'} grid gap-4`}>
                 <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-                <TabsTrigger value="users">Utilisateurs</TabsTrigger>
-                <TabsTrigger value="orders">Commandes</TabsTrigger>
-                {!isMobile && (
-                  <>
-                    <TabsTrigger value="order-items">Articles</TabsTrigger>
-                    <TabsTrigger value="articles">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Articles
-                    </TabsTrigger>
-                    <TabsTrigger value="menus">
-                      <UtensilsCrossed className="h-4 w-4 mr-2" />
-                      Menus
-                    </TabsTrigger>
-                    <TabsTrigger value="admins">
-                      <Users className="h-4 w-4 mr-2" />
-                      Administrateurs
-                    </TabsTrigger>
-                  </>
+                {permissions.canViewOrders && (
+                  <TabsTrigger value="orders">Commandes</TabsTrigger>
                 )}
-              </TabsList>
-              {isMobile && (
-                <TabsList className="grid grid-cols-4 gap-4 mt-2">
-                  <TabsTrigger value="order-items">Articles</TabsTrigger>
+                {permissions.canViewUsers && (
+                  <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+                )}
+                {permissions.canViewOrders && (
+                  <TabsTrigger value="order-items">Articles Com.</TabsTrigger>
+                )}
+                {permissions.canViewArticles && (
                   <TabsTrigger value="articles">
                     <FileText className="h-4 w-4 mr-2" />
                     Articles
                   </TabsTrigger>
+                )}
+                {permissions.canViewMenus && (
                   <TabsTrigger value="menus">
                     <UtensilsCrossed className="h-4 w-4 mr-2" />
                     Menus
                   </TabsTrigger>
+                )}
+                {permissions.canManageRoles && (
                   <TabsTrigger value="admins">
                     <Users className="h-4 w-4 mr-2" />
-                    Administrateurs
+                    Rôles
+                  </TabsTrigger>
+                )}
+                {permissions.canManageRoles && (
+                  <TabsTrigger value="audit-log">
+                    <History className="h-4 w-4 mr-2" />
+                    Audit
+                  </TabsTrigger>
+                )}
+              </TabsList>
+              {isMobile && permissions.canManageRoles && (
+                <TabsList className="grid grid-cols-2 gap-4 mt-2">
+                  <TabsTrigger value="admins">
+                    <Users className="h-4 w-4 mr-2" />
+                    Rôles
+                  </TabsTrigger>
+                  <TabsTrigger value="audit-log">
+                    <History className="h-4 w-4 mr-2" />
+                    Audit
                   </TabsTrigger>
                 </TabsList>
               )}
@@ -402,53 +417,101 @@ const AdminInterface = () => {
               </TabsContent>
               
               <TabsContent value="users" className="space-y-4">
-                <UserTable searchTerm={searchTerm} />
+                {permissions.canViewUsers ? (
+                  <UserTable searchTerm={searchTerm} />
+                ) : (
+                  <AccessDenied />
+                )}
               </TabsContent>
               
               <TabsContent value="orders" className="space-y-4">
-                <OrdersTable searchTerm={searchTerm} />
+                {permissions.canViewOrders ? (
+                  <OrdersTable 
+                    searchTerm={searchTerm} 
+                    readOnly={!permissions.canManageOrders}
+                    onActionPerformed={async (action, resource, details) => {
+                      if (adminData) {
+                        await logAdminAction(adminData.id, action, resource, details);
+                      }
+                    }}
+                  />
+                ) : (
+                  <AccessDenied />
+                )}
               </TabsContent>
               
               <TabsContent value="order-items" className="space-y-4">
-                <OrderItemsTable searchTerm={searchTerm} />
+                {permissions.canViewOrders ? (
+                  <OrderItemsTable searchTerm={searchTerm} />
+                ) : (
+                  <AccessDenied />
+                )}
               </TabsContent>
               
               <TabsContent value="articles" className="space-y-4">
-                <ArticlesManager />
+                {permissions.canViewArticles ? (
+                  <ArticlesManager readOnly={!permissions.canManageArticles} />
+                ) : (
+                  <AccessDenied />
+                )}
               </TabsContent>
               
               <TabsContent value="menus" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-center mb-3">
-                      <CardTitle>Gestion des Menus Hebdomadaires</CardTitle>
-                      <Button
-                        variant="outline"
-                        onClick={handleRefreshMenus}
-                        className="flex items-center"
-                        disabled={isRefreshing}
-                      >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        Actualiser
-                      </Button>
-                    </div>
-                    {renderMenuButtons()}
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    {selectedMenu && (
-                      <MenuEditor 
-                        key={activeMenuId}
-                        menu={selectedMenu}
-                        menus={menus}
-                        setMenus={setMenus}
-                      />
-                    )}
-                  </CardContent>
-                </Card>
+                {permissions.canViewMenus ? (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center mb-3">
+                        <CardTitle>Gestion des Menus Hebdomadaires</CardTitle>
+                        {permissions.canManageMenus && (
+                          <Button
+                            variant="outline"
+                            onClick={handleRefreshMenus}
+                            className="flex items-center"
+                            disabled={isRefreshing}
+                          >
+                            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Actualiser
+                          </Button>
+                        )}
+                      </div>
+                      {renderMenuButtons()}
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      {selectedMenu && (
+                        <MenuEditor 
+                          key={activeMenuId}
+                          menu={selectedMenu}
+                          menus={menus}
+                          setMenus={setMenus}
+                          readOnly={!permissions.canManageMenus}
+                          onMenuUpdated={async (action, details) => {
+                            if (adminData) {
+                              await logAdminAction(adminData.id, action, 'menu_items', details);
+                            }
+                          }}
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <AccessDenied />
+                )}
               </TabsContent>
               
               <TabsContent value="admins" className="space-y-4">
-                <AdminRoleManager />
+                {permissions.canManageRoles ? (
+                  <AdminRoleManager />
+                ) : (
+                  <AccessDenied message="Vous n'avez pas les permissions nécessaires pour gérer les rôles d'administration." />
+                )}
+              </TabsContent>
+              
+              <TabsContent value="audit-log" className="space-y-4">
+                {permissions.canManageRoles ? (
+                  <AuditLogViewer />
+                ) : (
+                  <AccessDenied message="Vous n'avez pas les permissions nécessaires pour consulter le journal d'audit." />
+                )}
               </TabsContent>
             </CardContent>
           </Card>
