@@ -13,6 +13,7 @@ interface UserData {
 export const useUserAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   const fetchUserData = async (userId: string) => {
@@ -84,31 +85,40 @@ export const useUserAuth = () => {
   };
 
   const handleUserSession = async (session: any) => {
-    if (session && session.user) {
-      console.log("Session user:", session.user);
-      setIsLoggedIn(true);
-      
-      // Récupérer les données utilisateur de la base
-      const userDataFromDb = await fetchUserData(session.user.id);
-      
-      if (!userDataFromDb) {
-        // Si l'utilisateur n'existe pas, créer un nouvel enregistrement
-        console.log("User record not found, creating new record");
-        const newUserData = await createUserRecord(session.user);
-        setUserData(newUserData);
+    setIsLoading(true);
+    try {
+      if (session && session.user) {
+        console.log("Session user:", session.user);
+        setIsLoggedIn(true);
+        
+        // Récupérer les données utilisateur de la base
+        const userDataFromDb = await fetchUserData(session.user.id);
+        
+        if (!userDataFromDb) {
+          // Si l'utilisateur n'existe pas, créer un nouvel enregistrement
+          console.log("User record not found, creating new record");
+          const newUserData = await createUserRecord(session.user);
+          setUserData(newUserData);
+        } else {
+          setUserData(userDataFromDb);
+        }
       } else {
-        setUserData(userDataFromDb);
+        setIsLoggedIn(false);
+        setUserData(null);
       }
-    } else {
+    } catch (error) {
+      console.error("Erreur lors du traitement de la session:", error);
       setIsLoggedIn(false);
       setUserData(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     console.log("Setting up auth state listener");
     
-    // Set up auth state listener first
+    // Set up auth state listener first to catch all auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event);
@@ -119,8 +129,13 @@ export const useUserAuth = () => {
     // Then check for existing session
     const checkCurrentSession = async () => {
       console.log("Checking current session");
-      const { data: { session } } = await supabase.auth.getSession();
-      await handleUserSession(session);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await handleUserSession(session);
+      } catch (error) {
+        console.error("Erreur lors de la vérification de la session:", error);
+        setIsLoading(false);
+      }
     };
 
     checkCurrentSession();
@@ -132,25 +147,37 @@ export const useUserAuth = () => {
 
   const handleLogout = async () => {
     console.log("Logging out");
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      console.error("Erreur de déconnexion:", error);
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Erreur de déconnexion:", error);
+        toast({
+          title: "Erreur",
+          description: "Un problème est survenu lors de la déconnexion.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setIsLoggedIn(false);
+      setUserData(null);
+      
+      toast({
+        title: "Déconnexion réussie",
+        description: "Vous avez été déconnecté de votre compte.",
+      });
+    } catch (error) {
+      console.error("Exception lors de la déconnexion:", error);
       toast({
         title: "Erreur",
         description: "Un problème est survenu lors de la déconnexion.",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoggedIn(false);
-    setUserData(null);
-    
-    toast({
-      title: "Déconnexion réussie",
-      description: "Vous avez été déconnecté de votre compte.",
-    });
   };
 
   const updateUserData = async (newData: Partial<UserData>): Promise<boolean> => {
@@ -247,6 +274,7 @@ export const useUserAuth = () => {
   return {
     isLoggedIn,
     userData,
+    isLoading,
     handleLogout,
     setUserData,
     updateUserData
