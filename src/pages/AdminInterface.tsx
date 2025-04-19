@@ -12,6 +12,12 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { MenuDay } from "@/components/admin/menu-editor/types";
 import { weeklyMenu } from "@/data/menuData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { UserTable } from "@/components/admin/UserTable";
+import { OrdersTable } from "@/components/admin/OrdersTable";
+import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
+import { ArticlesManager } from "@/components/admin/articles/ArticlesManager";
+import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
+import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
 
 const AdminInterface = () => {
   const { toast } = useToast();
