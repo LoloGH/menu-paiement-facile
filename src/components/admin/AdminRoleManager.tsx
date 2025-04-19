@@ -54,6 +54,27 @@ export const AdminRoleManager = () => {
 
   useEffect(() => {
     loadUsers();
+    
+    // Subscribe to role changes
+    const channel = supabase
+      .channel('role-manager-changes')
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'user_roles'
+        },
+        (payload) => {
+          console.log('Role changes detected:', payload);
+          loadUsers(); // Refresh the user list
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleAddUser = async () => {
