@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -12,16 +11,9 @@ import {
   Pagination, PaginationContent, PaginationItem, 
   PaginationLink, PaginationNext, PaginationPrevious 
 } from "@/components/ui/pagination";
+import { AdminAuditLog } from "@/types/admin-audit";
 
-interface AuditLog {
-  id: string;
-  user_id: string;
-  action: string;
-  resource: string;
-  details: string | null;
-  created_at: string;
-  user_email?: string;
-}
+type AuditLog = AdminAuditLog;
 
 export const AuditLogViewer = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -60,7 +52,7 @@ export const AuditLogViewer = () => {
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('id, email')
-          .in('id', userIds);
+          .in('id', userIds as string[]);
         
         if (!userError && userData) {
           userData.forEach((user) => {

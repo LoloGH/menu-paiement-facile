@@ -1,4 +1,3 @@
-
 export interface MenuItem {
   id: string;
   name: string;
@@ -32,4 +31,12 @@ export interface MenuArticle {
   menu_day: string; // Make this required to match the Supabase schema
   article_id?: string;
   created_at?: string;
+}
+
+export interface MenuEditorProps {
+  menu: MenuDay;
+  menus: MenuDay[];
+  setMenus: React.Dispatch<React.SetStateAction<MenuDay[]>>;
+  readOnly?: boolean;
+  onMenuUpdated?: (action: string, details?: any) => Promise<void>;
 }

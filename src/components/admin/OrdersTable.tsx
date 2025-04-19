@@ -60,9 +60,15 @@ import {
 
 interface OrdersTableProps {
   searchTerm: string;
+  readOnly?: boolean;
+  onActionPerformed?: (action: string, resource: string, details?: any) => Promise<void>;
 }
 
-export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ 
+  searchTerm, 
+  readOnly = false, 
+  onActionPerformed 
+}) => {
   const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,6 +185,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
         description: "Commande mise à jour avec succès",
       });
 
+      if (onActionPerformed) {
+        await onActionPerformed('update_order', 'orders', {
+          order_id: currentOrder.id,
+          new_status: orderData.payment_status
+        });
+      }
+
       setIsFormOpen(false);
       fetchOrders(); // Refresh the orders list
     } catch (error: any) {
@@ -203,6 +216,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
         title: "Statut mis à jour",
         description: `La commande a été marquée comme "${getStatusLabel(newStatus)}"`,
       });
+
+      if (onActionPerformed) {
+        await onActionPerformed('update_order_status', 'orders', {
+          order_id: orderId,
+          new_status: newStatus
+        });
+      }
 
       fetchOrders();
     } catch (error: any) {
@@ -240,6 +260,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
         title: "Commande supprimée",
         description: "La commande et ses articles ont été supprimés avec succès",
       });
+
+      if (onActionPerformed) {
+        await onActionPerformed('delete_order', 'orders', { order_id: orderId });
+      }
 
       fetchOrders();
     } catch (error: any) {
@@ -523,46 +547,48 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
                   <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditOrder(order)}>
-                            Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'validated')}>
-                            <Check className="h-4 w-4 mr-2 text-green-500" />
-                            Valider
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'preparing')}>
-                            <Package className="h-4 w-4 mr-2 text-blue-500" />
-                            En préparation
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ready')}>
-                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                            Marquer prête
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'delivered')}>
-                            <Truck className="h-4 w-4 mr-2 text-indigo-500" />
-                            Livrée
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'completed')}>
-                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                            Terminer
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'cancelled')}>
-                            <X className="h-4 w-4 mr-2 text-red-500" />
-                            Annuler
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-500">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {!readOnly && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditOrder(order)}>
+                              Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'validated')}>
+                              <Check className="h-4 w-4 mr-2 text-green-500" />
+                              Valider
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'preparing')}>
+                              <Package className="h-4 w-4 mr-2 text-blue-500" />
+                              En préparation
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ready')}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                              Marquer prête
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'delivered')}>
+                              <Truck className="h-4 w-4 mr-2 text-indigo-500" />
+                              Livrée
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'completed')}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                              Terminer
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'cancelled')}>
+                              <X className="h-4 w-4 mr-2 text-red-500" />
+                              Annuler
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-500">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                       
                       <Button 
                         size="sm" 

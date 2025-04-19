@@ -1,386 +1,673 @@
-import React, { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardDescription,
-} from "@/components/ui/card";
+import React, { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { weeklyMenu } from "@/data/menuData";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import {
-  Save,
-  Edit,
-  X,
-  AlertCircle,
-  Calendar,
-  Utensils,
-  Coffee,
-  IceCream,
-  Eye,
-} from "lucide-react";
-import { MenuDay, MenuItem, WeeklyMenu, MenuArticle } from "./types";
-import { EditItemDialog } from "./EditItemDialog";
-import { MenuPreview } from "./MenuPreview";
-import { MenuItemsTable } from "./MenuItemsTable";
-import { supabase } from "@/integrations/supabase/client";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical, Plus, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { v4 as uuidv4 } from 'uuid';
+import { MenuEditorProps, MenuDay } from "./types";
 
-interface MenuEditorProps {
-  menu: MenuDay;
-  menus: MenuDay[];
-  setMenus: React.Dispatch<React.SetStateAction<MenuDay[]>>;
-}
-
-export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus }) => {
+export const MenuEditor: React.FC<MenuEditorProps> = ({ 
+  menu, 
+  menus, 
+  setMenus, 
+  readOnly = false,
+  onMenuUpdated 
+}) => {
   const { toast } = useToast();
-  const [editingMenu, setEditingMenu] = useState<MenuDay | null>(null);
-  const [editingItem, setEditingItem] = useState<{ item: MenuItem | null; type: string }>({
-    item: null,
-    type: "",
-  });
-  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [mainDishName, setMainDishName] = useState("");
+  const [mainDishPrice, setMainDishPrice] = useState("");
+  const [mainDishDescription, setMainDishDescription] = useState("");
+  const [mainDishImageUrl, setMainDishImageUrl] = useState("");
+  const [sideDishName, setSideDishName] = useState("");
+  const [sideDishPrice, setSideDishPrice] = useState("");
+  const [sideDishDescription, setSideDishDescription] = useState("");
+  const [sideDishImageUrl, setSideDishImageUrl] = useState("");
+  const [dessertName, setDessertName] = useState("");
+  const [dessertPrice, setDessertPrice] = useState("");
+  const [dessertDescription, setDessertDescription] = useState("");
+  const [dessertImageUrl, setDessertImageUrl] = useState("");
+  const [selectedMainDish, setSelectedMainDish] = useState<string | null>(null);
+  const [selectedSideDish, setSelectedSideDish] = useState<string | null>(null);
+  const [selectedDessert, setSelectedDessert] = useState<string | null>(null);
+  const [isAddingMainDish, setIsAddingMainDish] = useState(false);
+  const [isAddingSideDish, setIsAddingSideDish] = useState(false);
+  const [isAddingDessert, setIsAddingDessert] = useState(false);
 
   useEffect(() => {
-    if (menu) {
-      console.log("Menu changed, initializing editing menu:", menu);
-      setEditingMenu({ ...menu });
-    }
+    console.log("MenuEditor: menu prop updated:", menu);
   }, [menu]);
 
-  const saveMenusToLocalStorage = async (updatedMenus: MenuDay[]) => {
-    try {
-      localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
-
-      if (editingMenu) {
-        const { data: weeklyMenuData, error: weeklyMenuError } = await supabase
-          .from('weekly_menus')
-          .upsert({
-            day: editingMenu.day as any,
-            date: editingMenu.date,
-            is_active: true
-          })
-          .select()
-          .single();
-
-        if (weeklyMenuError) {
-          console.error("Error saving weekly menu:", weeklyMenuError);
-          throw weeklyMenuError;
-        }
-
-        await supabase
-          .from('menu_articles')
-          .delete()
-          .eq('menu_day', editingMenu.day);
-
-        const menuArticles: MenuArticle[] = [
-          ...editingMenu.mainDishes.map(dish => ({
-            menu_day: editingMenu.day,
-            article_id: dish.articleId
-          })),
-          ...editingMenu.sideDishes.map(dish => ({
-            menu_day: editingMenu.day,
-            article_id: dish.articleId
-          })),
-          ...editingMenu.desserts.map(dish => ({
-            menu_day: editingMenu.day,
-            article_id: dish.articleId
-          }))
-        ].filter(article => article.article_id);
-
-        if (menuArticles.length > 0) {
-          const { error: menuArticlesError } = await supabase
-            .from('menu_articles')
-            .insert(menuArticles);
-
-          if (menuArticlesError) {
-            console.error("Error saving menu articles:", menuArticlesError);
-            throw menuArticlesError;
-          }
-        }
-      }
-
-      const event = new CustomEvent("menu-updated", { detail: updatedMenus });
-      window.dispatchEvent(event);
-      
+  const handleAddMainDish = async () => {
+    if (!mainDishName || !mainDishPrice || !mainDishDescription || !mainDishImageUrl) {
       toast({
-        title: "Sauvegarde réussie",
-        description: "Les menus ont été sauvegardés avec succès dans la base de données et sont maintenant visibles sur le site.",
-      });
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde des menus:", error);
-      toast({
-        title: "Erreur de sauvegarde",
-        description: "Une erreur est survenue lors de la sauvegarde des menus.",
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs du plat principal.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleSaveMenu = () => {
-    if (!editingMenu) return;
-    
-    console.log("Saving menu:", editingMenu);
-    
-    const updatedMenus = menus.map((m) =>
-      m.id === editingMenu.id ? editingMenu : m
-    );
-    setMenus(updatedMenus);
-    saveMenusToLocalStorage(updatedMenus);
-    
-    toast({
-      title: "Menu sauvegardé",
-      description: "Les modifications ont été enregistrées avec succès.",
-    });
-  };
-
-  const handleUpdateMenuField = (field: string, value: string) => {
-    if (!editingMenu) return;
-    setEditingMenu({ ...editingMenu, [field]: value });
-  };
-
-  const handleSaveItem = (savedItem: MenuItem) => {
-    if (!editingMenu || !editingItem.type) {
-      console.error("Missing editingMenu or editingItem.type");
       return;
     }
 
-    console.log(`Saving ${editingItem.type} item:`, savedItem);
+    const newMainDish = {
+      id: uuidv4(),
+      name: mainDishName,
+      price: parseFloat(mainDishPrice),
+      description: mainDishDescription,
+      imageUrl: mainDishImageUrl,
+    };
 
-    const itemType = `${editingItem.type}s` as keyof MenuDay;
-    const items = [...(editingMenu[itemType] as MenuItem[])];
-    const index = items.findIndex((item) => item.id === savedItem.id);
+    const updatedMenus = menus.map((m) => {
+      if (m.id === menu.id) {
+        return {
+          ...m,
+          mainDishes: [...m.mainDishes, newMainDish],
+        };
+      }
+      return m;
+    });
 
-    if (index !== -1) {
-      items[index] = savedItem;
-      console.log(`Updated existing ${editingItem.type} at index ${index}:`, savedItem);
-    } else {
-      items.push({
-        ...savedItem,
-        id: savedItem.id || `${editingItem.type}_${Date.now()}`,
-      });
-      console.log(`Added new ${editingItem.type}:`, savedItem);
+    setMenus(updatedMenus);
+    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+    setIsAddingMainDish(false);
+    setMainDishName("");
+    setMainDishPrice("");
+    setMainDishDescription("");
+    setMainDishImageUrl("");
+
+    if (onMenuUpdated) {
+      await onMenuUpdated('add_main_dish', { menuId: menu.id, dish: newMainDish });
     }
 
-    const updatedMenu = {
-      ...editingMenu,
-      [itemType]: items,
-    };
-    
-    console.log(`Updated ${itemType} in menu:`, updatedMenu[itemType]);
-    setEditingMenu(updatedMenu);
-
-    setEditingItem({ item: null, type: "" });
-
     toast({
-      title: "Élément sauvegardé",
-      description:
-        index !== -1
-          ? "L'élément a été mis à jour avec succès."
-          : "Nouvel élément ajouté avec succès.",
+      title: "Succès",
+      description: "Plat principal ajouté avec succès.",
     });
   };
 
-  const handleDeleteItem = (itemId: string, type: string) => {
-    if (!editingMenu) return;
-    const itemType = `${type}s` as keyof MenuDay;
-    const items = [...(editingMenu[itemType] as MenuItem[])];
-    const updatedItems = items.filter((item) => item.id !== itemId);
+  const handleAddSideDish = async () => {
+    if (!sideDishName || !sideDishPrice || !sideDishDescription || !sideDishImageUrl) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs de l'accompagnement.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setEditingMenu({
-      ...editingMenu,
-      [itemType]: updatedItems,
-    });
-
-    toast({
-      title: "Élément supprimé",
-      description: "L'élément a été supprimé avec succès.",
-    });
-  };
-
-  const resetToDefault = () => {
-    setConfirmResetOpen(true);
-  };
-
-  const confirmReset = () => {
-    const originalMenuData = weeklyMenu.find(m => m.id === menu.id);
-    if (!originalMenuData) return;
-
-    const convertedMenu = {
-      id: originalMenuData.id,
-      day: originalMenuData.day,
-      date: originalMenuData.date,
-      mainDishes: [] as MenuItem[],
-      sideDishes: [] as MenuItem[],
-      desserts: [] as MenuItem[]
+    const newSideDish = {
+      id: uuidv4(),
+      name: sideDishName,
+      price: parseFloat(sideDishPrice),
+      description: sideDishDescription,
+      imageUrl: sideDishImageUrl,
     };
 
-    originalMenuData.mealOptions.forEach((option) => {
-      if (option.mainDish && !convertedMenu.mainDishes.some(dish => dish.id === option.mainDish.id)) {
-        convertedMenu.mainDishes.push({
-          id: option.mainDish.id,
-          name: option.mainDish.name,
-          price: option.mainDish.price,
-          description: option.mainDish.description,
-          imageUrl: option.mainDish.image,
-        });
+    const updatedMenus = menus.map((m) => {
+      if (m.id === menu.id) {
+        return {
+          ...m,
+          sideDishes: [...m.sideDishes, newSideDish],
+        };
       }
-
-      if (option.sideDish && !convertedMenu.sideDishes.some(dish => dish.id === option.sideDish.id)) {
-        convertedMenu.sideDishes.push({
-          id: option.sideDish.id,
-          name: option.sideDish.name,
-          price: option.sideDish.price,
-          description: option.sideDish.description,
-          imageUrl: option.sideDish.image,
-        });
-      }
-
-      if (option.dessert && !convertedMenu.desserts.some(dish => dish.id === option.dessert.id)) {
-        convertedMenu.desserts.push({
-          id: option.dessert.id,
-          name: option.dessert.name,
-          price: option.dessert.price,
-          description: option.dessert.description,
-          imageUrl: option.dessert.image,
-        });
-      }
+      return m;
     });
 
-    const updatedMenus = menus.map(m => m.id === menu.id ? convertedMenu : m);
     setMenus(updatedMenus);
-    saveMenusToLocalStorage(updatedMenus);
-    setEditingMenu(convertedMenu);
-    
+    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+    setIsAddingSideDish(false);
+    setSideDishName("");
+    setSideDishPrice("");
+    setSideDishDescription("");
+    setSideDishImageUrl("");
+
+    if (onMenuUpdated) {
+      await onMenuUpdated('add_side_dish', { menuId: menu.id, dish: newSideDish });
+    }
+
     toast({
-      title: "Menu réinitialisé",
-      description: "Le menu a été réinitialisé aux valeurs par défaut.",
+      title: "Succès",
+      description: "Accompagnement ajouté avec succès.",
     });
-    
-    setConfirmResetOpen(false);
   };
 
-  const togglePreviewMode = () => {
-    setPreviewMode(!previewMode);
+  const handleAddDessert = async () => {
+    if (!dessertName || !dessertPrice || !dessertDescription || !dessertImageUrl) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs du dessert.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newDessert = {
+      id: uuidv4(),
+      name: dessertName,
+      price: parseFloat(dessertPrice),
+      description: dessertDescription,
+      imageUrl: dessertImageUrl,
+    };
+
+    const updatedMenus = menus.map((m) => {
+      if (m.id === menu.id) {
+        return {
+          ...m,
+          desserts: [...m.desserts, newDessert],
+        };
+      }
+      return m;
+    });
+
+    setMenus(updatedMenus);
+    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+    setIsAddingDessert(false);
+    setDessertName("");
+    setDessertPrice("");
+    setDessertDescription("");
+    setDessertImageUrl("");
+
+    if (onMenuUpdated) {
+      await onMenuUpdated('add_dessert', { menuId: menu.id, dish: newDessert });
+    }
+
+    toast({
+      title: "Succès",
+      description: "Dessert ajouté avec succès.",
+    });
   };
 
-  if (!editingMenu) {
-    return (
-      <div className="text-center py-10 text-gray-500">
-        <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-        <p className="text-lg">Chargement du menu...</p>
-      </div>
-    );
-  }
+  const handleDeleteMainDish = async (dishId: string) => {
+    const updatedMenus = menus.map((m) => {
+      if (m.id === menu.id) {
+        return {
+          ...m,
+          mainDishes: m.mainDishes.filter((dish) => dish.id !== dishId),
+        };
+      }
+      return m;
+    });
+
+    setMenus(updatedMenus);
+    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+
+    if (onMenuUpdated) {
+      await onMenuUpdated('delete_main_dish', { menuId: menu.id, dishId });
+    }
+
+    toast({
+      title: "Succès",
+      description: "Plat principal supprimé avec succès.",
+    });
+  };
+
+  const handleDeleteSideDish = async (dishId: string) => {
+    const updatedMenus = menus.map((m) => {
+      if (m.id === menu.id) {
+        return {
+          ...m,
+          sideDishes: m.sideDishes.filter((dish) => dish.id !== dishId),
+        };
+      }
+      return m;
+    });
+
+    setMenus(updatedMenus);
+    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+
+    if (onMenuUpdated) {
+      await onMenuUpdated('delete_side_dish', { menuId: menu.id, dishId });
+    }
+
+    toast({
+      title: "Succès",
+      description: "Accompagnement supprimé avec succès.",
+    });
+  };
+
+  const handleDeleteDessert = async (dishId: string) => {
+    const updatedMenus = menus.map((m) => {
+      if (m.id === menu.id) {
+        return {
+          ...m,
+          desserts: m.desserts.filter((dish) => dish.id !== dishId),
+        };
+      }
+      return m;
+    });
+
+    setMenus(updatedMenus);
+    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+
+    if (onMenuUpdated) {
+      await onMenuUpdated('delete_dessert', { menuId: menu.id, dishId });
+    }
+
+    toast({
+      title: "Succès",
+      description: "Dessert supprimé avec succès.",
+    });
+  };
+
+  const handleSelectMainDish = (dishId: string) => {
+    setSelectedMainDish(dishId);
+  };
+
+  const handleSelectSideDish = (dishId: string) => {
+    setSelectedSideDish(dishId);
+  };
+
+  const handleSelectDessert = (dishId: string) => {
+    setSelectedDessert(dishId);
+  };
 
   return (
-    <div className="relative w-full">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold flex items-center">
-          <Utensils className="h-6 w-6 mr-2 text-restaurant-purple" />
-          Gestion du Menu: {editingMenu.day}
-        </h2>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={togglePreviewMode}
-            className="bg-blue-50 text-blue-600 hover:bg-blue-100"
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            {previewMode ? "Éditer" : "Aperçu"}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={resetToDefault}
-            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-          >
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Réinitialiser ce menu
-          </Button>
-          <Button 
-            onClick={handleSaveMenu}
-            className="bg-restaurant-purple hover:bg-restaurant-purple/90"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Enregistrer
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        {previewMode ? (
-          <MenuPreview menu={editingMenu} />
-        ) : (
-          <div className="grid gap-6">
-            <MenuItemsTable
-              items={editingMenu.mainDishes}
-              type="mainDish"
-              title="Plats principaux"
-              icon={<Utensils className="h-5 w-5 text-restaurant-purple" />}
-              onEdit={(item) => setEditingItem({ item, type: "mainDish" })}
-              onDelete={(id) => handleDeleteItem(id, "mainDish")}
-              onAdd={() => setEditingItem({ item: null, type: "mainDish" })}
-              isEditing={true}
-            />
-            
-            <MenuItemsTable
-              items={editingMenu.sideDishes}
-              type="sideDish"
-              title="Accompagnements"
-              icon={<Coffee className="h-5 w-5 text-restaurant-terracotta" />}
-              onEdit={(item) => setEditingItem({ item, type: "sideDish" })}
-              onDelete={(id) => handleDeleteItem(id, "sideDish")}
-              onAdd={() => setEditingItem({ item: null, type: "sideDish" })}
-              isEditing={true}
-            />
-            
-            <MenuItemsTable
-              items={editingMenu.desserts}
-              type="dessert"
-              title="Desserts"
-              icon={<IceCream className="h-5 w-5 text-restaurant-red" />}
-              onEdit={(item) => setEditingItem({ item, type: "dessert" })}
-              onDelete={(id) => handleDeleteItem(id, "dessert")}
-              onAdd={() => setEditingItem({ item: null, type: "dessert" })}
-              isEditing={true}
-            />
-          </div>
-        )}
-      </div>
-
-      {editingItem.type !== "" && (
-        <EditItemDialog
-          item={editingItem.item}
-          type={editingItem.type}
-          onClose={() => setEditingItem({ item: null, type: "" })}
-          onSave={handleSaveItem}
-        />
-      )}
-
-      <Dialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center text-red-600">
-              <AlertCircle className="h-5 w-5 mr-2" />
-              Confirmation de réinitialisation
-            </DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir réinitialiser ce menu aux valeurs par défaut ?
-              Cette action est irréversible et supprimera toutes vos modifications pour ce jour.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmResetOpen(false)}>
-              Annuler
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Plats Principaux</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Prix</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Image URL</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {menu.mainDishes.map((dish) => (
+                <TableRow key={dish.id}>
+                  <TableCell>{dish.name}</TableCell>
+                  <TableCell>{dish.price}</TableCell>
+                  <TableCell>{dish.description}</TableCell>
+                  <TableCell>{dish.imageUrl}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Ouvrir le menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleSelectMainDish(dish.id)}
+                        >
+                          Sélectionner
+                        </DropdownMenuItem>
+                        {!readOnly && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem className="text-red-500">
+                                Supprimer
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Êtes-vous sûr de vouloir supprimer ce plat
+                                  principal?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteMainDish(dish.id)}
+                                >
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {!readOnly && (
+            <Button
+              variant="outline"
+              onClick={() => setIsAddingMainDish(true)}
+              className="mt-2"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter un plat principal
             </Button>
-            <Button onClick={confirmReset} variant="destructive">
-              Réinitialiser
+          )}
+          {isAddingMainDish && (
+            <div className="mt-4">
+              <Label htmlFor="mainDishName">Nom</Label>
+              <Input
+                id="mainDishName"
+                value={mainDishName}
+                onChange={(e) => setMainDishName(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="mainDishPrice">Prix</Label>
+              <Input
+                id="mainDishPrice"
+                value={mainDishPrice}
+                onChange={(e) => setMainDishPrice(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="mainDishDescription">Description</Label>
+              <Input
+                id="mainDishDescription"
+                value={mainDishDescription}
+                onChange={(e) => setMainDishDescription(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="mainDishImageUrl">Image URL</Label>
+              <Input
+                id="mainDishImageUrl"
+                value={mainDishImageUrl}
+                onChange={(e) => setMainDishImageUrl(e.target.value)}
+                className="mb-2"
+              />
+              <Button onClick={handleAddMainDish} className="mr-2">
+                Ajouter
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setIsAddingMainDish(false)}
+              >
+                Annuler
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Accompagnements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Prix</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Image URL</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {menu.sideDishes.map((dish) => (
+                <TableRow key={dish.id}>
+                  <TableCell>{dish.name}</TableCell>
+                  <TableCell>{dish.price}</TableCell>
+                  <TableCell>{dish.description}</TableCell>
+                  <TableCell>{dish.imageUrl}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Ouvrir le menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleSelectSideDish(dish.id)}
+                        >
+                          Sélectionner
+                        </DropdownMenuItem>
+                        {!readOnly && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem className="text-red-500">
+                                Supprimer
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Êtes-vous sûr de vouloir supprimer cet
+                                  accompagnement?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteSideDish(dish.id)}
+                                >
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {!readOnly && (
+            <Button
+              variant="outline"
+              onClick={() => setIsAddingSideDish(true)}
+              className="mt-2"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter un accompagnement
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          )}
+          {isAddingSideDish && (
+            <div className="mt-4">
+              <Label htmlFor="sideDishName">Nom</Label>
+              <Input
+                id="sideDishName"
+                value={sideDishName}
+                onChange={(e) => setSideDishName(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="sideDishPrice">Prix</Label>
+              <Input
+                id="sideDishPrice"
+                value={sideDishPrice}
+                onChange={(e) => setSideDishPrice(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="sideDishDescription">Description</Label>
+              <Input
+                id="sideDishDescription"
+                value={sideDishDescription}
+                onChange={(e) => setSideDishDescription(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="sideDishImageUrl">Image URL</Label>
+              <Input
+                id="sideDishImageUrl"
+                value={sideDishImageUrl}
+                onChange={(e) => setSideDishImageUrl(e.target.value)}
+                className="mb-2"
+              />
+              <Button onClick={handleAddSideDish} className="mr-2">
+                Ajouter
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setIsAddingSideDish(false)}
+              >
+                Annuler
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Desserts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Prix</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Image URL</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {menu.desserts.map((dish) => (
+                <TableRow key={dish.id}>
+                  <TableCell>{dish.name}</TableCell>
+                  <TableCell>{dish.price}</TableCell>
+                  <TableCell>{dish.description}</TableCell>
+                  <TableCell>{dish.imageUrl}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Ouvrir le menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleSelectDessert(dish.id)}
+                        >
+                          Sélectionner
+                        </DropdownMenuItem>
+                        {!readOnly && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem className="text-red-500">
+                                Supprimer
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Êtes-vous sûr de vouloir supprimer ce dessert?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteDessert(dish.id)}
+                                >
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {!readOnly && (
+            <Button
+              variant="outline"
+              onClick={() => setIsAddingDessert(true)}
+              className="mt-2"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter un dessert
+            </Button>
+          )}
+          {isAddingDessert && (
+            <div className="mt-4">
+              <Label htmlFor="dessertName">Nom</Label>
+              <Input
+                id="dessertName"
+                value={dessertName}
+                onChange={(e) => setDessertName(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="dessertPrice">Prix</Label>
+              <Input
+                id="dessertPrice"
+                value={dessertPrice}
+                onChange={(e) => setDessertPrice(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="dessertDescription">Description</Label>
+              <Input
+                id="dessertDescription"
+                value={dessertDescription}
+                onChange={(e) => setDessertDescription(e.target.value)}
+                className="mb-2"
+              />
+              <Label htmlFor="dessertImageUrl">Image URL</Label>
+              <Input
+                id="dessertImageUrl"
+                value={dessertImageUrl}
+                onChange={(e) => setDessertImageUrl(e.target.value)}
+                className="mb-2"
+              />
+              <Button onClick={handleAddDessert} className="mr-2">
+                Ajouter
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setIsAddingDessert(false)}
+              >
+                Annuler
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
