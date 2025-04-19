@@ -1,9 +1,8 @@
-
 // Configuration des paiements pour l'application
 // Vous pouvez modifier ces valeurs selon vos besoins
 
-// Prix hebdomadaire pour tous les repas de la semaine
-export const weeklyPackagePrice = 150;
+// Prix hebdomadaire pour tous les repas de la semaine (en FCFA)
+export const weeklyPackagePrice = 75000;
 
 // URL de redirection pour le paiement (lien Wave)
 export const paymentRedirectUrl = "https://pay.wave.com/m/M_sn_e0AALi3GMxex/c/sn/";

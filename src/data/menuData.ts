@@ -23,7 +23,7 @@ export interface DayMenu {
   mealOptions: MealOption[];
 }
 
-// Création des données de menus avec 3 options de plats par jour
+// Mise à jour des données avec les prix en FCFA
 export const weeklyMenu: DayMenu[] = [
   {
     id: "monday",
@@ -36,24 +36,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "mon-main1",
           name: "Poulet rôti aux herbes de Provence",
           description: "Poulet fermier rôti avec un mélange d'herbes de Provence, servi avec une sauce au thym.",
-          price: 12.99,
+          price: 6500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "mon-side1",
           name: "Gratin dauphinois",
           description: "Pommes de terre tranchées cuites au four avec de la crème, de l'ail et du fromage.",
-          price: 4.99,
+          price: 2500,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "mon-dessert1",
           name: "Tarte aux pommes",
           description: "Tarte traditionnelle aux pommes avec une touche de cannelle et de sucre vanillé.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
-        totalPrice: 21.97
+        totalPrice: 11000
       },
       {
         id: "mon-option2",
@@ -61,24 +61,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "mon-main2",
           name: "Bœuf Bourguignon",
           description: "Ragoût de bœuf mijoté dans une sauce au vin rouge avec carottes, champignons et lardons.",
-          price: 14.99,
+          price: 7500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "mon-side2",
           name: "Purée de pommes de terre",
           description: "Purée de pommes de terre crémeuse au beurre et à la crème fraîche.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "mon-dessert2",
           name: "Crème brûlée",
           description: "Crème à la vanille avec une fine couche de caramel croustillant.",
-          price: 4.99,
+          price: 2500,
           image: "/placeholder.svg"
         },
-        totalPrice: 23.97
+        totalPrice: 12000
       },
       {
         id: "mon-option3",
@@ -86,24 +86,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "mon-main3",
           name: "Gratin de légumes à la provençale",
           description: "Assortiment de légumes frais cuisinés à la provençale et gratinés au four.",
-          price: 11.99,
+          price: 6000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "mon-side3",
           name: "Riz basmati aux herbes",
           description: "Riz basmati parfumé aux herbes fraîches et au citron.",
-          price: 2.99,
+          price: 1500,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "mon-dessert3",
           name: "Salade de fruits frais",
           description: "Assortiment de fruits frais de saison avec un sirop léger à la menthe.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
-        totalPrice: 18.97
+        totalPrice: 9500
       }
     ]
   },
@@ -118,24 +118,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "tue-main1",
           name: "Filet de saumon à l'aneth",
           description: "Filet de saumon frais cuit à la poêle avec une sauce à l'aneth et au citron.",
-          price: 14.99,
+          price: 7500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "tue-side1",
           name: "Riz pilaf aux légumes",
           description: "Riz basmati cuit avec des petits légumes et des épices délicates.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "tue-dessert1",
           name: "Mousse au chocolat",
           description: "Mousse légère au chocolat noir, garnie de copeaux de chocolat.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
-        totalPrice: 23.48
+        totalPrice: 11750
       },
       {
         id: "tue-option2",
@@ -143,24 +143,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "tue-main2",
           name: "Suprême de volaille aux champignons",
           description: "Suprême de volaille cuit à basse température avec une sauce crémeuse aux champignons.",
-          price: 13.99,
+          price: 7000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "tue-side2",
           name: "Écrasé de pommes de terre à l'huile d'olive",
           description: "Pommes de terre écrasées à la fourchette avec de l'huile d'olive et des herbes fraîches.",
-          price: 3.50,
+          price: 1750,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "tue-dessert2",
           name: "Tiramisu",
           description: "Tiramisu traditionnel au mascarpone, café et cacao.",
-          price: 5.50,
+          price: 2750,
           image: "/placeholder.svg"
         },
-        totalPrice: 22.99
+        totalPrice: 11500
       },
       {
         id: "tue-option3",
@@ -168,24 +168,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "tue-main3",
           name: "Risotto aux asperges",
           description: "Risotto crémeux préparé avec des asperges vertes, parmesan et bouillon maison.",
-          price: 12.99,
+          price: 6500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "tue-side3",
           name: "Salade verte aux noix",
           description: "Salade de jeunes pousses avec vinaigrette balsamique et noix caramélisées.",
-          price: 3.50,
+          price: 1750,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "tue-dessert3",
           name: "Panna cotta aux fruits rouges",
           description: "Crème italienne onctueuse servie avec un coulis de fruits rouges.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
-        totalPrice: 20.99
+        totalPrice: 10500
       }
     ]
   },
@@ -200,24 +200,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "wed-main1",
           name: "Bœuf bourguignon",
           description: "Ragoût de bœuf mijoté dans une sauce au vin rouge avec des carottes et des champignons.",
-          price: 13.99,
+          price: 7000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "wed-side1",
           name: "Purée de pommes de terre",
           description: "Purée de pommes de terre crémeuse avec un soupçon de muscade.",
-          price: 3.50,
+          price: 1750,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "wed-dessert1",
           name: "Crème brûlée",
           description: "Crème onctueuse à la vanille avec une fine couche de caramel croustillant.",
-          price: 5.50,
+          price: 2750,
           image: "/placeholder.svg"
         },
-        totalPrice: 22.99
+        totalPrice: 11500
       },
       {
         id: "wed-option2",
@@ -225,24 +225,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "wed-main2",
           name: "Filet de dorade à la méditerranéenne",
           description: "Filet de dorade cuit au four avec tomates, olives et basilic.",
-          price: 15.99,
+          price: 8000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "wed-side2",
           name: "Ratatouille provençale",
           description: "Légumes du soleil mijotés lentement avec herbes de Provence.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "wed-dessert2",
           name: "Tarte au citron meringuée",
           description: "Tarte au citron acidulée recouverte d'une meringue italienne dorée.",
-          price: 4.99,
+          price: 2500,
           image: "/placeholder.svg"
         },
-        totalPrice: 25.48
+        totalPrice: 12750
       },
       {
         id: "wed-option3",
@@ -250,24 +250,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "wed-main3",
           name: "Lasagnes végétariennes",
           description: "Lasagnes aux légumes grillés, épinards et béchamel au fromage.",
-          price: 11.99,
+          price: 6000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "wed-side3",
           name: "Salade mixte",
           description: "Mélange de salades fraîches avec vinaigrette maison.",
-          price: 2.99,
+          price: 1500,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "wed-dessert3",
           name: "Mousse à la mangue",
           description: "Mousse légère à la mangue avec éclats de pistaches.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
-        totalPrice: 19.48
+        totalPrice: 9750
       }
     ]
   },
@@ -282,24 +282,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "thu-main1",
           name: "Risotto aux champignons",
           description: "Risotto crémeux préparé avec des champignons sauvages et du parmesan.",
-          price: 11.99,
+          price: 6000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "thu-side1",
           name: "Salade verte",
           description: "Mélange de salades fraîches avec vinaigrette balsamique maison.",
-          price: 2.99,
+          price: 1500,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "thu-dessert1",
           name: "Tiramisu",
           description: "Dessert italien classique au mascarpone, café et cacao.",
-          price: 4.99,
+          price: 2500,
           image: "/placeholder.svg"
         },
-        totalPrice: 19.97
+        totalPrice: 10000
       },
       {
         id: "thu-option2",
@@ -307,24 +307,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "thu-main2",
           name: "Côte de porc à la moutarde",
           description: "Côte de porc grillée avec sauce à la moutarde à l'ancienne.",
-          price: 13.99,
+          price: 7000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "thu-side2",
           name: "Pommes de terre rôties au romarin",
           description: "Pommes de terre nouvelles rôties au four avec romarin et ail.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "thu-dessert2",
           name: "Profiteroles au chocolat",
           description: "Choux garnis de glace vanille et nappés de sauce chocolat.",
-          price: 5.99,
+          price: 3000,
           image: "/placeholder.svg"
         },
-        totalPrice: 23.97
+        totalPrice: 12000
       },
       {
         id: "thu-option3",
@@ -332,24 +332,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "thu-main3",
           name: "Quiche méditerranéenne",
           description: "Quiche aux légumes grillés, feta et olives noires.",
-          price: 10.99,
+          price: 5500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "thu-side3",
           name: "Salade de quinoa aux agrumes",
           description: "Quinoa avec segments d'agrumes, menthe et amandes effilées.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "thu-dessert3",
           name: "Salade de fruits frais",
           description: "Assortiment de fruits frais de saison avec un sirop léger.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
-        totalPrice: 18.97
+        totalPrice: 9500
       }
     ]
   },
@@ -364,24 +364,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "fri-main1",
           name: "Filet de cabillaud en croûte d'herbes",
           description: "Filet de cabillaud frais recouvert d'une croûte d'herbes aromatiques et de pain.",
-          price: 13.50,
+          price: 6750,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "fri-side1",
           name: "Ratatouille provençale",
           description: "Mélange de légumes du sud cuits lentement avec des herbes de Provence.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "fri-dessert1",
           name: "Tarte au citron meringuée",
           description: "Tarte acidulée au citron recouverte d'une meringue légère et dorée.",
-          price: 4.99,
+          price: 2500,
           image: "/placeholder.svg"
         },
-        totalPrice: 22.99
+        totalPrice: 11500
       },
       {
         id: "fri-option2",
@@ -389,24 +389,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "fri-main2",
           name: "Tajine d'agneau aux abricots",
           description: "Tajine d'agneau mijoté lentement avec abricots secs, miel et épices.",
-          price: 15.99,
+          price: 8000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "fri-side2",
           name: "Couscous aux légumes",
           description: "Semoule fine cuite à la vapeur avec légumes et bouillon parfumé.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "fri-dessert2",
           name: "Baklava",
           description: "Pâtisserie feuilletée aux noix et miel, parfumée à la fleur d'oranger.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
-        totalPrice: 24.48
+        totalPrice: 12250
       },
       {
         id: "fri-option3",
@@ -414,24 +414,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "fri-main3",
           name: "Penne aux légumes grillés et ricotta",
           description: "Pâtes penne avec légumes grillés, ricotta et basilic frais.",
-          price: 10.99,
+          price: 5500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "fri-side3",
           name: "Focaccia à l'huile d'olive et romarin",
           description: "Pain plat italien à l'huile d'olive, romarin et fleur de sel.",
-          price: 2.99,
+          price: 1500,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "fri-dessert3",
           name: "Panna cotta aux fruits rouges",
           description: "Crème italienne onctueuse nappée d'un coulis de fruits rouges.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
-        totalPrice: 18.48
+        totalPrice: 9250
       }
     ]
   },
@@ -446,24 +446,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "sat-main1",
           name: "Magret de canard au miel",
           description: "Magret de canard poêlé avec une sauce au miel et aux épices douces.",
-          price: 16.99,
+          price: 8500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "sat-side1",
           name: "Pommes de terre sarladaises",
           description: "Pommes de terre dorées à la graisse de canard, à l'ail et au persil.",
-          price: 4.99,
+          price: 2500,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "sat-dessert1",
           name: "Fondant au chocolat",
           description: "Gâteau au chocolat avec un cœur coulant, servi tiède.",
-          price: 5.99,
+          price: 3000,
           image: "/placeholder.svg"
         },
-        totalPrice: 27.97
+        totalPrice: 14000
       },
       {
         id: "sat-option2",
@@ -471,24 +471,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "sat-main2",
           name: "Pavé de saumon en croûte de sésame",
           description: "Pavé de saumon en croûte de sésame avec sauce teriyaki.",
-          price: 15.99,
+          price: 8000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "sat-side2",
           name: "Wok de légumes croquants",
           description: "Légumes croquants sautés au wok avec sauce soja et gingembre.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "sat-dessert2",
           name: "Cheesecake aux fruits de la passion",
           description: "Cheesecake crémeux au coulis de fruits de la passion.",
-          price: 5.50,
+          price: 2750,
           image: "/placeholder.svg"
         },
-        totalPrice: 25.99
+        totalPrice: 13000
       },
       {
         id: "sat-option3",
@@ -496,24 +496,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "sat-main3",
           name: "Risotto aux asperges et parmesan",
           description: "Risotto crémeux aux asperges fraîches et copeaux de parmesan.",
-          price: 12.99,
+          price: 6500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "sat-side3",
           name: "Salade de roquette et parmesan",
           description: "Salade de roquette avec copeaux de parmesan et vinaigrette balsamique.",
-          price: 3.99,
+          price: 2000,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "sat-dessert3",
           name: "Panna cotta à la vanille",
           description: "Crème onctueuse à la vanille nappée de caramel.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
-        totalPrice: 21.48
+        totalPrice: 10750
       }
     ]
   },
@@ -528,24 +528,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "sun-main1",
           name: "Rôti de veau aux champignons",
           description: "Rôti de veau tendre cuit lentement avec une sauce crémeuse aux champignons.",
-          price: 15.99,
+          price: 8000,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "sun-side1",
           name: "Gratin de courgettes",
           description: "Courgettes en tranches gratinées avec de la béchamel et du fromage râpé.",
-          price: 4.50,
+          price: 2250,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "sun-dessert1",
           name: "Paris-Brest",
           description: "Pâtisserie en forme de roue garnie de crème pralinée et d'amandes effilées.",
-          price: 6.50,
+          price: 3250,
           image: "/placeholder.svg"
         },
-        totalPrice: 26.99
+        totalPrice: 13500
       },
       {
         id: "sun-option2",
@@ -553,24 +553,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "sun-main2",
           name: "Suprême de pintade aux girolles",
           description: "Suprême de pintade rôti avec sauce crémeuse aux girolles fraîches.",
-          price: 16.99,
+          price: 8500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "sun-side2",
           name: "Écrasé de pommes de terre à la truffe",
           description: "Pommes de terre écrasées avec huile de truffe et parmesan.",
-          price: 5.99,
+          price: 3000,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "sun-dessert2",
           name: "Royal au chocolat",
           description: "Entremet au chocolat avec croustillant praliné et mousse au chocolat.",
-          price: 5.99,
+          price: 3000,
           image: "/placeholder.svg"
         },
-        totalPrice: 28.97
+        totalPrice: 14500
       },
       {
         id: "sun-option3",
@@ -578,24 +578,24 @@ export const weeklyMenu: DayMenu[] = [
           id: "sun-main3",
           name: "Tarte fine aux légumes confits",
           description: "Tarte fine avec légumes confits, chèvre frais et herbes aromatiques.",
-          price: 12.99,
+          price: 6500,
           image: "/placeholder.svg"
         },
         sideDish: {
           id: "sun-side3",
           name: "Salade de jeunes pousses",
           description: "Jeunes pousses assaisonnées à l'huile de noix et vinaigre balsamique.",
-          price: 3.50,
+          price: 1750,
           image: "/placeholder.svg"
         },
         dessert: {
           id: "sun-dessert3",
           name: "Assortiment de mignardises",
           description: "Sélection de petites pâtisseries variées faites maison.",
-          price: 6.50,
+          price: 3250,
           image: "/placeholder.svg"
         },
-        totalPrice: 22.99
+        totalPrice: 11500
       }
     ]
   }

@@ -400,13 +400,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <td>${item.main_dish}</td>
                   <td>${item.side_dish || '-'}</td>
                   <td>${item.dessert || '-'}</td>
-                  <td>${item.price} €</td>
+                  <td>${formatPriceInFCFA(item.price)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
           
-          <p><strong>Montant total:</strong> ${order.total_amount} €</p>
+          <p><strong>Montant total:</strong> ${formatPriceInFCFA(order.total_amount)}</p>
           
           <div class="footer">
             <p>Bon de commande généré le ${new Date().toLocaleDateString()} à ${new Date().toLocaleTimeString()}</p>
@@ -628,7 +628,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                                       <TableCell>{item.main_dish}</TableCell>
                                       <TableCell>{item.side_dish || '-'}</TableCell>
                                       <TableCell>{item.dessert || '-'}</TableCell>
-                                      <TableCell>{item.price} €</TableCell>
+                                      <TableCell>{formatPriceInFCFA(item.price)}</TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>
