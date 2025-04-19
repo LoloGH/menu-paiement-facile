@@ -143,7 +143,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
     // Souscrire aux changements des commandes
     const channel = supabase
-      .channel('order-changes')
+      .channel('dashboard-stats-changes')
       .on(
         'postgres_changes',
         { 
