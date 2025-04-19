@@ -1,22 +1,17 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { UserTable } from "@/components/admin/UserTable";
-import { OrdersTable } from "@/components/admin/OrdersTable";
-import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
-import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
-import { ArticlesManager } from "@/components/admin/articles/ArticlesManager";
-import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
-import { Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw } from "lucide-react";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import { Menu, Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { MenuDay } from "@/components/admin/menu-editor/types";
 import { weeklyMenu } from "@/data/menuData";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -27,11 +22,12 @@ const AdminInterface = () => {
   const [menus, setMenus] = useState<MenuDay[]>([]);
   const [activeMenuId, setActiveMenuId] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMenusOpen, setIsMenusOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     loadMenus();
     
-    // Écouter les événements de mise à jour du menu
     const handleMenuUpdated = (event: CustomEvent) => {
       console.log("Menu updated event received:", event.detail);
       if (event.detail) {
@@ -124,7 +120,6 @@ const AdminInterface = () => {
       setActiveMenuId(convertedMenus[0].id);
     }
     
-    // Sauvegarder dans le localStorage
     localStorage.setItem("weeklyMenu", JSON.stringify(convertedMenus));
   };
 
@@ -232,11 +227,69 @@ const AdminInterface = () => {
 
   const selectedMenu = menus.find(menu => menu.id === activeMenuId);
 
+  const renderMenuButtons = () => {
+    if (isMobile) {
+      return (
+        <Drawer open={isMenusOpen} onOpenChange={setIsMenusOpen}>
+          <DrawerTrigger asChild>
+            <Button variant="outline" size="sm" className="mb-4">
+              <Menu className="h-4 w-4 mr-2" />
+              Sélectionner un jour
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent>
+            <div className="p-4 space-y-2">
+              <h3 className="font-medium mb-2">Jours de la semaine</h3>
+              <div className="flex flex-col gap-2">
+                {menus.map((menu) => (
+                  <Button
+                    key={menu.id}
+                    variant={activeMenuId === menu.id ? "default" : "outline"}
+                    onClick={() => {
+                      handleSelectMenu(menu.id);
+                      setIsMenusOpen(false);
+                    }}
+                    className={`${
+                      activeMenuId === menu.id
+                        ? "bg-restaurant-purple text-white"
+                        : "text-restaurant-purple"
+                    }`}
+                  >
+                    {menu.day}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      );
+    }
+
+    return (
+      <div className="w-full justify-start border-b pb-2 flex space-x-2 overflow-x-auto">
+        {menus.map((menu) => (
+          <Button
+            key={menu.id}
+            variant={activeMenuId === menu.id ? "default" : "outline"}
+            onClick={() => handleSelectMenu(menu.id)}
+            className={`${
+              activeMenuId === menu.id
+                ? "bg-restaurant-purple text-white"
+                : "text-restaurant-purple"
+            }`}
+          >
+            {menu.day}
+          </Button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-restaurant-purple text-white p-4 shadow-md">
         <div className="container mx-auto">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center">
               <div className="bg-white p-2 rounded-md mr-3">
                 <img 
@@ -245,10 +298,10 @@ const AdminInterface = () => {
                   className="h-10 w-auto"
                 />
               </div>
-              <h1 className="text-2xl font-bold">Interface Administrateur</h1>
+              <h1 className="text-xl md:text-2xl font-bold">Interface Administrateur</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/cuisine" className="flex items-center bg-white/20 px-3 py-1 rounded hover:bg-white/30 transition">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to="/cuisine" className="flex items-center bg-white/20 px-3 py-1 rounded hover:bg-white/30 transition text-sm">
                 <UtensilsCrossed className="h-4 w-4 mr-2" />
                 Interface Cuisine
               </Link>
@@ -296,23 +349,43 @@ const AdminInterface = () => {
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
-              <TabsList className="grid grid-cols-6 gap-4">
+              <TabsList className={`${isMobile ? 'grid-cols-3' : 'grid-cols-6'} grid gap-4`}>
                 <TabsTrigger value="users">Utilisateurs</TabsTrigger>
                 <TabsTrigger value="orders">Commandes</TabsTrigger>
-                <TabsTrigger value="order-items">Articles commandés</TabsTrigger>
-                <TabsTrigger value="articles">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Articles
-                </TabsTrigger>
-                <TabsTrigger value="menus">
-                  <UtensilsCrossed className="h-4 w-4 mr-2" />
-                  Menus
-                </TabsTrigger>
-                <TabsTrigger value="admins">
-                  <Users className="h-4 w-4 mr-2" />
-                  Administrateurs
-                </TabsTrigger>
+                <TabsTrigger value="order-items">Articles</TabsTrigger>
+                {!isMobile && (
+                  <>
+                    <TabsTrigger value="articles">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Articles
+                    </TabsTrigger>
+                    <TabsTrigger value="menus">
+                      <UtensilsCrossed className="h-4 w-4 mr-2" />
+                      Menus
+                    </TabsTrigger>
+                    <TabsTrigger value="admins">
+                      <Users className="h-4 w-4 mr-2" />
+                      Administrateurs
+                    </TabsTrigger>
+                  </>
+                )}
               </TabsList>
+              {isMobile && (
+                <TabsList className="grid grid-cols-3 gap-4 mt-2">
+                  <TabsTrigger value="articles">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Articles
+                  </TabsTrigger>
+                  <TabsTrigger value="menus">
+                    <UtensilsCrossed className="h-4 w-4 mr-2" />
+                    Menus
+                  </TabsTrigger>
+                  <TabsTrigger value="admins">
+                    <Users className="h-4 w-4 mr-2" />
+                    Administrateurs
+                  </TabsTrigger>
+                </TabsList>
+              )}
             </CardHeader>
             <CardContent>
               <TabsContent value="users" className="space-y-4">
@@ -346,24 +419,7 @@ const AdminInterface = () => {
                         Actualiser
                       </Button>
                     </div>
-                    <div className="overflow-x-auto">
-                      <div className="w-full justify-start border-b pb-2 flex space-x-2">
-                        {menus.map((menu) => (
-                          <Button
-                            key={menu.id}
-                            variant={activeMenuId === menu.id ? "default" : "outline"}
-                            onClick={() => handleSelectMenu(menu.id)}
-                            className={`${
-                              activeMenuId === menu.id
-                                ? "bg-restaurant-purple text-white"
-                                : "text-restaurant-purple"
-                            }`}
-                          >
-                            {menu.day}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
+                    {renderMenuButtons()}
                   </CardHeader>
                   <CardContent className="pt-6">
                     {selectedMenu && (
