@@ -18,6 +18,7 @@ import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { ArticlesManager } from "@/components/admin/articles/ArticlesManager";
 import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
 import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
+import { DashboardStats } from "@/components/admin/stats/DashboardStats";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -351,16 +352,17 @@ const AdminInterface = () => {
           </CardContent>
         </Card>
         
-        <Tabs defaultValue="users" className="space-y-4">
+        <Tabs defaultValue="dashboard" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
-              <TabsList className={`${isMobile ? 'grid-cols-3' : 'grid-cols-6'} grid gap-4`}>
+              <TabsList className={`${isMobile ? 'grid-cols-3' : 'grid-cols-7'} grid gap-4`}>
+                <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                 <TabsTrigger value="users">Utilisateurs</TabsTrigger>
                 <TabsTrigger value="orders">Commandes</TabsTrigger>
-                <TabsTrigger value="order-items">Articles</TabsTrigger>
                 {!isMobile && (
                   <>
+                    <TabsTrigger value="order-items">Articles</TabsTrigger>
                     <TabsTrigger value="articles">
                       <FileText className="h-4 w-4 mr-2" />
                       Articles
@@ -377,7 +379,8 @@ const AdminInterface = () => {
                 )}
               </TabsList>
               {isMobile && (
-                <TabsList className="grid grid-cols-3 gap-4 mt-2">
+                <TabsList className="grid grid-cols-4 gap-4 mt-2">
+                  <TabsTrigger value="order-items">Articles</TabsTrigger>
                   <TabsTrigger value="articles">
                     <FileText className="h-4 w-4 mr-2" />
                     Articles
@@ -394,6 +397,10 @@ const AdminInterface = () => {
               )}
             </CardHeader>
             <CardContent>
+              <TabsContent value="dashboard" className="space-y-4">
+                <DashboardStats />
+              </TabsContent>
+              
               <TabsContent value="users" className="space-y-4">
                 <UserTable searchTerm={searchTerm} />
               </TabsContent>
