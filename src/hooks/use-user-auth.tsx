@@ -48,7 +48,6 @@ export const useUserAuth = () => {
   const createUserRecord = async (sessionUser: any) => {
     const fullName = sessionUser.user_metadata?.full_name || "";
     
-    // Create user record if it doesn't exist
     try {
       console.log("Creating user record for:", sessionUser.id);
       
@@ -61,7 +60,8 @@ export const useUserAuth = () => {
             name: fullName || "Utilisateur",
             phone: sessionUser.user_metadata?.phone || "",
           }
-        ]);
+        ])
+        .select();
         
       if (insertError) {
         console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
@@ -85,7 +85,6 @@ export const useUserAuth = () => {
   };
 
   const handleUserSession = async (session: any) => {
-    setIsLoading(true);
     try {
       if (session && session.user) {
         console.log("Session user:", session.user);
@@ -118,20 +117,33 @@ export const useUserAuth = () => {
   useEffect(() => {
     console.log("Setting up auth state listener");
     
-    // Set up auth state listener first to catch all auth events
+    // L'ordre est important : d'abord configurer l'écouteur d'événements, puis vérifier la session existante
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state changed:", event);
-        await handleUserSession(session);
+        console.log("Auth state changed:", event, "Session:", session ? "exists" : "null");
+        
+        // Mise à jour synchrone de l'état pour éviter les blocages
+        setIsLoading(true);
+        
+        if (session) {
+          setIsLoggedIn(true);
+        } else {
+          setIsLoggedIn(false);
+          setUserData(null);
+        }
+        
+        // Déférer le traitement asynchrone
+        setTimeout(() => {
+          handleUserSession(session);
+        }, 0);
       }
     );
 
-    // Then check for existing session
+    // Vérifier la session existante
     const checkCurrentSession = async () => {
-      console.log("Checking current session");
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        await handleUserSession(session);
+        const { data } = await supabase.auth.getSession();
+        await handleUserSession(data.session);
       } catch (error) {
         console.error("Erreur lors de la vérification de la session:", error);
         setIsLoading(false);
@@ -148,6 +160,7 @@ export const useUserAuth = () => {
   const handleLogout = async () => {
     console.log("Logging out");
     setIsLoading(true);
+    
     try {
       const { error } = await supabase.auth.signOut();
       
@@ -158,12 +171,11 @@ export const useUserAuth = () => {
           description: "Un problème est survenu lors de la déconnexion.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
       
-      setIsLoggedIn(false);
-      setUserData(null);
-      
+      // La session sera mise à jour via onAuthStateChange
       toast({
         title: "Déconnexion réussie",
         description: "Vous avez été déconnecté de votre compte.",
@@ -175,7 +187,6 @@ export const useUserAuth = () => {
         description: "Un problème est survenu lors de la déconnexion.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };

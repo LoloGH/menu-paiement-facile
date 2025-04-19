@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -70,30 +69,15 @@ export const PaymentLoginDialog: React.FC<PaymentLoginDialogProps> = ({
       }
 
       if (authData.user) {
-        // Récupérer les informations utilisateur depuis la table users
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', data.email)
-          .single();
-
-        if (userError && userError.code !== 'PGRST116') {
-          console.error("Erreur lors de la récupération des données utilisateur:", userError);
-        }
-
         // Connexion réussie
         toast({
           title: "Connexion réussie",
           description: "Vous êtes maintenant connecté à votre compte.",
         });
 
-        // Passer les données utilisateur au parent
-        onLoginSuccess({
-          id: authData.user.id,
-          email: authData.user.email,
-          phoneNumber: userData?.phone || "",
-          fullName: userData?.name || "Utilisateur"
-        });
+        // Fermer la boîte de dialogue et notifier le parent
+        loginForm.reset();
+        onLoginSuccess(authData.user);
       }
     } catch (error: any) {
       console.error("Erreur de connexion:", error);
@@ -260,7 +244,7 @@ const SignupTab: React.FC<SignupTabProps> = ({
         password: data.password,
         options: {
           data: {
-            name: data.fullName,
+            full_name: data.fullName,
             phone: data.phoneNumber,
           }
         }
@@ -271,35 +255,15 @@ const SignupTab: React.FC<SignupTabProps> = ({
       }
 
       if (authData.user) {
-        // Ajouter l'utilisateur à la table users
-        const { error: userError } = await supabase
-          .from('users')
-          .insert([
-            { 
-              id: authData.user.id,
-              email: data.email,
-              name: data.fullName,
-              phone: data.phoneNumber,
-            }
-          ]);
-
-        if (userError) {
-          console.error("Erreur lors de l'ajout de l'utilisateur:", userError);
-        }
-
         // Inscription réussie
         toast({
           title: "Inscription réussie",
           description: "Votre compte a été créé avec succès.",
         });
 
-        // Passer les données utilisateur au parent
-        onSignupSuccess({
-          id: authData.user.id,
-          email: data.email,
-          phoneNumber: data.phoneNumber,
-          fullName: data.fullName
-        });
+        // Réinitialiser le formulaire et notifier le parent
+        form.reset();
+        onSignupSuccess(authData.user);
       }
     } catch (error: any) {
       console.error("Erreur d'inscription:", error);

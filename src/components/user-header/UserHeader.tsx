@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { LogIn } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -13,14 +13,14 @@ interface UserHeaderProps {
 
 export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const { isLoggedIn, userData, handleLogout, setUserData } = useUserAuth();
+  const { isLoggedIn, userData, isLoading, handleLogout } = useUserAuth();
   const { toast } = useToast();
 
   const handleLogin = () => {
     setIsLoginDialogOpen(true);
   };
 
-  const handleLoginSuccess = (user: any) => {
+  const handleLoginSuccess = () => {
     setIsLoginDialogOpen(false);
     
     toast({
@@ -28,6 +28,17 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
       description: "Vous êtes maintenant connecté à votre compte.",
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className={className}>
+        <Button variant="outline" className="bg-gray-200 text-gray-400" disabled>
+          <LogIn className="h-4 w-4 mr-2" />
+          Chargement...
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
