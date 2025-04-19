@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -124,7 +123,33 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
   useEffect(() => {
     fetchStats();
+
+    // Souscrire aux changements des commandes
+    const channel = supabase
+      .channel('order-changes')
+      .on(
+        'postgres_changes',
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'orders',
+          filter: `payment_status=eq.validated`
+        },
+        (payload) => {
+          console.log('Order validated:', payload);
+          fetchStats(); // Rafraîchir les statistiques
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [timeRange]);
+
+  const formatPrice = (amount: number) => {
+    return `${amount.toLocaleString('fr-FR')} FCFA`;
+  };
 
   const renderPercentageChange = (value: number) => {
     const isPositive = value >= 0;
@@ -161,7 +186,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         />
         <StatCard
           title="Revenus"
-          value={`${stats.revenue.toFixed(2)} €`}
+          value={formatPrice(stats.revenue)}
           description="Chiffre d'affaires total"
           icon={<TrendingUp className="h-4 w-4" />}
         />
