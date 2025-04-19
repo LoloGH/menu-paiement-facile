@@ -59,7 +59,12 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     }
 
     try {
-      console.log("Enregistrement de la commande dans la base de données");
+      console.log("Enregistrement de la commande dans la base de données", {
+        receipt_id: receiptId,
+        user_id: userData.id,
+        total_amount: roundedPrice,
+        details: JSON.stringify(fullDetails)
+      });
       
       // Enregistrer la commande principale
       const { data: orderData, error: orderError } = await supabase
@@ -71,22 +76,27 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           details: JSON.stringify(fullDetails),
           payment_status: 'pending'
         })
-        .select('id')
-        .single();
+        .select('id');
       
       if (orderError) {
         console.error("Erreur lors de l'enregistrement de la commande:", orderError);
+        toast({
+          title: "Erreur",
+          description: "Impossible d'enregistrer votre commande. Veuillez réessayer.",
+          variant: "destructive"
+        });
         return;
       }
       
       console.log("Commande enregistrée avec succès:", orderData);
       
-      // Vous pourriez également enregistrer des éléments de commande individuels si nécessaire
-      // dans la table order_items
-      if (orderData && orderData.id) {
+      // Si nous avons bien un ID de commande, enregistrer les éléments
+      if (orderData && orderData.length > 0) {
+        const orderId = orderData[0].id;
+        
         // Create the orderItem with the correct type
         const orderItem: OrderItem = {
-          order_id: orderData.id,
+          order_id: orderId,
           main_dish: details,
           price: roundedPrice,
           day: new Date().toLocaleDateString('fr-FR', { weekday: 'long' }),
@@ -107,13 +117,30 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           
         if (itemError) {
           console.error("Erreur lors de l'enregistrement des éléments de commande:", itemError);
+          toast({
+            title: "Avertissement",
+            description: "Votre commande a été enregistrée mais certains détails n'ont pas pu être sauvegardés.",
+            variant: "default"
+          });
         } else {
           console.log("Éléments de commande enregistrés avec succès");
+          toast({
+            title: "Succès",
+            description: "Votre commande a été enregistrée avec succès.",
+            variant: "default"
+          });
         }
+      } else {
+        console.error("Aucun ID de commande retourné après insertion");
       }
       
     } catch (err) {
       console.error("Erreur lors de l'enregistrement de la commande:", err);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'enregistrement de votre commande.",
+        variant: "destructive"
+      });
     }
   };
 
