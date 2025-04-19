@@ -34,32 +34,45 @@ export const AuditLogViewer = () => {
   const loadLogs = async () => {
     setIsLoading(true);
     try {
-      // Get total count
-      const { count, error: countError } = await supabase
+      // Get total count using the "unsafe" approach to work around TypeScript limitations
+      const countResult = await (supabase as any)
         .from('admin_audit_log')
         .select('*', { count: 'exact' });
       
-      if (countError) throw countError;
-      setTotalItems(count || 0);
+      if (countResult.error) throw countResult.error;
+      setTotalItems(countResult.count || 0);
       
       // Get paginated logs
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('admin_audit_log')
-        .select(`
-          *,
-          users:user_id (
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .range((page - 1) * itemsPerPage, page * itemsPerPage - 1);
       
       if (error) throw error;
       
+      // Fetch user emails separately
+      const userIds = [...new Set(data.map((log: AuditLog) => log.user_id))];
+      const userEmails: Record<string, string> = {};
+      
+      // Only fetch emails if there are logs
+      if (userIds.length > 0) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, email')
+          .in('id', userIds);
+        
+        if (!userError && userData) {
+          userData.forEach((user) => {
+            userEmails[user.id] = user.email;
+          });
+        }
+      }
+      
       // Format the data
-      const formattedLogs = data.map(log => ({
+      const formattedLogs = data.map((log: AuditLog) => ({
         ...log,
-        user_email: log.users?.email
+        user_email: userEmails[log.user_id] || log.user_id.substring(0, 8) + '...'
       }));
       
       setLogs(formattedLogs);
@@ -151,7 +164,7 @@ export const AuditLogViewer = () => {
                       <TableCell>
                         <span className="flex items-center">
                           <User className="h-3 w-3 mr-1 text-gray-500" />
-                          {log.user_email || log.user_id.substring(0, 8) + '...'}
+                          {log.user_email}
                         </span>
                       </TableCell>
                       <TableCell>{formatAction(log.action)}</TableCell>

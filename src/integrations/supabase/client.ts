@@ -76,12 +76,16 @@ export const logAdminAction = async (
   details?: any
 ): Promise<void> => {
   try {
-    const { error } = await supabase.from('admin_audit_log').insert({
-      user_id: userId,
-      action,
-      resource,
-      details: details ? JSON.stringify(details) : null
-    });
+    // Use the "unsafe" version of from() to work around TypeScript limitations
+    // when working with tables not in the generated types
+    const { error } = await (supabase as any)
+      .from('admin_audit_log')
+      .insert({
+        user_id: userId,
+        action,
+        resource,
+        details: details ? JSON.stringify(details) : null
+      });
 
     if (error) {
       console.error("Error logging admin action:", error);
