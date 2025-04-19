@@ -20,7 +20,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Check, Truck, X, Trash2 } from 'lucide-react';
 
 type TimeRange = 'day' | 'week' | 'month';
 
@@ -32,6 +32,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
   const [timeRange, setTimeRange] = useState<TimeRange>('day');
   const [stats, setStats] = useState({
     orderCount: 0,
+    ordersByStatus: {
+      validated: 0,
+      delivered: 0,
+      completed: 0,
+      cancelled: 0,
+      deleted: 0
+    },
     revenue: 0,
     avgPrepTime: 0,
     topDishes: [] as { dish: string; count: number }[],
@@ -63,14 +70,23 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     const { start, end } = getDateRange(timeRange);
 
     try {
-      // Fetch order count and revenue
+      // Fetch orders with counts by status
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select('id, total_amount, created_at')
+        .select('id, total_amount, created_at, payment_status')
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString());
 
       if (ordersError) throw ordersError;
+
+      // Calculate counts by status
+      const ordersByStatus = {
+        validated: orders?.filter(order => order.payment_status === 'validated').length || 0,
+        delivered: orders?.filter(order => order.payment_status === 'delivered').length || 0,
+        completed: orders?.filter(order => order.payment_status === 'completed').length || 0,
+        cancelled: orders?.filter(order => order.payment_status === 'cancelled').length || 0,
+        deleted: orders?.filter(order => order.payment_status === 'deleted').length || 0
+      };
 
       // Fetch top dishes
       const { data: orderItems, error: itemsError } = await supabase
@@ -110,6 +126,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       setStats({
         orderCount,
+        ordersByStatus,
         revenue,
         avgPrepTime: 30, // This would need to be calculated based on actual prep time data
         topDishes,
@@ -177,11 +194,11 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
         <StatCard
-          title="Commandes"
+          title="Total Commandes"
           value={stats.orderCount}
-          description="Total des commandes"
+          description="Toutes commandes confondues"
           icon={<Calendar className="h-4 w-4" />}
         />
         <StatCard
@@ -201,6 +218,44 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
           value={stats.topDishes[0]?.dish || 'Aucun'}
           description={`${stats.topDishes[0]?.count || 0} commandes`}
           icon={<TrendingUp className="h-4 w-4" />}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-4">
+        <StatCard
+          title="Validées"
+          value={stats.ordersByStatus.validated}
+          description="Commandes validées"
+          className="bg-blue-50"
+          icon={<Check className="h-4 w-4 text-blue-500" />}
+        />
+        <StatCard
+          title="Livrées"
+          value={stats.ordersByStatus.delivered}
+          description="Commandes livrées"
+          className="bg-green-50"
+          icon={<Truck className="h-4 w-4 text-green-500" />}
+        />
+        <StatCard
+          title="Terminées"
+          value={stats.ordersByStatus.completed}
+          description="Commandes terminées"
+          className="bg-purple-50"
+          icon={<Check className="h-4 w-4 text-purple-500" />}
+        />
+        <StatCard
+          title="Annulées"
+          value={stats.ordersByStatus.cancelled}
+          description="Commandes annulées"
+          className="bg-orange-50"
+          icon={<X className="h-4 w-4 text-orange-500" />}
+        />
+        <StatCard
+          title="Supprimées"
+          value={stats.ordersByStatus.deleted}
+          description="Commandes supprimées"
+          className="bg-red-50"
+          icon={<Trash2 className="h-4 w-4 text-red-500" />}
         />
       </div>
 
