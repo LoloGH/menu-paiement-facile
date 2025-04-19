@@ -13,7 +13,6 @@ interface UserData {
 export const useUserAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   const fetchUserData = async (userId: string) => {
@@ -48,6 +47,7 @@ export const useUserAuth = () => {
   const createUserRecord = async (sessionUser: any) => {
     const fullName = sessionUser.user_metadata?.full_name || "";
     
+    // Create user record if it doesn't exist
     try {
       console.log("Creating user record for:", sessionUser.id);
       
@@ -60,8 +60,7 @@ export const useUserAuth = () => {
             name: fullName || "Utilisateur",
             phone: sessionUser.user_metadata?.phone || "",
           }
-        ])
-        .select();
+        ]);
         
       if (insertError) {
         console.error("Erreur lors de l'ajout de l'utilisateur:", insertError);
@@ -85,69 +84,43 @@ export const useUserAuth = () => {
   };
 
   const handleUserSession = async (session: any) => {
-    try {
-      if (session && session.user) {
-        console.log("Session user:", session.user);
-        setIsLoggedIn(true);
-        
-        // Récupérer les données utilisateur de la base
-        const userDataFromDb = await fetchUserData(session.user.id);
-        
-        if (!userDataFromDb) {
-          // Si l'utilisateur n'existe pas, créer un nouvel enregistrement
-          console.log("User record not found, creating new record");
-          const newUserData = await createUserRecord(session.user);
-          setUserData(newUserData);
-        } else {
-          setUserData(userDataFromDb);
-        }
+    if (session && session.user) {
+      console.log("Session user:", session.user);
+      setIsLoggedIn(true);
+      
+      // Récupérer les données utilisateur de la base
+      const userDataFromDb = await fetchUserData(session.user.id);
+      
+      if (!userDataFromDb) {
+        // Si l'utilisateur n'existe pas, créer un nouvel enregistrement
+        console.log("User record not found, creating new record");
+        const newUserData = await createUserRecord(session.user);
+        setUserData(newUserData);
       } else {
-        setIsLoggedIn(false);
-        setUserData(null);
+        setUserData(userDataFromDb);
       }
-    } catch (error) {
-      console.error("Erreur lors du traitement de la session:", error);
+    } else {
       setIsLoggedIn(false);
       setUserData(null);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     console.log("Setting up auth state listener");
     
-    // L'ordre est important : d'abord configurer l'écouteur d'événements, puis vérifier la session existante
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state changed:", event, "Session:", session ? "exists" : "null");
-        
-        // Mise à jour synchrone de l'état pour éviter les blocages
-        setIsLoading(true);
-        
-        if (session) {
-          setIsLoggedIn(true);
-        } else {
-          setIsLoggedIn(false);
-          setUserData(null);
-        }
-        
-        // Déférer le traitement asynchrone
-        setTimeout(() => {
-          handleUserSession(session);
-        }, 0);
+        console.log("Auth state changed:", event);
+        await handleUserSession(session);
       }
     );
 
-    // Vérifier la session existante
+    // Then check for existing session
     const checkCurrentSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        await handleUserSession(data.session);
-      } catch (error) {
-        console.error("Erreur lors de la vérification de la session:", error);
-        setIsLoading(false);
-      }
+      console.log("Checking current session");
+      const { data: { session } } = await supabase.auth.getSession();
+      await handleUserSession(session);
     };
 
     checkCurrentSession();
@@ -159,36 +132,25 @@ export const useUserAuth = () => {
 
   const handleLogout = async () => {
     console.log("Logging out");
-    setIsLoading(true);
+    const { error } = await supabase.auth.signOut();
     
-    try {
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error("Erreur de déconnexion:", error);
-        toast({
-          title: "Erreur",
-          description: "Un problème est survenu lors de la déconnexion.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      // La session sera mise à jour via onAuthStateChange
-      toast({
-        title: "Déconnexion réussie",
-        description: "Vous avez été déconnecté de votre compte.",
-      });
-    } catch (error) {
-      console.error("Exception lors de la déconnexion:", error);
+    if (error) {
+      console.error("Erreur de déconnexion:", error);
       toast({
         title: "Erreur",
         description: "Un problème est survenu lors de la déconnexion.",
         variant: "destructive",
       });
-      setIsLoading(false);
+      return;
     }
+    
+    setIsLoggedIn(false);
+    setUserData(null);
+    
+    toast({
+      title: "Déconnexion réussie",
+      description: "Vous avez été déconnecté de votre compte.",
+    });
   };
 
   const updateUserData = async (newData: Partial<UserData>): Promise<boolean> => {
@@ -285,7 +247,6 @@ export const useUserAuth = () => {
   return {
     isLoggedIn,
     userData,
-    isLoading,
     handleLogout,
     setUserData,
     updateUserData
