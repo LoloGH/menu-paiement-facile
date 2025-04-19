@@ -75,7 +75,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
           .delete()
           .eq('menu_day', editingMenu.day);
 
-        const menuArticles: Partial<MenuArticle>[] = [
+        const menuArticles: MenuArticle[] = [
           ...editingMenu.mainDishes.map(dish => ({
             menu_day: editingMenu.day,
             article_id: dish.articleId
@@ -88,15 +88,17 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({ menu, menus, setMenus })
             menu_day: editingMenu.day,
             article_id: dish.articleId
           }))
-        ];
+        ].filter(article => article.article_id);
 
-        const { error: menuArticlesError } = await supabase
-          .from('menu_articles')
-          .insert(menuArticles);
+        if (menuArticles.length > 0) {
+          const { error: menuArticlesError } = await supabase
+            .from('menu_articles')
+            .insert(menuArticles);
 
-        if (menuArticlesError) {
-          console.error("Error saving menu articles:", menuArticlesError);
-          throw menuArticlesError;
+          if (menuArticlesError) {
+            console.error("Error saving menu articles:", menuArticlesError);
+            throw menuArticlesError;
+          }
         }
       }
 

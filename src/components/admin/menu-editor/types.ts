@@ -28,8 +28,8 @@ export interface WeeklyMenu {
 }
 
 export interface MenuArticle {
-  id: string;
-  menu_day: string;
-  article_id: string;
-  created_at: string;
+  id?: string;
+  menu_day: string; // Make this required to match the Supabase schema
+  article_id?: string;
+  created_at?: string;
 }
