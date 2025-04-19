@@ -396,6 +396,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
     printWindow.print();
   };
 
+  const formatPriceInFCFA = (amount: number) => {
+    return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA`;
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -514,7 +518,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ searchTerm }) => {
                   <TableCell>
                     {order.users ? `${order.users.name || 'Sans nom'} (${order.users.email})` : 'Client anonyme'}
                   </TableCell>
-                  <TableCell>{order.total_amount} €</TableCell>
+                  <TableCell>{formatPriceInFCFA(order.total_amount)}</TableCell>
                   <TableCell>{renderStatusBadge(order.payment_status)}</TableCell>
                   <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
