@@ -9,143 +9,16 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      order_items: {
-        Row: {
-          created_at: string
-          day: string
-          dessert: string | null
-          id: string
-          main_dish: string
-          meal_option_id: string | null
-          order_id: string
-          price: number
-          side_dish: string | null
-        }
-        Insert: {
-          created_at?: string
-          day: string
-          dessert?: string | null
-          id?: string
-          main_dish: string
-          meal_option_id?: string | null
-          order_id: string
-          price: number
-          side_dish?: string | null
-        }
-        Update: {
-          created_at?: string
-          day?: string
-          dessert?: string | null
-          id?: string
-          main_dish?: string
-          meal_option_id?: string | null
-          order_id?: string
-          price?: number
-          side_dish?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      orders: {
-        Row: {
-          created_at: string
-          details: string | null
-          id: string
-          payment_status: string | null
-          receipt_id: string
-          total_amount: number
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          details?: string | null
-          id?: string
-          payment_status?: string | null
-          receipt_id: string
-          total_amount: number
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          details?: string | null
-          id?: string
-          payment_status?: string | null
-          receipt_id?: string
-          total_amount?: number
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
-      users: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          name: string | null
-          phone: string | null
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id: string
-          name?: string | null
-          phone?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          name?: string | null
-          phone?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -260,8 +133,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "moderator", "user"],
-    },
+    Enums: {},
   },
 } as const
