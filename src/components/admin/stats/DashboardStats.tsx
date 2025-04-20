@@ -20,7 +20,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar, Check, Truck, X, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Check, Truck, X, Trash2, RefreshCw } from 'lucide-react';
 
 type TimeRange = 'day' | 'week' | 'month';
 
@@ -45,6 +45,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     topDishes: [] as { dish: string; count: number }[],
     revenueData: [] as { date: string; amount: number }[]
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const isMobile = useIsMobile();
 
   const getDateRange = (range: TimeRange) => {
     const now = new Date();
@@ -138,6 +140,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchStats();
+    setIsRefreshing(false);
+  };
+
   useEffect(() => {
     fetchStats();
 
@@ -179,21 +187,31 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
   return (
     <div className={className}>
-      <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Tableau de bord</h2>
-        <Select value={timeRange} onValueChange={(value: TimeRange) => setTimeRange(value)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sélectionner une période" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">Aujourd'hui</SelectItem>
-            <SelectItem value="week">Cette semaine</SelectItem>
-            <SelectItem value="month">Ce mois</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-xl sm:text-2xl font-bold">Tableau de bord</h2>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Select value={timeRange} onValueChange={(value: TimeRange) => setTimeRange(value)}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Sélectionner une période" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">Aujourd'hui</SelectItem>
+              <SelectItem value="week">Cette semaine</SelectItem>
+              <SelectItem value="month">Ce mois</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-4">
         <StatCard
           title="Total Commandes"
           value={stats.orderCount}
@@ -220,7 +238,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 mb-4">
         <StatCard
           title="Validées"
           value={stats.ordersByStatus.validated}
@@ -258,10 +276,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 mt-4">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 mt-4">
         <Card className="p-4">
-          <h3 className="font-semibold mb-4">Évolution des revenus</h3>
-          <div className="h-[300px]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Évolution des revenus</h3>
+            {isMobile && (
+              <Button variant="ghost" size="sm" onClick={() => {}}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <div className="h-[300px] mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={stats.revenueData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -280,7 +305,14 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         </Card>
 
         <Card className="p-4">
-          <h3 className="font-semibold mb-4">Top 5 des plats</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Top 5 des plats</h3>
+            {isMobile && (
+              <Button variant="ghost" size="sm" onClick={() => {}}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <div className="space-y-4">
             {stats.topDishes.map((dish, index) => (
               <div key={dish.dish} className="flex items-center justify-between">

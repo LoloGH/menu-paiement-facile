@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Trash2, UserPlus, Users } from "lucide-react";
+import { ShieldAlert, Trash2, UserPlus, Users, RefreshCw } from "lucide-react";
 import { 
   fetchAdminUsers, fetchOrderManagerUsers, fetchViewerUsers, 
   addRoleToUser, removeRoleFromUser, UserRoleInfo, AdminRoleType, getRoleDisplayName
@@ -13,6 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { logAdminAction, supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AdminRoleManager = () => {
   const [users, setUsers] = useState<{[key: string]: UserRoleInfo[]}>({
@@ -25,6 +25,8 @@ export const AdminRoleManager = () => {
   const [selectedRole, setSelectedRole] = useState<string>(AdminRoleType.ADMIN);
   const { toast } = useToast();
   const { adminData } = useAdminAuth();
+  const isMobile = useIsMobile();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -55,7 +57,6 @@ export const AdminRoleManager = () => {
   useEffect(() => {
     loadUsers();
     
-    // Subscribe to role changes
     const channel = supabase
       .channel('role-manager-changes')
       .on(
@@ -99,7 +100,6 @@ export const AdminRoleManager = () => {
         setEmailToAdd("");
         loadUsers();
 
-        // Log the action
         if (adminData) {
           await logAdminAction(
             adminData.id,
@@ -137,7 +137,6 @@ export const AdminRoleManager = () => {
         
         loadUsers();
 
-        // Log the action
         if (adminData) {
           await logAdminAction(
             adminData.id,
@@ -163,19 +162,41 @@ export const AdminRoleManager = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadUsers();
+    setIsRefreshing(false);
+    toast({
+      title: "Liste actualisée",
+      description: "La liste des utilisateurs a été rechargée.",
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ShieldAlert className="h-5 w-5 text-restaurant-purple" />
-          Gestion des Rôles et Permissions
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-restaurant-purple" />
+            Gestion des Rôles et Permissions
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {!isMobile && "Actualiser"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="mb-6">
           <Label htmlFor="role-email" className="mb-2 block">Ajouter un utilisateur par email</Label>
           <div className="space-y-3">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 id="role-email"
                 placeholder="email@exemple.com"
@@ -189,18 +210,18 @@ export const AdminRoleManager = () => {
                 className="whitespace-nowrap"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
-                Ajouter Utilisateur
+                {!isMobile ? "Ajouter Utilisateur" : "Ajouter"}
               </Button>
             </div>
             <div>
-              <Label htmlFor="role-select" className="mb-2 block">Avec le rôle</Label>
+              <Label htmlFor="role-select" className="mb-2 block">Type de rôle</Label>
               <select 
                 id="role-select"
                 className="w-full p-2 border rounded-md"
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value)}
               >
-                <option value={AdminRoleType.ADMIN}>Admin principal (accès total)</option>
+                <option value={AdminRoleType.ADMIN}>Administrateur (accès total)</option>
                 <option value={AdminRoleType.ORDER_MANAGER}>Gestionnaire de commandes</option>
                 <option value={AdminRoleType.VIEWER}>Visualiseur (lecture seule)</option>
               </select>
@@ -209,13 +230,22 @@ export const AdminRoleManager = () => {
         </div>
 
         <div>
-          <h3 className="font-medium mb-4">Utilisateurs avec rôles</h3>
+          <h3 className="font-medium mb-4">Liste des utilisateurs par rôle</h3>
           
-          <Tabs defaultValue={AdminRoleType.ADMIN}>
-            <TabsList className="mb-4">
-              <TabsTrigger value={AdminRoleType.ADMIN}>Admins principaux</TabsTrigger>
-              <TabsTrigger value={AdminRoleType.ORDER_MANAGER}>Gestionnaires</TabsTrigger>
-              <TabsTrigger value={AdminRoleType.VIEWER}>Visualiseurs</TabsTrigger>
+          <Tabs defaultValue={AdminRoleType.ADMIN} className="w-full">
+            <TabsList className={`mb-4 ${isMobile ? 'grid grid-cols-3 gap-2' : 'flex'}`}>
+              <TabsTrigger value={AdminRoleType.ADMIN} className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4" />
+                {!isMobile && "Administrateurs"}
+              </TabsTrigger>
+              <TabsTrigger value={AdminRoleType.ORDER_MANAGER} className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                {!isMobile && "Gestionnaires"}
+              </TabsTrigger>
+              <TabsTrigger value={AdminRoleType.VIEWER} className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                {!isMobile && "Visualiseurs"}
+              </TabsTrigger>
             </TabsList>
             
             {Object.entries(users).map(([role, roleUsers]) => (
@@ -233,16 +263,18 @@ export const AdminRoleManager = () => {
                         key={`${user.id}-${role}`} 
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
                       >
-                        <div>
-                          <span className="font-medium">{user.email}</span>
-                          <span className="ml-2 text-xs text-gray-500">({user.id.substring(0, 8)}...)</span>
+                        <div className="overflow-hidden">
+                          <div className="font-medium truncate">{user.email}</div>
+                          <div className="text-xs text-gray-500">ID: {user.id.substring(0, 8)}...</div>
                         </div>
                         <Button 
                           variant="destructive" 
-                          size="sm" 
+                          size="sm"
                           onClick={() => handleRemoveUser(user.id, user.email, role)}
+                          className="shrink-0 ml-2"
                         >
                           <Trash2 className="h-4 w-4" />
+                          {!isMobile && <span className="ml-2">Retirer</span>}
                         </Button>
                       </div>
                     ))}
