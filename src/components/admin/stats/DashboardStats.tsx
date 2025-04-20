@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -8,9 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatCard } from './StatCard';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   LineChart,
   Line,
@@ -31,6 +34,8 @@ interface DashboardStatsProps {
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('day');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const isMobile = useIsMobile();
   const [stats, setStats] = useState({
     orderCount: 0,
     ordersByStatus: {
@@ -45,8 +50,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     topDishes: [] as { dish: string; count: number }[],
     revenueData: [] as { date: string; amount: number }[]
   });
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const isMobile = useIsMobile();
 
   const getDateRange = (range: TimeRange) => {
     const now = new Date();
