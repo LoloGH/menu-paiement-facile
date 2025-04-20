@@ -26,7 +26,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,9 +37,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-// Fix the uuid import
+import { MoreVertical, Plus, Trash2, Edit } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
-import { MenuEditorProps, MenuDay } from "./types";
+import { MenuEditorProps, MenuDay, MenuItem } from "./types";
+import { EditItemDialog } from "./EditItemDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 export const MenuEditor: React.FC<MenuEditorProps> = ({ 
   menu, 
@@ -50,170 +51,182 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   onMenuUpdated 
 }) => {
   const { toast } = useToast();
-  const [mainDishName, setMainDishName] = useState("");
-  const [mainDishPrice, setMainDishPrice] = useState("");
-  const [mainDishDescription, setMainDishDescription] = useState("");
-  const [mainDishImageUrl, setMainDishImageUrl] = useState("");
-  const [sideDishName, setSideDishName] = useState("");
-  const [sideDishPrice, setSideDishPrice] = useState("");
-  const [sideDishDescription, setSideDishDescription] = useState("");
-  const [sideDishImageUrl, setSideDishImageUrl] = useState("");
-  const [dessertName, setDessertName] = useState("");
-  const [dessertPrice, setDessertPrice] = useState("");
-  const [dessertDescription, setDessertDescription] = useState("");
-  const [dessertImageUrl, setDessertImageUrl] = useState("");
-  const [selectedMainDish, setSelectedMainDish] = useState<string | null>(null);
-  const [selectedSideDish, setSelectedSideDish] = useState<string | null>(null);
-  const [selectedDessert, setSelectedDessert] = useState<string | null>(null);
   const [isAddingMainDish, setIsAddingMainDish] = useState(false);
   const [isAddingSideDish, setIsAddingSideDish] = useState(false);
   const [isAddingDessert, setIsAddingDessert] = useState(false);
+  const [editingItem, setEditingItem] = useState<{item: MenuItem | null, type: string}>({
+    item: null,
+    type: ''
+  });
 
   useEffect(() => {
     console.log("MenuEditor: menu prop updated:", menu);
   }, [menu]);
 
-  const handleAddMainDish = async () => {
-    if (!mainDishName || !mainDishPrice || !mainDishDescription || !mainDishImageUrl) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs du plat principal.",
-        variant: "destructive",
-      });
-      return;
+  const handleAddMainDish = () => {
+    setEditingItem({item: null, type: 'mainDish'});
+    setIsAddingMainDish(true);
+  };
+
+  const handleAddSideDish = () => {
+    setEditingItem({item: null, type: 'sideDish'});
+    setIsAddingSideDish(true);
+  };
+
+  const handleAddDessert = () => {
+    setEditingItem({item: null, type: 'dessert'});
+    setIsAddingDessert(true);
+  };
+
+  const handleEditItem = (item: MenuItem, type: string) => {
+    setEditingItem({item, type});
+    if (type === 'mainDish') setIsAddingMainDish(true);
+    if (type === 'sideDish') setIsAddingSideDish(true);
+    if (type === 'dessert') setIsAddingDessert(true);
+  };
+
+  const handleSaveItem = async (updatedItem: MenuItem) => {
+    const { type } = editingItem;
+    
+    let updatedMenus = [...menus];
+    let action = '';
+    let itemType = '';
+    
+    // Determiner le type d'élément et d'action
+    if (type === 'mainDish') {
+      itemType = 'mainDishes';
+      action = updatedItem.id.includes('mainDish_') ? 'add_main_dish' : 'update_main_dish';
+      setIsAddingMainDish(false);
+    } else if (type === 'sideDish') {
+      itemType = 'sideDishes';
+      action = updatedItem.id.includes('sideDish_') ? 'add_side_dish' : 'update_side_dish';
+      setIsAddingSideDish(false);
+    } else if (type === 'dessert') {
+      itemType = 'desserts';
+      action = updatedItem.id.includes('dessert_') ? 'add_dessert' : 'update_dessert';
+      setIsAddingDessert(false);
     }
-
-    const newMainDish = {
-      id: uuidv4(),
-      name: mainDishName,
-      price: parseFloat(mainDishPrice),
-      description: mainDishDescription,
-      imageUrl: mainDishImageUrl,
-    };
-
-    const updatedMenus = menus.map((m) => {
+    
+    // Mise à jour du menu concerné
+    updatedMenus = menus.map(m => {
       if (m.id === menu.id) {
-        return {
-          ...m,
-          mainDishes: [...m.mainDishes, newMainDish],
-        };
+        // Vérifier si c'est un nouvel élément ou une mise à jour
+        if (editingItem.item && m[itemType as keyof MenuDay]) {
+          // Mise à jour
+          const items = [...(m[itemType as keyof MenuDay] as MenuItem[])];
+          const index = items.findIndex(item => item.id === editingItem.item?.id);
+          if (index !== -1) {
+            items[index] = updatedItem;
+          } else {
+            items.push(updatedItem);
+          }
+          return {...m, [itemType]: items};
+        } else {
+          // Ajout
+          const items = [...(m[itemType as keyof MenuDay] as MenuItem[]), updatedItem];
+          return {...m, [itemType]: items};
+        }
       }
       return m;
     });
-
+    
+    // Mettre à jour l'état local
     setMenus(updatedMenus);
+    
+    // Sauvegarder dans localStorage
     localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+    
+    // Mettre à jour la base de données si articleId est présent
+    if (updatedItem.articleId) {
+      try {
+        // Vérifier si l'article est déjà associé à ce menu
+        const { data: existingAssociations, error: fetchError } = await supabase
+          .from('menu_articles')
+          .select('*')
+          .eq('menu_day', menu.id)
+          .eq('article_id', updatedItem.articleId);
+          
+        if (fetchError) {
+          console.error('Error checking existing menu article association:', fetchError);
+          throw fetchError;
+        }
+        
+        // Si l'association n'existe pas, la créer
+        if (!existingAssociations || existingAssociations.length === 0) {
+          const { error: insertError } = await supabase
+            .from('menu_articles')
+            .insert({
+              menu_day: menu.id,
+              article_id: updatedItem.articleId
+            });
+            
+          if (insertError) {
+            console.error('Error saving menu article association:', insertError);
+            throw insertError;
+          }
+          
+          console.log('Menu article association saved successfully');
+        } else {
+          console.log('Menu article association already exists');
+        }
+      } catch (error) {
+        console.error('Error in database operation:', error);
+        toast({
+          title: "Erreur de sauvegarde en base de données",
+          description: "Une erreur est survenue lors de la sauvegarde des associations d'articles.",
+          variant: "destructive",
+        });
+      }
+    }
+    
+    // Callback de notification
+    if (onMenuUpdated) {
+      await onMenuUpdated(action, { menuId: menu.id, dish: updatedItem });
+    }
+    
+    // Notification à l'utilisateur
+    toast({
+      title: "Succès",
+      description: `${editingItem.item ? "Élément mis à jour" : "Nouvel élément ajouté"} avec succès.`,
+    });
+    
+    // Réinitialiser l'état d'édition
+    setEditingItem({item: null, type: ''});
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItem({item: null, type: ''});
     setIsAddingMainDish(false);
-    setMainDishName("");
-    setMainDishPrice("");
-    setMainDishDescription("");
-    setMainDishImageUrl("");
-
-    if (onMenuUpdated) {
-      await onMenuUpdated('add_main_dish', { menuId: menu.id, dish: newMainDish });
-    }
-
-    toast({
-      title: "Succès",
-      description: "Plat principal ajouté avec succès.",
-    });
-  };
-
-  const handleAddSideDish = async () => {
-    if (!sideDishName || !sideDishPrice || !sideDishDescription || !sideDishImageUrl) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs de l'accompagnement.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newSideDish = {
-      id: uuidv4(),
-      name: sideDishName,
-      price: parseFloat(sideDishPrice),
-      description: sideDishDescription,
-      imageUrl: sideDishImageUrl,
-    };
-
-    const updatedMenus = menus.map((m) => {
-      if (m.id === menu.id) {
-        return {
-          ...m,
-          sideDishes: [...m.sideDishes, newSideDish],
-        };
-      }
-      return m;
-    });
-
-    setMenus(updatedMenus);
-    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
     setIsAddingSideDish(false);
-    setSideDishName("");
-    setSideDishPrice("");
-    setSideDishDescription("");
-    setSideDishImageUrl("");
-
-    if (onMenuUpdated) {
-      await onMenuUpdated('add_side_dish', { menuId: menu.id, dish: newSideDish });
-    }
-
-    toast({
-      title: "Succès",
-      description: "Accompagnement ajouté avec succès.",
-    });
-  };
-
-  const handleAddDessert = async () => {
-    if (!dessertName || !dessertPrice || !dessertDescription || !dessertImageUrl) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs du dessert.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newDessert = {
-      id: uuidv4(),
-      name: dessertName,
-      price: parseFloat(dessertPrice),
-      description: dessertDescription,
-      imageUrl: dessertImageUrl,
-    };
-
-    const updatedMenus = menus.map((m) => {
-      if (m.id === menu.id) {
-        return {
-          ...m,
-          desserts: [...m.desserts, newDessert],
-        };
-      }
-      return m;
-    });
-
-    setMenus(updatedMenus);
-    localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
     setIsAddingDessert(false);
-    setDessertName("");
-    setDessertPrice("");
-    setDessertDescription("");
-    setDessertImageUrl("");
-
-    if (onMenuUpdated) {
-      await onMenuUpdated('add_dessert', { menuId: menu.id, dish: newDessert });
-    }
-
-    toast({
-      title: "Succès",
-      description: "Dessert ajouté avec succès.",
-    });
   };
 
   const handleDeleteMainDish = async (dishId: string) => {
     const updatedMenus = menus.map((m) => {
       if (m.id === menu.id) {
+        const dish = m.mainDishes.find(d => d.id === dishId);
+        
+        // Si le plat a un articleId, supprimer l'association en base de données
+        if (dish?.articleId) {
+          supabase
+            .from('menu_articles')
+            .delete()
+            .eq('menu_day', menu.id)
+            .eq('article_id', dish.articleId)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error deleting menu article association:', error);
+                toast({
+                  title: "Erreur",
+                  description: "Impossible de supprimer l'association en base de données.",
+                  variant: "destructive",
+                });
+              } else {
+                console.log('Menu article association deleted successfully');
+              }
+            });
+        }
+        
         return {
           ...m,
           mainDishes: m.mainDishes.filter((dish) => dish.id !== dishId),
@@ -238,6 +251,29 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   const handleDeleteSideDish = async (dishId: string) => {
     const updatedMenus = menus.map((m) => {
       if (m.id === menu.id) {
+        const dish = m.sideDishes.find(d => d.id === dishId);
+        
+        // Si le plat a un articleId, supprimer l'association en base de données
+        if (dish?.articleId) {
+          supabase
+            .from('menu_articles')
+            .delete()
+            .eq('menu_day', menu.id)
+            .eq('article_id', dish.articleId)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error deleting menu article association:', error);
+                toast({
+                  title: "Erreur",
+                  description: "Impossible de supprimer l'association en base de données.",
+                  variant: "destructive",
+                });
+              } else {
+                console.log('Menu article association deleted successfully');
+              }
+            });
+        }
+        
         return {
           ...m,
           sideDishes: m.sideDishes.filter((dish) => dish.id !== dishId),
@@ -262,6 +298,29 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   const handleDeleteDessert = async (dishId: string) => {
     const updatedMenus = menus.map((m) => {
       if (m.id === menu.id) {
+        const dish = m.desserts.find(d => d.id === dishId);
+        
+        // Si le dessert a un articleId, supprimer l'association en base de données
+        if (dish?.articleId) {
+          supabase
+            .from('menu_articles')
+            .delete()
+            .eq('menu_day', menu.id)
+            .eq('article_id', dish.articleId)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error deleting menu article association:', error);
+                toast({
+                  title: "Erreur",
+                  description: "Impossible de supprimer l'association en base de données.",
+                  variant: "destructive",
+                });
+              } else {
+                console.log('Menu article association deleted successfully');
+              }
+            });
+        }
+        
         return {
           ...m,
           desserts: m.desserts.filter((dish) => dish.id !== dishId),
@@ -281,18 +340,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       title: "Succès",
       description: "Dessert supprimé avec succès.",
     });
-  };
-
-  const handleSelectMainDish = (dishId: string) => {
-    setSelectedMainDish(dishId);
-  };
-
-  const handleSelectSideDish = (dishId: string) => {
-    setSelectedSideDish(dishId);
-  };
-
-  const handleSelectDessert = (dishId: string) => {
-    setSelectedDessert(dishId);
   };
 
   return (
@@ -328,15 +375,19 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleSelectMainDish(dish.id)}
-                        >
-                          Sélectionner
-                        </DropdownMenuItem>
+                        {!readOnly && (
+                          <DropdownMenuItem
+                            onClick={() => handleEditItem(dish, 'mainDish')}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                        )}
                         {!readOnly && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem className="text-red-500">
+                                <Trash2 className="h-4 w-4 mr-2" />
                                 Supprimer
                               </DropdownMenuItem>
                             </AlertDialogTrigger>
@@ -371,53 +422,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
           {!readOnly && (
             <Button
               variant="outline"
-              onClick={() => setIsAddingMainDish(true)}
+              onClick={handleAddMainDish}
               className="mt-2"
             >
               <Plus className="mr-2 h-4 w-4" />
               Ajouter un plat principal
             </Button>
-          )}
-          {isAddingMainDish && (
-            <div className="mt-4">
-              <Label htmlFor="mainDishName">Nom</Label>
-              <Input
-                id="mainDishName"
-                value={mainDishName}
-                onChange={(e) => setMainDishName(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="mainDishPrice">Prix</Label>
-              <Input
-                id="mainDishPrice"
-                value={mainDishPrice}
-                onChange={(e) => setMainDishPrice(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="mainDishDescription">Description</Label>
-              <Input
-                id="mainDishDescription"
-                value={mainDishDescription}
-                onChange={(e) => setMainDishDescription(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="mainDishImageUrl">Image URL</Label>
-              <Input
-                id="mainDishImageUrl"
-                value={mainDishImageUrl}
-                onChange={(e) => setMainDishImageUrl(e.target.value)}
-                className="mb-2"
-              />
-              <Button onClick={handleAddMainDish} className="mr-2">
-                Ajouter
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setIsAddingMainDish(false)}
-              >
-                Annuler
-              </Button>
-            </div>
           )}
         </CardContent>
       </Card>
@@ -453,15 +463,19 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleSelectSideDish(dish.id)}
-                        >
-                          Sélectionner
-                        </DropdownMenuItem>
+                        {!readOnly && (
+                          <DropdownMenuItem
+                            onClick={() => handleEditItem(dish, 'sideDish')}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                        )}
                         {!readOnly && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem className="text-red-500">
+                                <Trash2 className="h-4 w-4 mr-2" />
                                 Supprimer
                               </DropdownMenuItem>
                             </AlertDialogTrigger>
@@ -496,53 +510,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
           {!readOnly && (
             <Button
               variant="outline"
-              onClick={() => setIsAddingSideDish(true)}
+              onClick={handleAddSideDish}
               className="mt-2"
             >
               <Plus className="mr-2 h-4 w-4" />
               Ajouter un accompagnement
             </Button>
-          )}
-          {isAddingSideDish && (
-            <div className="mt-4">
-              <Label htmlFor="sideDishName">Nom</Label>
-              <Input
-                id="sideDishName"
-                value={sideDishName}
-                onChange={(e) => setSideDishName(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="sideDishPrice">Prix</Label>
-              <Input
-                id="sideDishPrice"
-                value={sideDishPrice}
-                onChange={(e) => setSideDishPrice(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="sideDishDescription">Description</Label>
-              <Input
-                id="sideDishDescription"
-                value={sideDishDescription}
-                onChange={(e) => setSideDishDescription(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="sideDishImageUrl">Image URL</Label>
-              <Input
-                id="sideDishImageUrl"
-                value={sideDishImageUrl}
-                onChange={(e) => setSideDishImageUrl(e.target.value)}
-                className="mb-2"
-              />
-              <Button onClick={handleAddSideDish} className="mr-2">
-                Ajouter
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setIsAddingSideDish(false)}
-              >
-                Annuler
-              </Button>
-            </div>
           )}
         </CardContent>
       </Card>
@@ -578,15 +551,19 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleSelectDessert(dish.id)}
-                        >
-                          Sélectionner
-                        </DropdownMenuItem>
+                        {!readOnly && (
+                          <DropdownMenuItem
+                            onClick={() => handleEditItem(dish, 'dessert')}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                        )}
                         {!readOnly && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem className="text-red-500">
+                                <Trash2 className="h-4 w-4 mr-2" />
                                 Supprimer
                               </DropdownMenuItem>
                             </AlertDialogTrigger>
@@ -620,56 +597,43 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
           {!readOnly && (
             <Button
               variant="outline"
-              onClick={() => setIsAddingDessert(true)}
+              onClick={handleAddDessert}
               className="mt-2"
             >
               <Plus className="mr-2 h-4 w-4" />
               Ajouter un dessert
             </Button>
           )}
-          {isAddingDessert && (
-            <div className="mt-4">
-              <Label htmlFor="dessertName">Nom</Label>
-              <Input
-                id="dessertName"
-                value={dessertName}
-                onChange={(e) => setDessertName(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="dessertPrice">Prix</Label>
-              <Input
-                id="dessertPrice"
-                value={dessertPrice}
-                onChange={(e) => setDessertPrice(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="dessertDescription">Description</Label>
-              <Input
-                id="dessertDescription"
-                value={dessertDescription}
-                onChange={(e) => setDessertDescription(e.target.value)}
-                className="mb-2"
-              />
-              <Label htmlFor="dessertImageUrl">Image URL</Label>
-              <Input
-                id="dessertImageUrl"
-                value={dessertImageUrl}
-                onChange={(e) => setDessertImageUrl(e.target.value)}
-                className="mb-2"
-              />
-              <Button onClick={handleAddDessert} className="mr-2">
-                Ajouter
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setIsAddingDessert(false)}
-              >
-                Annuler
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      {/* Dialogs de modification/ajout */}
+      {isAddingMainDish && (
+        <EditItemDialog
+          item={editingItem.item}
+          type="mainDish"
+          onClose={handleCancelEdit}
+          onSave={handleSaveItem}
+        />
+      )}
+      
+      {isAddingSideDish && (
+        <EditItemDialog
+          item={editingItem.item}
+          type="sideDish"
+          onClose={handleCancelEdit}
+          onSave={handleSaveItem}
+        />
+      )}
+      
+      {isAddingDessert && (
+        <EditItemDialog
+          item={editingItem.item}
+          type="dessert"
+          onClose={handleCancelEdit}
+          onSave={handleSaveItem}
+        />
+      )}
     </div>
   );
 };
