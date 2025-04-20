@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -12,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatCard } from './StatCard';
+import { TopDishesCard } from './TopDishesCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -252,7 +252,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         <StatCard
           title="Total Commandes"
           value={stats.orderCount}
-          description="Toutes commandes confondues"
+          description="Commandes validées"
           icon={<Calendar className="h-4 w-4" />}
         />
         <StatCard
@@ -265,14 +265,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
           title="Temps moyen"
           value={`${stats.avgPrepTime} min`}
           description="Temps de préparation moyen"
-          icon={<Calendar className="h-4 w-4" />}
+          icon={<Timer className="h-4 w-4" />}
         />
-        <StatCard
-          title="Plats populaires"
-          value={stats.topDishes[0]?.dish || 'Aucun'}
-          description={`${stats.topDishes[0]?.count || 0} commandes`}
-          icon={<TrendingUp className="h-4 w-4" />}
-        />
+        <TopDishesCard dishes={stats.topDishes} />
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 mb-4">
