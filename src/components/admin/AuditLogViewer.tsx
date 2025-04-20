@@ -46,8 +46,7 @@ export const AuditLogViewer = () => {
   const fetchAuditLogs = async () => {
     setLoading(true);
     try {
-      // Use type assertion to bypass TypeScript checking
-      let query = (supabase as any)
+      let query = supabase
         .from("admin_audit_log")
         .select("*")
         .order("created_at", { ascending: false });
@@ -80,12 +79,12 @@ export const AuditLogViewer = () => {
             return {
               ...log,
               // Only set user_email if userData exists and has email
-              user_email: userData?.email || "Unknown user"
+              user_email: userData?.email || "Utilisateur inconnu"
             };
           } catch (e) {
             return {
               ...log,
-              user_email: "Unknown user"
+              user_email: "Utilisateur inconnu"
             };
           }
         })

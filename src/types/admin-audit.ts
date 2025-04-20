@@ -7,7 +7,8 @@ export interface AdminAuditLog {
   user_id: string;
   action: string;
   resource: string;
-  details: string | null;
+  details: any | null;
   created_at: string;
   user_email?: string;
 }
+

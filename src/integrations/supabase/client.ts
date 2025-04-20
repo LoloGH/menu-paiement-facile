@@ -71,14 +71,13 @@ export const hasUserRole = async (userId: string, role: string): Promise<boolean
  */
 export const logAdminAction = async (user_id: string, action: string, resource: string, details?: any): Promise<boolean> => {
   try {
-    // Use type assertion to bypass TypeScript's type checking
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("admin_audit_log")
       .insert({
         user_id,
         action,
         resource,
-        details: details ? JSON.stringify(details) : null,
+        details
       });
     
     if (error) {
