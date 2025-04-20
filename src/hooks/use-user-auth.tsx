@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { User, Session } from '@supabase/supabase-js';
 
 interface UserData {
   id: string;
@@ -13,6 +13,8 @@ interface UserData {
 export const useUserAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
   const fetchUserData = async (userId: string) => {
@@ -83,10 +85,12 @@ export const useUserAuth = () => {
     }
   };
 
-  const handleUserSession = async (session: any) => {
+  const handleUserSession = async (session: Session | null) => {
     if (session && session.user) {
-      console.log("Session user:", session.user);
+      console.log("Setting up session for user:", session.user.id);
       setIsLoggedIn(true);
+      setSession(session);
+      setUser(session.user);
       
       // Récupérer les données utilisateur de la base
       const userDataFromDb = await fetchUserData(session.user.id);
@@ -102,6 +106,8 @@ export const useUserAuth = () => {
     } else {
       setIsLoggedIn(false);
       setUserData(null);
+      setSession(null);
+      setUser(null);
     }
   };
 
@@ -117,16 +123,30 @@ export const useUserAuth = () => {
     );
 
     // Then check for existing session
-    const checkCurrentSession = async () => {
+    const initializeSession = async () => {
       console.log("Checking current session");
       const { data: { session } } = await supabase.auth.getSession();
       await handleUserSession(session);
     };
 
-    checkCurrentSession();
+    initializeSession();
+
+    // Setup refresh timer
+    const refreshTimer = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Session refresh is handled automatically by Supabase
+          console.log("Session refreshed successfully");
+        }
+      } catch (error) {
+        console.error("Error refreshing session:", error);
+      }
+    }, 10 * 60 * 1000); // Refresh every 10 minutes
 
     return () => {
       subscription.unsubscribe();
+      clearInterval(refreshTimer);
     };
   }, []);
 
@@ -146,6 +166,8 @@ export const useUserAuth = () => {
     
     setIsLoggedIn(false);
     setUserData(null);
+    setSession(null);
+    setUser(null);
     
     toast({
       title: "Déconnexion réussie",
@@ -247,6 +269,8 @@ export const useUserAuth = () => {
   return {
     isLoggedIn,
     userData,
+    session,
+    user,
     handleLogout,
     setUserData,
     updateUserData
