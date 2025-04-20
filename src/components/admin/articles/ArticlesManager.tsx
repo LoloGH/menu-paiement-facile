@@ -40,7 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, logAdminAction } from "@/integrations/supabase/client";
 import { ImageIcon, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -69,7 +69,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-// Removed the import from 'next/cache' as it's not needed and causing errors
 
 interface ArticlesManagerProps {
   readOnly?: boolean;
@@ -150,12 +149,14 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
 
   const fetchCategories = async () => {
     try {
-      // Use a type assertion to bypass the TypeScript type check for categories
-      const { data, error } = await (supabase as any)
-        .from("categories")
-        .select("*");
-      if (error) throw error;
-      setCategories(data);
+      // Utilisons les types d'articles comme catégories au lieu de la table "categories" qui n'existe pas
+      const typeCategories = [
+        { id: "main_dish", name: "Plat principal" },
+        { id: "side_dish", name: "Accompagnement" },
+        { id: "dessert", name: "Dessert" },
+        { id: "other", name: "Autre" }
+      ];
+      setCategories(typeCategories);
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -167,17 +168,19 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
 
   const handleCreateArticle = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Use a type assertion to bypass the type check for insert with available_from and available_until
-      const { error } = await (supabase as any)
+      // Utiliser directement le champ category comme type d'article
+      const { error } = await supabase
         .from("articles")
         .insert({
           name: values.name,
           description: values.description,
           price: parseFloat(values.price),
-          category: values.category,
+          type: values.category,
           image_url: values.image_url,
-          available_from: format(values.available_from, "yyyy-MM-dd", { locale: fr }),
-          available_until: format(values.available_until, "yyyy-MM-dd", { locale: fr }),
+          // Formatez les dates pour qu'elles soient stockées correctement
+          // Note: available_from et available_until ne sont pas des colonnes dans la table articles,
+          // donc ces valeurs ne seront pas utilisées. Je les conserve dans le code pour maintenir
+          // la fonctionnalité du formulaire telle qu'elle est actuellement.
         });
       if (error) throw error;
       toast({
@@ -199,17 +202,19 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
   const handleUpdateArticle = async (values: z.infer<typeof formSchema>) => {
     if (!selectedArticle) return;
     try {
-      // Use a type assertion to bypass the type check for update with available_from and available_until
-      const { error } = await (supabase as any)
+      // Utiliser directement le champ category comme type d'article
+      const { error } = await supabase
         .from("articles")
         .update({
           name: values.name,
           description: values.description,
           price: parseFloat(values.price),
-          category: values.category,
+          type: values.category,
           image_url: values.image_url,
-          available_from: format(values.available_from, "yyyy-MM-dd", { locale: fr }),
-          available_until: format(values.available_until, "yyyy-MM-dd", { locale: fr }),
+          // Formatez les dates pour qu'elles soient stockées correctement
+          // Note: available_from et available_until ne sont pas des colonnes dans la table articles,
+          // donc ces valeurs ne seront pas utilisées. Je les conserve dans le code pour maintenir
+          // la fonctionnalité du formulaire telle qu'elle est actuellement.
         })
         .eq("id", selectedArticle.id);
       if (error) throw error;
@@ -254,21 +259,27 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
 
   const handleOpenEditDialog = (article: any) => {
     setSelectedArticle(article);
-    setAvailableFrom(new Date(article.available_from));
-    setAvailableUntil(new Date(article.available_until));
+    setAvailableFrom(new Date());
+    setAvailableUntil(new Date());
     form.setValue("name", article.name);
-    form.setValue("description", article.description);
+    form.setValue("description", article.description || "");
     form.setValue("price", article.price.toString());
-    form.setValue("category", article.category);
-    form.setValue("image_url", article.image_url);
-    form.setValue("available_from", new Date(article.available_from));
-    form.setValue("available_until", new Date(article.available_until));
+    form.setValue("category", article.type);
+    form.setValue("image_url", article.image_url || "");
+    form.setValue("available_from", new Date());
+    form.setValue("available_until", new Date());
     setIsEditDialogOpen(true);
   };
 
   const handleOpenDeleteDialog = (article: any) => {
     setSelectedArticle(article);
     setIsDeleteDialogOpen(true);
+  };
+
+  // Fonction pour obtenir le nom de la catégorie à partir de son ID
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.name : categoryId;
   };
 
   return (
@@ -304,9 +315,7 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
                   <TableCell>{article.name}</TableCell>
                   <TableCell>{article.price} €</TableCell>
                   <TableCell>
-                    {
-                      categories.find((category) => category.id === article.category)?.name
-                    }
+                    {getCategoryName(article.type)}
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">

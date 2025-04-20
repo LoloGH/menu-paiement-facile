@@ -55,10 +55,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     ordersByStatus: {
       validated: 0,
       delivered: 0,
-      completed: 0,
       cancelled: 0,
       deleted: 0,
-      pending: 0
+      pending: 0,
+      completed: 0
     },
     revenue: 0,
     avgPrepTime: 0,
@@ -104,23 +104,21 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       if (ordersError) throw ordersError;
 
-      // Calculate order status counts
       const ordersByStatus = {
         validated: orders?.filter(order => order.payment_status === 'validated').length || 0,
         delivered: orders?.filter(order => order.payment_status === 'delivered').length || 0,
         cancelled: orders?.filter(order => order.payment_status === 'cancelled').length || 0,
         deleted: orders?.filter(order => order.payment_status === 'deleted').length || 0,
-        pending: orders?.filter(order => order.payment_status === 'pending').length || 0
+        pending: orders?.filter(order => order.payment_status === 'pending').length || 0,
+        completed: 0
       };
 
-      // Récupérer les commandes en attente
       const pendingOrdersData = orders?.filter(order => 
         order.payment_status === 'pending'
       ) || [];
 
       setPendingOrders(pendingOrdersData);
 
-      // Calculer les revenus uniquement pour les commandes validées et livrées
       const validOrders = orders?.filter(order => 
         ['validated', 'delivered'].includes(order.payment_status)
       ) || [];
