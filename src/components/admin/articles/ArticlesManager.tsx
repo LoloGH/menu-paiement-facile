@@ -69,6 +69,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Database } from "@/integrations/supabase/types";
+
+type ArticleType = Database["public"]["Enums"]["article_type"];
 
 interface ArticlesManagerProps {
   readOnly?: boolean;
@@ -87,9 +90,7 @@ const formSchema = z.object({
   }, {
     message: "Le prix doit être un nombre positif.",
   }),
-  category: z.string().min(1, {
-    message: "Veuillez sélectionner une catégorie.",
-  }),
+  category: z.enum(["main_dish", "side_dish", "dessert", "other"] as const),
   image_url: z.string().url({
     message: "Veuillez entrer une URL valide.",
   }),
@@ -99,7 +100,7 @@ const formSchema = z.object({
 
 export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = false }) => {
   const [articles, setArticles] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<{id: ArticleType; name: string}[]>([]);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -115,7 +116,7 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
       name: "",
       description: "",
       price: "",
-      category: "",
+      category: "main_dish",
       image_url: "",
       available_from: new Date(),
       available_until: new Date(),
@@ -151,10 +152,10 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
     try {
       // Utilisons les types d'articles comme catégories au lieu de la table "categories" qui n'existe pas
       const typeCategories = [
-        { id: "main_dish", name: "Plat principal" },
-        { id: "side_dish", name: "Accompagnement" },
-        { id: "dessert", name: "Dessert" },
-        { id: "other", name: "Autre" }
+        { id: "main_dish" as ArticleType, name: "Plat principal" },
+        { id: "side_dish" as ArticleType, name: "Accompagnement" },
+        { id: "dessert" as ArticleType, name: "Dessert" },
+        { id: "other" as ArticleType, name: "Autre" }
       ];
       setCategories(typeCategories);
     } catch (error: any) {
@@ -168,14 +169,14 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
 
   const handleCreateArticle = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Utiliser directement le champ category comme type d'article
+      // Mapper category à type pour l'insertion dans la base de données
       const { error } = await supabase
         .from("articles")
         .insert({
           name: values.name,
           description: values.description,
           price: parseFloat(values.price),
-          type: values.category,
+          type: values.category as ArticleType,
           image_url: values.image_url,
           // Formatez les dates pour qu'elles soient stockées correctement
           // Note: available_from et available_until ne sont pas des colonnes dans la table articles,
@@ -183,6 +184,18 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
           // la fonctionnalité du formulaire telle qu'elle est actuellement.
         });
       if (error) throw error;
+      
+      // Log the admin action
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (userId) {
+        await logAdminAction(
+          userId,
+          "create",
+          "article",
+          { name: values.name, price: values.price }
+        );
+      }
+      
       toast({
         title: "Succès",
         description: "Article créé avec succès",
@@ -209,7 +222,7 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
           name: values.name,
           description: values.description,
           price: parseFloat(values.price),
-          type: values.category,
+          type: values.category as ArticleType,
           image_url: values.image_url,
           // Formatez les dates pour qu'elles soient stockées correctement
           // Note: available_from et available_until ne sont pas des colonnes dans la table articles,
@@ -218,6 +231,18 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
         })
         .eq("id", selectedArticle.id);
       if (error) throw error;
+      
+      // Log the admin action
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (userId) {
+        await logAdminAction(
+          userId,
+          "update",
+          "article",
+          { id: selectedArticle.id, name: values.name }
+        );
+      }
+      
       toast({
         title: "Succès",
         description: "Article mis à jour avec succès",
@@ -242,6 +267,18 @@ export const ArticlesManager: React.FC<ArticlesManagerProps> = ({ readOnly = fal
         .delete()
         .eq("id", selectedArticle.id);
       if (error) throw error;
+      
+      // Log the admin action
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (userId) {
+        await logAdminAction(
+          userId,
+          "delete",
+          "article",
+          { id: selectedArticle.id, name: selectedArticle.name }
+        );
+      }
+      
       toast({
         title: "Succès",
         description: "Article supprimé avec succès",

@@ -69,7 +69,7 @@ export const hasUserRole = async (userId: string, role: string): Promise<boolean
  * @param resource Resource being acted upon
  * @param details Additional details
  */
-export const logAdminAction = async (user_id: string, action: string, resource: string, details?: any) => {
+export const logAdminAction = async (user_id: string, action: string, resource: string, details?: any): Promise<boolean> => {
   try {
     // Use type assertion to bypass TypeScript's type checking
     const { data, error } = await (supabase as any)
