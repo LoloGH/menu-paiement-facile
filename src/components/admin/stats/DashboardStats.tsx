@@ -22,12 +22,26 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar, Check, Truck, X, Trash2, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Check, Truck, X, Trash2, RefreshCw, Timer } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type TimeRange = 'day' | 'week' | 'month';
 
 interface DashboardStatsProps {
   className?: string;
+}
+
+interface PendingOrder {
+  id: string;
+  created_at: string;
+  total_amount: number;
 }
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => {
@@ -49,6 +63,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     topDishes: [] as { dish: string; count: number }[],
     revenueData: [] as { date: string; amount: number }[]
   });
+
+  const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
 
   const getDateRange = (range: TimeRange) => {
     const now = new Date();
@@ -76,7 +92,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
     try {
       const { start, end } = getDateRange(timeRange);
       
-      let query = (supabase as any)
+      let query = supabase
         .from("orders")
         .select("id, total_amount, created_at, payment_status")
         .gte("created_at", start.toISOString())
@@ -86,13 +102,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       if (ordersError) throw ordersError;
 
-      const ordersByStatus = {
-        validated: orders?.filter(order => order.payment_status === 'validated').length || 0,
-        delivered: orders?.filter(order => order.payment_status === 'delivered').length || 0,
-        completed: orders?.filter(order => order.payment_status === 'completed').length || 0,
-        cancelled: orders?.filter(order => order.payment_status === 'cancelled').length || 0,
-        deleted: orders?.filter(order => order.payment_status === 'deleted').length || 0
-      };
+      // Filtrer les commandes validées pour les statistiques
+      const validatedOrders = orders?.filter(order => 
+        order.payment_status === 'validated'
+      ) || [];
+
+      // Récupérer les commandes en attente
+      const pendingOrdersData = orders?.filter(order => 
+        order.payment_status === 'pending'
+      ) || [];
+
+      setPendingOrders(pendingOrdersData);
 
       const { data: orderItems, error: itemsError } = await supabase
         .from('order_items')
@@ -101,12 +121,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         .lte('created_at', end.toISOString());
 
       if (itemsError) throw itemsError;
-
-      const validatedOrders = orders?.filter(order => 
-        order.payment_status === 'validated' ||
-        order.payment_status === 'delivered' ||
-        order.payment_status === 'completed'
-      ) || [];
 
       const orderCount = validatedOrders.length;
       const revenue = validatedOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
@@ -181,6 +195,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
   const formatPrice = (amount: number) => {
     return `${amount.toLocaleString('fr-FR')} FCFA`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'dd/MM/yyyy HH:mm');
   };
 
   const renderPercentageChange = (value: number) => {
@@ -314,21 +332,35 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
         <Card className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Top 5 des plats</h3>
-            {isMobile && (
-              <Button variant="ghost" size="sm" onClick={() => {}}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            )}
+            <h3 className="font-semibold">Commandes en attente</h3>
+            <Timer className="h-5 w-5 text-orange-500" />
           </div>
-          <div className="space-y-4">
-            {stats.topDishes.map((dish, index) => (
-              <div key={dish.dish} className="flex items-center justify-between">
-                <span className="font-medium">{dish.dish}</span>
-                <span className="text-muted-foreground">{dish.count} commandes</span>
-              </div>
-            ))}
-          </div>
+          {pendingOrders.length > 0 ? (
+            <div className="overflow-auto max-h-[300px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Montant</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{order.id.slice(-6)}</TableCell>
+                      <TableCell>{formatDate(order.created_at)}</TableCell>
+                      <TableCell>{formatPrice(order.total_amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">
+              Aucune commande en attente
+            </p>
+          )}
         </Card>
       </div>
     </div>
