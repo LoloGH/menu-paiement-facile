@@ -108,7 +108,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
       const ordersByStatus = {
         validated: orders?.filter(order => order.payment_status === 'validated').length || 0,
         delivered: orders?.filter(order => order.payment_status === 'delivered').length || 0,
-        completed: orders?.filter(order => order.payment_status === 'completed').length || 0,
         cancelled: orders?.filter(order => order.payment_status === 'cancelled').length || 0,
         deleted: orders?.filter(order => order.payment_status === 'deleted').length || 0,
         pending: orders?.filter(order => order.payment_status === 'pending').length || 0
@@ -121,12 +120,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       setPendingOrders(pendingOrdersData);
 
-      // Calculer les revenus uniquement pour les commandes validées
-      const validatedOrders = orders?.filter(order => 
-        order.payment_status === 'validated'
+      // Calculer les revenus uniquement pour les commandes validées et livrées
+      const validOrders = orders?.filter(order => 
+        ['validated', 'delivered'].includes(order.payment_status)
       ) || [];
 
-      const revenue = validatedOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+      const revenue = validOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
 
       const { data: orderItems, error: itemsError } = await supabase
         .from('order_items')
@@ -146,7 +145,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      const revenueByDate = validatedOrders.reduce((acc: Record<string, number>, order) => {
+      const revenueByDate = validOrders.reduce((acc: Record<string, number>, order) => {
         const date = format(new Date(order.created_at), 'dd/MM');
         acc[date] = (acc[date] || 0) + Number(order.total_amount || 0);
         return acc;
@@ -158,7 +157,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
       }));
 
       setStats({
-        orderCount: validatedOrders.length,
+        orderCount: validOrders.length,
         ordersByStatus,
         revenue,
         avgPrepTime: 30,
