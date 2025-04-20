@@ -281,7 +281,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       'validated': 'Validée',
       'preparing': 'En préparation',
       'delivered': 'Livrée',
-      'completed': 'Complétée',
       'cancelled': 'Annulée',
       'failed': 'Échouée'
     };
@@ -299,8 +298,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         return <Package className="h-4 w-4" />;
       case 'delivered':
         return <Truck className="h-4 w-4" />;
-      case 'completed':
-        return <Check className="h-4 w-4" />;
       case 'cancelled':
       case 'failed':
         return <X className="h-4 w-4" />;
@@ -573,10 +570,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                             <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'delivered')}>
                               <Truck className="h-4 w-4 mr-2 text-indigo-500" />
                               Livrée
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'completed')}>
-                              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                              Terminer
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'cancelled')}>
                               <X className="h-4 w-4 mr-2 text-red-500" />
