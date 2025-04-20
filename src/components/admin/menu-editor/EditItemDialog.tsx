@@ -34,10 +34,9 @@ interface EditItemDialogProps {
   type: string;
   onClose: () => void;
   onSave: (item: MenuItem) => void;
-  menuId?: string;
 }
 
-export const EditItemDialog = ({ item, type, onClose, onSave, menuId }: EditItemDialogProps) => {
+export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogProps) => {
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
   const [isOpen, setIsOpen] = useState(true);
@@ -65,13 +64,18 @@ export const EditItemDialog = ({ item, type, onClose, onSave, menuId }: EditItem
         return;
       }
 
+      console.log('Fetched articles:', data);
       setAvailableArticles(data);
       
+      // Si l'élément a déjà un articleId, utiliser celui-ci
       if (item?.articleId) {
+        console.log('Setting selected article ID from item:', item.articleId);
         setSelectedArticleId(item.articleId);
       } else if (item?.name) {
+        // Sinon, essayer de trouver un article correspondant par nom
         const matchingArticle = data.find(article => article.name === item.name);
         if (matchingArticle) {
+          console.log('Found matching article by name:', matchingArticle.id);
           setSelectedArticleId(matchingArticle.id);
         }
       }
@@ -98,27 +102,10 @@ export const EditItemDialog = ({ item, type, onClose, onSave, menuId }: EditItem
       price: selectedArticle.price,
       description: selectedArticle.description || '',
       imageUrl: selectedArticle.image_url || '',
-      articleId: selectedArticle.id,
-      type: type === 'mainDish' ? 'main_dish' : type === 'sideDish' ? 'side_dish' : 'dessert'
+      articleId: selectedArticle.id
     };
 
-    // Si nous avons un menuId, mettons à jour la base de données
-    if (menuId) {
-      const { error } = await supabase
-        .from('menu_items')
-        .upsert({
-          id: menuItem.id,
-          menu_id: menuId,
-          article_id: selectedArticle.id,
-          article_type: menuItem.type
-        });
-
-      if (error) {
-        console.error("Error saving menu item to database:", error);
-        return;
-      }
-    }
-
+    console.log("Menu item to save:", menuItem);
     onSave(menuItem);
     setIsOpen(false);
   };
