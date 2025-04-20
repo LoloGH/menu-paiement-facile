@@ -43,68 +43,16 @@ export const useRoleBasedAccess = () => {
       
       try {
         const userId = adminData.id;
+        
+        // Vérifier chaque rôle séparément, car un utilisateur peut avoir plusieurs rôles
         const [isAdmin, isOrderManager, isViewer] = await Promise.all([
           hasUserRole(userId, AdminRoleType.ADMIN),
           hasUserRole(userId, AdminRoleType.ORDER_MANAGER),
           hasUserRole(userId, AdminRoleType.VIEWER),
         ]);
         
-        // Admin principal (accès total)
-        if (isAdmin) {
-          setPermissions({
-            canViewDashboard: true,
-            canViewUsers: true,
-            canManageUsers: true,
-            canViewOrders: true,
-            canManageOrders: true,
-            canViewArticles: true,
-            canManageArticles: true,
-            canViewMenus: true,
-            canManageMenus: true,
-            canManageRoles: true,
-            isLoading: false,
-          });
-          return;
-        }
-        
-        // Gestionnaire de commandes (accès uniquement à la partie commande)
-        if (isOrderManager) {
-          setPermissions({
-            canViewDashboard: true,
-            canViewUsers: false,
-            canManageUsers: false,
-            canViewOrders: true,
-            canManageOrders: true,
-            canViewArticles: false,
-            canManageArticles: false,
-            canViewMenus: false,
-            canManageMenus: false,
-            canManageRoles: false,
-            isLoading: false,
-          });
-          return;
-        }
-        
-        // Visualiseur (lecture seule)
-        if (isViewer) {
-          setPermissions({
-            canViewDashboard: true,
-            canViewUsers: true,
-            canManageUsers: false,
-            canViewOrders: true,
-            canManageOrders: false,
-            canViewArticles: true,
-            canManageArticles: false,
-            canViewMenus: true,
-            canManageMenus: false,
-            canManageRoles: false,
-            isLoading: false,
-          });
-          return;
-        }
-        
-        // Aucun rôle spécifique
-        setPermissions({
+        // Initialiser les permissions par défaut
+        let updatedPermissions = {
           canViewDashboard: false,
           canViewUsers: false,
           canManageUsers: false,
@@ -116,7 +64,49 @@ export const useRoleBasedAccess = () => {
           canManageMenus: false,
           canManageRoles: false,
           isLoading: false,
-        });
+        };
+        
+        // Appliquer les permissions pour chaque rôle que l'utilisateur possède
+        if (isAdmin) {
+          // Administrateur (accès total)
+          updatedPermissions = {
+            ...updatedPermissions,
+            canViewDashboard: true,
+            canViewUsers: true,
+            canManageUsers: true,
+            canViewOrders: true,
+            canManageOrders: true,
+            canViewArticles: true,
+            canManageArticles: true,
+            canViewMenus: true,
+            canManageMenus: true,
+            canManageRoles: true,
+          };
+        }
+        
+        if (isOrderManager) {
+          // Gestionnaire de commandes
+          updatedPermissions = {
+            ...updatedPermissions,
+            canViewDashboard: true,
+            canViewOrders: true,
+            canManageOrders: true,
+          };
+        }
+        
+        if (isViewer) {
+          // Visualiseur (lecture seule)
+          updatedPermissions = {
+            ...updatedPermissions,
+            canViewDashboard: true,
+            canViewUsers: true,
+            canViewOrders: true,
+            canViewArticles: true,
+            canViewMenus: true,
+          };
+        }
+        
+        setPermissions(updatedPermissions);
         
       } catch (error) {
         console.error("Error loading permissions:", error);

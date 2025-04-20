@@ -44,6 +44,8 @@ export const isAdminUser = async (userId: string): Promise<boolean> => {
  */
 export const hasUserRole = async (userId: string, role: string): Promise<boolean> => {
   try {
+    console.log(`Checking if user ${userId} has role ${role}`);
+    
     // Call the RPC function to check if the user has the specified role
     const { data, error } = await supabase.rpc('has_role', {
       user_id: userId,
@@ -55,6 +57,7 @@ export const hasUserRole = async (userId: string, role: string): Promise<boolean
       return false;
     }
 
+    console.log(`Role check result for ${role}:`, !!data);
     return !!data;
   } catch (error) {
     console.error(`Exception checking ${role} role:`, error);
