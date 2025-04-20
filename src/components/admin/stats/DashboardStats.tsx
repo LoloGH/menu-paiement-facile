@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -103,8 +102,14 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       if (itemsError) throw itemsError;
 
-      const orderCount = orders?.length || 0;
-      const revenue = orders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
+      const validatedOrders = orders?.filter(order => 
+        order.payment_status === 'validated' ||
+        order.payment_status === 'delivered' ||
+        order.payment_status === 'completed'
+      ) || [];
+
+      const orderCount = validatedOrders.length;
+      const revenue = validatedOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
 
       const dishCounts: Record<string, number> = {};
       orderItems?.forEach(item => {
@@ -116,15 +121,15 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      const revenueByDate = orders?.reduce((acc: Record<string, number>, order) => {
+      const revenueByDate = validatedOrders.reduce((acc: Record<string, number>, order) => {
         const date = format(new Date(order.created_at), 'dd/MM');
-        acc[date] = (acc[date] || 0) + (Number(order.total_amount) || 0);
+        acc[date] = (acc[date] || 0) + Number(order.total_amount || 0);
         return acc;
       }, {});
 
-      const revenueData = Object.entries(revenueByDate || {}).map(([date, amount]) => ({
+      const revenueData = Object.entries(revenueByDate).map(([date, amount]) => ({
         date,
-        amount: Number(amount),
+        amount: Number(amount)
       }));
 
       setStats({
