@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -56,7 +57,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
       delivered: 0,
       completed: 0,
       cancelled: 0,
-      deleted: 0
+      deleted: 0,
+      pending: 0
     },
     revenue: 0,
     avgPrepTime: 0,
@@ -102,10 +104,15 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       if (ordersError) throw ordersError;
 
-      // Filtrer les commandes validées pour les statistiques
-      const validatedOrders = orders?.filter(order => 
-        order.payment_status === 'validated'
-      ) || [];
+      // Calculate order status counts
+      const ordersByStatus = {
+        validated: orders?.filter(order => order.payment_status === 'validated').length || 0,
+        delivered: orders?.filter(order => order.payment_status === 'delivered').length || 0,
+        completed: orders?.filter(order => order.payment_status === 'completed').length || 0,
+        cancelled: orders?.filter(order => order.payment_status === 'cancelled').length || 0,
+        deleted: orders?.filter(order => order.payment_status === 'deleted').length || 0,
+        pending: orders?.filter(order => order.payment_status === 'pending').length || 0
+      };
 
       // Récupérer les commandes en attente
       const pendingOrdersData = orders?.filter(order => 
@@ -114,6 +121,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
 
       setPendingOrders(pendingOrdersData);
 
+      // Calculer les revenus uniquement pour les commandes validées
+      const validatedOrders = orders?.filter(order => 
+        order.payment_status === 'validated'
+      ) || [];
+
+      const revenue = validatedOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+
       const { data: orderItems, error: itemsError } = await supabase
         .from('order_items')
         .select('main_dish, created_at')
@@ -121,9 +135,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
         .lte('created_at', end.toISOString());
 
       if (itemsError) throw itemsError;
-
-      const orderCount = validatedOrders.length;
-      const revenue = validatedOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
 
       const dishCounts: Record<string, number> = {};
       orderItems?.forEach(item => {
@@ -147,7 +158,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ className }) => 
       }));
 
       setStats({
-        orderCount,
+        orderCount: validatedOrders.length,
         ordersByStatus,
         revenue,
         avgPrepTime: 30,
