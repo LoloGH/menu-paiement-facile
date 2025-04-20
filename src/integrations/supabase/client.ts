@@ -9,7 +9,13 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
 
 /**
  * Checks if a user has the admin role in the database
@@ -18,6 +24,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
  */
 export const isAdminUser = async (userId: string): Promise<boolean> => {
   try {
+    console.log(`Checking if user ${userId} has admin role`);
+    
     // Call the RPC function to check if the user has the admin role
     const { data, error } = await supabase.rpc('has_role', {
       user_id: userId,
@@ -29,6 +37,7 @@ export const isAdminUser = async (userId: string): Promise<boolean> => {
       return false;
     }
 
+    console.log(`Admin role check result:`, !!data);
     return !!data;
   } catch (error) {
     console.error("Exception checking admin role:", error);

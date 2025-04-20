@@ -20,6 +20,8 @@ export const useAdminAuth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log("Setting up admin auth hook");
+    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -34,7 +36,9 @@ export const useAdminAuth = () => {
           // Defer admin check to prevent blocking
           setTimeout(async () => {
             try {
+              console.log("Checking admin status for user:", session.user.id);
               const adminStatus = await isAdminUser(session.user.id);
+              console.log("Admin status result:", adminStatus);
               setIsAdmin(adminStatus);
               
               if (adminStatus) {
@@ -62,7 +66,9 @@ export const useAdminAuth = () => {
     // Then check for existing session
     const initializeSession = async () => {
       try {
+        console.log("Initializing admin session");
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("Current session:", session?.user?.id);
         
         // Update session and user state
         setSession(session);
@@ -70,7 +76,9 @@ export const useAdminAuth = () => {
         setIsLoggedIn(!!session);
         
         if (session?.user) {
+          console.log("Checking admin status during init for user:", session.user.id);
           const adminStatus = await isAdminUser(session.user.id);
+          console.log("Admin status check result:", adminStatus);
           setIsAdmin(adminStatus);
           
           if (adminStatus) {
@@ -111,30 +119,39 @@ export const useAdminAuth = () => {
 
   const handleLogout = async () => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      console.error("Erreur de déconnexion:", error);
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Erreur de déconnexion:", error);
+        toast({
+          title: "Erreur",
+          description: "Un problème est survenu lors de la déconnexion.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setIsLoggedIn(false);
+      setIsAdmin(false);
+      setAdminData(null);
+      setSession(null);
+      setUser(null);
+      
+      toast({
+        title: "Déconnexion réussie",
+        description: "Vous avez été déconnecté de l'interface administrateur.",
+      });
+    } catch (error) {
+      console.error("Exception lors de la déconnexion:", error);
       toast({
         title: "Erreur",
-        description: "Un problème est survenu lors de la déconnexion.",
+        description: "Un problème inattendu est survenu lors de la déconnexion.",
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
-      return;
     }
-    
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    setAdminData(null);
-    setSession(null);
-    setUser(null);
-    setIsLoading(false);
-    
-    toast({
-      title: "Déconnexion réussie",
-      description: "Vous avez été déconnecté de l'interface administrateur.",
-    });
   };
 
   return {
