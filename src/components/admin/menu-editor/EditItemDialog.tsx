@@ -193,4 +193,3 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
     </Dialog>
   );
 };
-
