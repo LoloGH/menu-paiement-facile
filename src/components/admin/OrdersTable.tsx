@@ -204,23 +204,24 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   };
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
+    const statusToUpdate = newStatus === 'validated' ? 'preparing' : newStatus;
     try {
       const { error } = await supabase
         .from("orders")
-        .update({ payment_status: newStatus })
+        .update({ payment_status: statusToUpdate })
         .eq("id", orderId);
 
       if (error) throw error;
 
       toast({
         title: "Statut mis à jour",
-        description: `La commande a été marquée comme "${getStatusLabel(newStatus)}"`,
+        description: `La commande a été marquée comme "${getStatusLabel(statusToUpdate)}"`,
       });
 
       if (onActionPerformed) {
         await onActionPerformed('update_order_status', 'orders', {
           order_id: orderId,
-          new_status: newStatus
+          new_status: statusToUpdate
         });
       }
 
@@ -278,7 +279,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const getStatusLabel = (status: string) => {
     const statusMap: Record<string, string> = {
       'pending': 'En attente',
-      'validated': 'Validée',
+      'validated': 'En préparation',
       'preparing': 'En préparation',
       'delivered': 'Livrée',
       'cancelled': 'Annulée',
@@ -455,7 +456,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
               <SelectContent>
                 <SelectItem value="">Tous les statuts</SelectItem>
                 <SelectItem value="pending">En attente</SelectItem>
-                <SelectItem value="validated">Validée</SelectItem>
+                <SelectItem value="validated">En préparation</SelectItem>
                 <SelectItem value="preparing">En préparation</SelectItem>
                 <SelectItem value="delivered">Livrée</SelectItem>
                 <SelectItem value="completed">Complétée</SelectItem>
@@ -556,12 +557,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                               Modifier
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'validated')}>
-                              <Check className="h-4 w-4 mr-2 text-green-500" />
-                              Valider
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'preparing')}>
                               <Package className="h-4 w-4 mr-2 text-blue-500" />
-                              En préparation
+                              Passer en préparation
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ready')}>
                               <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
