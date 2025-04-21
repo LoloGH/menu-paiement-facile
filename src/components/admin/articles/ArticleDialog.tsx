@@ -72,6 +72,7 @@ export const ArticleDialog = ({
 
   React.useEffect(() => {
     if (isOpen) {
+      // Reset form with article data when dialog opens or article changes
       form.reset({
         name: article?.name || "",
         price: article?.price || 0,
@@ -83,12 +84,18 @@ export const ArticleDialog = ({
   }, [article, isOpen, form]);
 
   const onSubmit = (data: z.infer<typeof articleSchema>) => {
+    // Ensure price is a number before saving
+    const cleanedData = {
+      ...data,
+      price: typeof data.price === 'number' ? data.price : parseFloat(String(data.price)) || 0,
+    };
+    
     onSave({
-      name: data.name,
-      price: data.price,
-      description: data.description,
-      image_url: data.image_url,
-      type: data.type,
+      name: cleanedData.name,
+      price: cleanedData.price,
+      description: cleanedData.description,
+      image_url: cleanedData.image_url,
+      type: cleanedData.type,
     });
   };
 
@@ -125,6 +132,7 @@ export const ArticleDialog = ({
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -154,7 +162,11 @@ export const ArticleDialog = ({
                       type="number"
                       placeholder="Prix"
                       {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(value === "" ? 0 : parseFloat(value));
+                      }}
+                      value={field.value}
                     />
                   </FormControl>
                   <FormMessage />
