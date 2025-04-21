@@ -44,6 +44,13 @@ import {
   IceCream,
   Check,
   MoreVertical,
+  Eye
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+
+// Import AlertDialog components from UI components, not lucide-react
+import {
   AlertDialog,
   AlertDialogTrigger,
   AlertDialogContent,
@@ -52,11 +59,8 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
-  AlertDialogAction,
-  Eye
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+  AlertDialogAction
+} from "@/components/ui/alert-dialog";
 
 interface MenuItem {
   id: string;
@@ -64,6 +68,7 @@ interface MenuItem {
   price: number;
   description?: string;
   imageUrl?: string;
+  articleId?: string; // Adding this for compatibility with EditItemDialog
 }
 
 interface MenuDay {
@@ -79,18 +84,18 @@ export const MenuEditor = () => {
   const { toast } = useToast();
   const [menus, setMenus] = useState<MenuDay[]>([]);
   const [editingMenu, setEditingMenu] = useState<MenuDay | null>(null);
-  const [editingItem, setEditingItem] = useState<{item: MenuItem | null, type: string}>(
-    {item: null, type: ''}
-  );
+  const [editingItem, setEditingItem] = useState<{item: MenuItem | null, type: string}>({item: null, type: ''});
   const [isLoading, setIsLoading] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [activeMenuTab, setActiveMenuTab] = useState("mainDish");
   const [previewMode, setPreviewMode] = useState(false);
   
+  // Charger les menus depuis le localStorage au démarrage
   useEffect(() => {
     loadMenus();
   }, []);
 
+  // Charger les menus depuis le localStorage ou les données par défaut
   const loadMenus = () => {
     console.log("Loading menus...");
     const savedMenus = localStorage.getItem('weeklyMenu');
@@ -101,15 +106,18 @@ export const MenuEditor = () => {
         setMenus(parsedMenus);
       } catch (error) {
         console.error("Erreur lors du chargement des menus sauvegardés:", error);
+        // Si erreur de chargement, convertir les données du weeklyMenu
         convertAndSetMenus();
       }
     } else {
+      // Pas de données sauvegardées, convertir les données du weeklyMenu
       console.log("No saved menus found, converting default data");
       convertAndSetMenus();
     }
   };
 
   const convertAndSetMenus = () => {
+    // Convertir les données du weeklyMenu au format MenuDay
     console.log("Converting menu data from weeklyMenu:", weeklyMenu);
     
     const convertedMenus: MenuDay[] = weeklyMenu.map(menu => {
@@ -117,6 +125,7 @@ export const MenuEditor = () => {
       const sideDishes: MenuItem[] = [];
       const desserts: MenuItem[] = [];
       
+      // Extraire les plats uniques des options de repas
       menu.mealOptions.forEach(option => {
         if (option.mainDish && !mainDishes.some(dish => dish.id === option.mainDish.id)) {
           mainDishes.push({
@@ -168,6 +177,7 @@ export const MenuEditor = () => {
       console.log("Saving menus to localStorage:", updatedMenus);
       localStorage.setItem('weeklyMenu', JSON.stringify(updatedMenus));
       
+      // Déclencher un événement personnalisé pour mettre à jour d'autres parties de l'application
       const event = new CustomEvent('menu-updated', { detail: updatedMenus });
       window.dispatchEvent(event);
       
@@ -203,7 +213,7 @@ export const MenuEditor = () => {
   const handleEditMenu = (menu: MenuDay) => {
     console.log("Editing menu:", menu);
     setEditingMenu({...menu});
-    setActiveMenuTab("mainDish");
+    setActiveMenuTab("mainDish"); // Réinitialiser à l'onglet des plats principaux
     setPreviewMode(false);
   };
 
@@ -243,6 +253,7 @@ export const MenuEditor = () => {
   const handleSaveItem = () => {
     if (!editingMenu || !editingItem.item || !editingItem.type) return;
     
+    // Vérifier si les champs obligatoires sont remplis
     if (!editingItem.item.name || editingItem.item.price === undefined) {
       toast({
         title: "Champs obligatoires",
@@ -260,9 +271,11 @@ export const MenuEditor = () => {
     const index = items.findIndex(item => item.id === editingItem.item?.id);
     
     if (index !== -1) {
+      // Mettre à jour l'élément existant
       console.log("Updating existing item at index:", index);
       items[index] = editingItem.item;
     } else {
+      // Ajouter un nouvel élément
       console.log("Adding new item");
       items.push({
         ...editingItem.item,
@@ -286,7 +299,7 @@ export const MenuEditor = () => {
   const handleAddNewItem = (type: string) => {
     console.log(`Adding new ${type} item`);
     const newItem: MenuItem = {
-      id: '',
+      id: '', // Sera généré lors de la sauvegarde
       name: '',
       price: 0,
       description: '',
@@ -326,6 +339,7 @@ export const MenuEditor = () => {
     convertAndSetMenus();
     localStorage.removeItem('weeklyMenu');
     
+    // Déclencher un événement personnalisé pour mettre à jour d'autres parties de l'application
     const event = new CustomEvent('menu-updated');
     window.dispatchEvent(event);
     
@@ -429,7 +443,9 @@ export const MenuEditor = () => {
     );
   };
 
+  // Rendu des sections de la table pour les types de plats (principal, accompagnement, dessert)
   const getMenuTableSection = (menu: MenuDay, type: string, title: string, icon: React.ReactNode) => {
+    // Add null check to ensure menu exists
     if (!menu) {
       console.error(`Menu is undefined when displaying ${type} for ${title}`);
       return null;
@@ -437,6 +453,7 @@ export const MenuEditor = () => {
     
     const itemType = `${type}s` as keyof MenuDay;
     
+    // Add null check to ensure the items array exists before attempting to map
     const items = menu[itemType] as MenuItem[] || [];
     
     return (
@@ -524,9 +541,121 @@ export const MenuEditor = () => {
     );
   };
 
+  // Interface d'édition améliorée avec onglets pour les types de plats
+  const renderEditingInterface = () => {
+    if (!editingMenu) return null;
+    
+    return (
+      <Card className="border-2 border-blue-200 mb-4">
+        <CardHeader className="bg-blue-50 pb-2">
+          <div className="flex justify-between items-center">
+            <div className="space-y-1">
+              <CardTitle>
+                <Input 
+                  value={editingMenu.day}
+                  onChange={(e) => handleUpdateMenuField('day', e.target.value)}
+                  className="font-bold text-xl"
+                  placeholder="Jour de la semaine"
+                />
+              </CardTitle>
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <Input 
+                  value={editingMenu.date || ''}
+                  onChange={(e) => handleUpdateMenuField('date', e.target.value)}
+                  className="text-sm"
+                  placeholder="Date (ex: 10 avril)"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={togglePreviewMode} className="text-purple-600">
+                {previewMode ? (
+                  <>
+                    <Edit className="h-4 w-4 mr-1" /> Éditer
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-1" /> Aperçu
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" onClick={handleCancelEdit} className="text-gray-500">
+                <X className="h-4 w-4 mr-1" /> Annuler
+              </Button>
+              <Button onClick={handleSaveMenu} className="bg-restaurant-purple">
+                <Save className="h-4 w-4 mr-1" /> Enregistrer
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {previewMode ? (
+            <div className="p-4">
+              {renderPreview()}
+            </div>
+          ) : (
+            <Tabs value={activeMenuTab} onValueChange={setActiveMenuTab} className="w-full">
+              <TabsList className="w-full bg-gray-100 p-0 rounded-none">
+                <TabsTrigger 
+                  value="mainDish" 
+                  className="flex-1 data-[state=active]:bg-restaurant-purple data-[state=active]:text-white"
+                >
+                  <Utensils className="h-4 w-4 mr-2" />
+                  Plats principaux
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="sideDish" 
+                  className="flex-1 data-[state=active]:bg-restaurant-terracotta data-[state=active]:text-white"
+                >
+                  <Coffee className="h-4 w-4 mr-2" />
+                  Accompagnements
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="dessert" 
+                  className="flex-1 data-[state=active]:bg-restaurant-red data-[state=active]:text-white"
+                >
+                  <IceCream className="h-4 w-4 mr-2" />
+                  Desserts
+                </TabsTrigger>
+              </TabsList>
+              <div className="p-4">
+                <TabsContent value="mainDish">
+                  {getMenuTableSection(
+                    editingMenu, 
+                    'mainDish', 
+                    'Plats principaux',
+                    <Utensils className="h-5 w-5 mr-2 text-restaurant-purple" />
+                  )}
+                </TabsContent>
+                <TabsContent value="sideDish">
+                  {getMenuTableSection(
+                    editingMenu, 
+                    'sideDish', 
+                    'Accompagnements',
+                    <Coffee className="h-5 w-5 mr-2 text-restaurant-terracotta" />
+                  )}
+                </TabsContent>
+                <TabsContent value="dessert">
+                  {getMenuTableSection(
+                    editingMenu, 
+                    'dessert', 
+                    'Desserts',
+                    <IceCream className="h-5 w-5 mr-2 text-restaurant-red" />
+                  )}
+                </TabsContent>
+              </div>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Remplacer les fonctions de sélection par une fonction unifiée pour modifier directement
   const handleModifyItem = (item: MenuItem, type: string) => {
     console.log(`Modifier l'élément ${item.name} dans la catégorie ${type}`);
-    setEditingMenu((prev) => (prev ? { ...prev } : null));
+    setEditingMenu((prev) => (prev ? { ...prev } : null)); // Assurer que editingMenu est défini
     setEditingItem({ item: { ...item }, type });
   };
 
@@ -547,6 +676,7 @@ export const MenuEditor = () => {
         </Button>
       </div>
 
+      {/* Éditeur d'élément du menu (modal) */}
       <Dialog open={!!editingItem.item} onOpenChange={() => !editingItem.item || setEditingItem({item: null, type: ''})}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -623,6 +753,7 @@ export const MenuEditor = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialogue de confirmation pour la réinitialisation */}
       <Dialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
         <DialogContent>
           <DialogHeader>
@@ -649,8 +780,10 @@ export const MenuEditor = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Interface d'édition améliorée */}
       {editingMenu && renderEditingInterface()}
 
+      {/* Liste des menus */}
       <div className="grid gap-6">
         {menus.map(menu => (
           <Card 
@@ -688,6 +821,7 @@ export const MenuEditor = () => {
             </CardHeader>
             <CardContent className="p-4">
               <div className="grid grid-cols-1 gap-4">
+                {/* Plats principaux */}
                 <div className="mb-4 bg-white rounded-lg p-4 shadow-sm">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-medium flex items-center">
@@ -716,213 +850,4 @@ export const MenuEditor = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {menu.mainDishes.map(item => (
-                          <TableRow key={item.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>{item.price}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm text-gray-600 max-w-xs truncate">{item.description}</TableCell>
-                            {editingMenu?.id === menu.id && (
-                              <TableCell>
-                                <div className="flex space-x-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleModifyItem(item, 'mainDish')}
-                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleDeleteItem(item.id, 'mainDish')}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                      <FileText className="h-10 w-10 mx-auto mb-2 text-gray-400" />
-                      <p>Aucun élément n'a été ajouté</p>
-                      {editingMenu?.id === menu.id && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleAddNewItem('mainDish')}
-                          className="mt-4 bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border-green-200"
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Ajouter un plat principal
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-4 bg-white rounded-lg p-4 shadow-sm">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium flex items-center">
-                      <Coffee className="h-5 w-5 mr-2 text-restaurant-terracotta" />
-                      Accompagnements <Badge className="ml-2 bg-blue-100 text-blue-800">{menu.sideDishes.length}</Badge>
-                    </h3>
-                    {editingMenu?.id === menu.id && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleAddNewItem('sideDish')}
-                        className="bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border-green-200"
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> Ajouter
-                      </Button>
-                    )}
-                  </div>
-                  {menu.sideDishes.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50">
-                          <TableHead>Nom</TableHead>
-                          <TableHead>Prix (FCFA)</TableHead>
-                          <TableHead className="hidden md:table-cell">Description</TableHead>
-                          {editingMenu?.id === menu.id && <TableHead>Actions</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {menu.sideDishes.map(item => (
-                          <TableRow key={item.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>{item.price}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm text-gray-600 max-w-xs truncate">{item.description}</TableCell>
-                            {editingMenu?.id === menu.id && (
-                              <TableCell>
-                                <div className="flex space-x-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleModifyItem(item, 'sideDish')}
-                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleDeleteItem(item.id, 'sideDish')}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                      <FileText className="h-10 w-10 mx-auto mb-2 text-gray-400" />
-                      <p>Aucun élément n'a été ajouté</p>
-                      {editingMenu?.id === menu.id && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleAddNewItem('sideDish')}
-                          className="mt-4 bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border-green-200"
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Ajouter un accompagnement
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-4 bg-white rounded-lg p-4 shadow-sm">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium flex items-center">
-                      <IceCream className="h-5 w-5 mr-2 text-restaurant-red" />
-                      Desserts <Badge className="ml-2 bg-blue-100 text-blue-800">{menu.desserts.length}</Badge>
-                    </h3>
-                    {editingMenu?.id === menu.id && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleAddNewItem('dessert')}
-                        className="bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border-green-200"
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> Ajouter
-                      </Button>
-                    )}
-                  </div>
-                  {menu.desserts.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50">
-                          <TableHead>Nom</TableHead>
-                          <TableHead>Prix (FCFA)</TableHead>
-                          <TableHead className="hidden md:table-cell">Description</TableHead>
-                          {editingMenu?.id === menu.id && <TableHead>Actions</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {menu.desserts.map(item => (
-                          <TableRow key={item.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>{item.price}</TableCell>
-                            <TableCell className="hidden md:table-cell text-sm text-gray-600 max-w-xs truncate">{item.description}</TableCell>
-                            {editingMenu?.id === menu.id && (
-                              <TableCell>
-                                <div className="flex space-x-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleModifyItem(item, 'dessert')}
-                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleDeleteItem(item.id, 'dessert')}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500">
-                      <FileText className="h-10 w-10 mx-auto mb-2 text-gray-400" />
-                      <p>Aucun élément n'a été ajouté</p>
-                      {editingMenu?.id === menu.id && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleAddNewItem('dessert')}
-                          className="mt-4 bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border-green-200"
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Ajouter un dessert
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-};
+                        {menu.mainDishes.
