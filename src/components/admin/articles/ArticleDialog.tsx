@@ -125,6 +125,7 @@ export const ArticleDialog = ({
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -154,7 +155,7 @@ export const ArticleDialog = ({
                       type="number"
                       placeholder="Prix"
                       {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
