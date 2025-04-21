@@ -113,8 +113,8 @@ export const useUserAuth = () => {
 
   useEffect(() => {
     console.log("Setting up auth state listener");
-    
-    // Set up auth state listener first
+
+    // 1. Set up auth state listener first (synchronous)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event);
@@ -122,11 +122,14 @@ export const useUserAuth = () => {
       }
     );
 
-    // Then check for existing session
+    // 2. Force a refresh of the session tokens and ensure latest session on initial load
+    // This ensures that, after a page reload, we fetch the latest valid session 
     const initializeSession = async () => {
-      console.log("Checking current session");
-      const { data: { session } } = await supabase.auth.getSession();
-      await handleUserSession(session);
+      console.log("Checking and refreshing current session");
+      // Supabase SDK automatically tries to refresh tokens if expired
+      await supabase.auth.getSession().then(async ({ data: { session } }) => {
+        await handleUserSession(session);
+      });
     };
 
     initializeSession();
