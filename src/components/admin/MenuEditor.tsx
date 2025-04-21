@@ -639,18 +639,6 @@ export const MenuEditor = () => {
     );
   };
 
-  // on remplace handleSelectMainDish, handleSelectSideDish, handleSelectDessert par une fonction unifiée pour éditer directement l'élément sélectionné
-  // car on ne veut plus une action "sélectionner" mais directement "modifier" en ouvrant le formulaire d'édition
-
-  // Supprimer les fonctions handleSelectMainDish, handleSelectSideDish, handleSelectDessert
-
-  // Ajouter la nouvelle fonction handleModifyItem qui ouvrira le formulaire d'édition avec l'élément
-  const handleModifyItem = (item: MenuItem, type: string) => {
-    console.log(`Modifier l'élément ${item.name} dans la catégorie ${type}`);
-    setEditingMenu((prev) => (prev ? { ...prev } : null)); // Assurer que editingMenu est défini
-    setEditingItem({ item: { ...item }, type });
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
