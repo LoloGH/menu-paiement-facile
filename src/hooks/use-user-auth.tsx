@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from '@supabase/supabase-js';
+import { useSessionRefresh } from "@/hooks/use-session-refresh";
 
 interface UserData {
   id: string;
@@ -85,6 +86,13 @@ export const useUserAuth = () => {
     }
   };
 
+  useSessionRefresh({
+    onSessionChange: (session) => {
+      // On type la session pour TS, mais on laisse la logique existante
+      handleUserSession(session);
+    }
+  });
+
   const handleUserSession = async (session: Session | null) => {
     if (session && session.user) {
       console.log("Setting up session for user:", session.user.id);
@@ -110,48 +118,6 @@ export const useUserAuth = () => {
       setUser(null);
     }
   };
-
-  useEffect(() => {
-    console.log("Setting up auth state listener");
-
-    // 1. Set up auth state listener first (synchronous)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event);
-        await handleUserSession(session);
-      }
-    );
-
-    // 2. Force a refresh of the session tokens and ensure latest session on initial load
-    // This ensures that, after a page reload, we fetch the latest valid session 
-    const initializeSession = async () => {
-      console.log("Checking and refreshing current session");
-      // Supabase SDK automatically tries to refresh tokens if expired
-      await supabase.auth.getSession().then(async ({ data: { session } }) => {
-        await handleUserSession(session);
-      });
-    };
-
-    initializeSession();
-
-    // Setup refresh timer
-    const refreshTimer = setInterval(async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Session refresh is handled automatically by Supabase
-          console.log("Session refreshed successfully");
-        }
-      } catch (error) {
-        console.error("Error refreshing session:", error);
-      }
-    }, 10 * 60 * 1000); // Refresh every 10 minutes
-
-    return () => {
-      subscription.unsubscribe();
-      clearInterval(refreshTimer);
-    };
-  }, []);
 
   const handleLogout = async () => {
     console.log("Logging out");
