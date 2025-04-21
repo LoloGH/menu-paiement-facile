@@ -89,7 +89,9 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
           // Vérifier si c'est un nouvel élément ou une mise à jour
           if (editingItem.item && m[itemType]) {
             // Mise à jour
-            const items = [...(m[itemType] as MenuItem[])];
+            // Ensure m[itemType] is an array before using find
+            const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
+            const items = [...currentItems];
             const index = items.findIndex(item => item.id === editingItem.item?.id);
             if (index !== -1) {
               items[index] = updatedItem;
@@ -99,7 +101,9 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
             return {...m, [itemType]: items};
           } else {
             // Ajout
-            const items = [...(m[itemType] as MenuItem[]), updatedItem];
+            // Ensure m[itemType] is an array before spreading
+            const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
+            const items = [...currentItems, updatedItem];
             return {...m, [itemType]: items};
           }
         }
@@ -205,11 +209,15 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       
       const itemType = itemTypeMap[dishType];
       
-      const dishToDelete = menu[itemType]?.find((dish: MenuItem) => dish.id === dishId);
+      // Ensure menu[itemType] is an array before using find
+      const itemsArray = Array.isArray(menu[itemType]) ? menu[itemType] as MenuItem[] : [];
+      const dishToDelete = itemsArray.find((dish) => dish.id === dishId);
       
       const updatedMenus = menus.map((m) => {
         if (m.id === menu.id) {
-          const dish = (m[itemType] as MenuItem[]).find(d => d.id === dishId);
+          // Ensure m[itemType] is an array before finding or filtering
+          const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
+          const dish = currentItems.find(d => d.id === dishId);
           
           // Si le plat a un articleId, supprimer l'association en base de données
           if (dish?.articleId) {
@@ -234,7 +242,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
           
           return {
             ...m,
-            [itemType]: (m[itemType] as MenuItem[]).filter((dish) => dish.id !== dishId),
+            [itemType]: currentItems.filter((dish) => dish.id !== dishId),
           };
         }
         return m;
