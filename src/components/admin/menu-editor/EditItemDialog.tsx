@@ -138,7 +138,9 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
       : "dessert";
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleCloseDialog}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) handleCloseDialog();
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>

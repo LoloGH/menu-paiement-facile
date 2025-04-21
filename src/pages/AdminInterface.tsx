@@ -485,8 +485,12 @@ const AdminInterface = () => {
                           setMenus={setMenus}
                           readOnly={!permissions.canManageMenus}
                           onMenuUpdated={async (action, details) => {
-                            if (adminData) {
-                              await logAdminAction(adminData.id, action, 'menu_items', details);
+                            try {
+                              if (adminData) {
+                                await logAdminAction(adminData.id, action, 'menu_items', details);
+                              }
+                            } catch (error) {
+                              console.error("Error logging admin action:", error);
                             }
                           }}
                         />

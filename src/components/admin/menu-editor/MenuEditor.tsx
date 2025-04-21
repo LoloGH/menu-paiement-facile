@@ -46,23 +46,29 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     item: null,
     type: 'mainDish'
   });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     console.log("MenuEditor: menu prop updated:", menu);
   }, [menu]);
 
   const handleAddItem = (type: DishType) => {
+    if (isProcessing) return;
     setEditingItem({item: null, type});
     setIsAddingItem(true);
   };
 
   const handleEditItem = (item: MenuItem, type: DishType) => {
+    if (isProcessing) return;
     setEditingItem({item, type});
     setIsAddingItem(true);
   };
 
   const handleSaveItem = async (updatedItem: MenuItem) => {
+    if (isProcessing) return;
+    
     try {
+      setIsProcessing(true);
       const { type } = editingItem;
       
       // Obtenir le nom du tableau correspondant au type
@@ -151,7 +157,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       
       // Callback de notification
       if (onMenuUpdated) {
-        await onMenuUpdated(actionType, { menuId: menu.id, dish: updatedItem });
+        try {
+          await onMenuUpdated(actionType, { menuId: menu.id, dish: updatedItem });
+        } catch (error) {
+          console.error("Error in onMenuUpdated callback:", error);
+        }
       }
       
       // Notification à l'utilisateur
@@ -170,6 +180,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         description: "Une erreur est survenue lors de la sauvegarde de l'élément.",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -179,7 +191,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   };
 
   const handleDeleteItem = async (dishId: string, dishType: DishType) => {
+    if (isProcessing) return;
+    
     try {
+      setIsProcessing(true);
+      
       // Obtenir le nom du tableau correspondant au type
       const itemTypeMap: Record<DishType, keyof MenuDay> = {
         mainDish: 'mainDishes',
@@ -188,6 +204,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       };
       
       const itemType = itemTypeMap[dishType];
+      
+      const dishToDelete = menu[itemType]?.find((dish: MenuItem) => dish.id === dishId);
       
       const updatedMenus = menus.map((m) => {
         if (m.id === menu.id) {
@@ -226,7 +244,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
 
       if (onMenuUpdated) {
-        await onMenuUpdated(`delete_${dishType}`, { menuId: menu.id, dishId });
+        try {
+          await onMenuUpdated(`delete_${dishType}`, { menuId: menu.id, dishId, dishDetails: dishToDelete });
+        } catch (error) {
+          console.error("Error in onMenuUpdated callback:", error);
+        }
       }
 
       toast({
@@ -240,6 +262,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         description: "Une erreur est survenue lors de la suppression de l'élément.",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -281,6 +305,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                           {!readOnly && (
                             <DropdownMenuItem
                               onClick={() => handleEditItem(dish, type)}
+                              disabled={isProcessing}
                             >
                               <Edit className="h-4 w-4 mr-2" />
                               Modifier
@@ -289,7 +314,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                           {!readOnly && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-red-500">
+                                <DropdownMenuItem className="text-red-500" disabled={isProcessing}>
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -307,6 +332,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                                   <AlertDialogCancel>Annuler</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleDeleteItem(dish.id, type)}
+                                    disabled={isProcessing}
                                   >
                                     Supprimer
                                   </AlertDialogAction>
@@ -333,6 +359,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               variant="outline"
               onClick={() => handleAddItem(type)}
               className="mt-2"
+              disabled={isProcessing}
             >
               <Plus className="mr-2 h-4 w-4" />
               Ajouter{" "}
