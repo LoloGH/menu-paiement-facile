@@ -12,28 +12,48 @@ interface MenuCardProps {
 }
 
 const getDayDate = (dayName: string): string => {
-  const today = new Date();
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Start week on Monday
-  
-  const dayMap: { [key: string]: number } = {
-    'Lundi': 0,
-    'Mardi': 1,
-    'Mercredi': 2,
-    'Jeudi': 3,
-    'Vendredi': 4,
-    'Samedi': 5,
-    'Dimanche': 6
-  };
+  try {
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Start week on Monday
+    
+    const dayMap: { [key: string]: number } = {
+      'Lundi': 0,
+      'Mardi': 1,
+      'Mercredi': 2,
+      'Jeudi': 3,
+      'Vendredi': 4,
+      'Samedi': 5,
+      'Dimanche': 6
+    };
 
-  const dayOffset = dayMap[dayName];
-  if (dayOffset === undefined) return '';
+    const dayOffset = dayMap[dayName];
+    if (dayOffset === undefined) return '';
 
-  const date = addDays(weekStart, dayOffset);
-  return format(date, 'd MMMM', { locale: fr });
+    const date = addDays(weekStart, dayOffset);
+    return format(date, 'd MMMM', { locale: fr });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '';
+  }
 };
 
 export const MenuCard: React.FC<MenuCardProps> = ({ menu, isActive }) => {
-  const dynamicDate = getDayDate(menu.day);
+  const dynamicDate = menu?.day ? getDayDate(menu.day) : '';
+
+  // Vérifier que menu et menu.mealOptions existent
+  if (!menu || !menu.mealOptions || !Array.isArray(menu.mealOptions)) {
+    console.error('Menu data is invalid:', menu);
+    return (
+      <Card className="w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300 opacity-70">
+        <CardHeader className="bg-restaurant-purple text-white">
+          <CardTitle className="text-2xl">Menu non disponible</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <p>Les informations du menu ne sont pas disponibles pour le moment.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={`w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300 ${isActive ? 'scale-100 opacity-100 shadow-lg' : 'scale-95 opacity-70'}`}>

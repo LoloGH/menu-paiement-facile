@@ -29,7 +29,7 @@ export interface WeeklyMenu {
 
 export interface MenuArticle {
   id?: string;
-  menu_day: string; // Make this required to match the Supabase schema
+  menu_day: string;
   article_id?: string;
   created_at?: string;
 }
@@ -41,3 +41,5 @@ export interface MenuEditorProps {
   readOnly?: boolean;
   onMenuUpdated?: (action: string, details?: any) => Promise<void>;
 }
+
+export type DishType = 'mainDish' | 'sideDish' | 'dessert';

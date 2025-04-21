@@ -16,8 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check } from "lucide-react";
-import { MenuItem } from "./types";
+import { Check, Loader2 } from "lucide-react";
+import { MenuItem, DishType } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Article {
@@ -31,7 +31,7 @@ interface Article {
 
 interface EditItemDialogProps {
   item: MenuItem | null;
-  type: string;
+  type: DishType;
   onClose: () => void;
   onSave: (item: MenuItem) => void;
 }
@@ -41,46 +41,51 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchArticles = async () => {
       setIsLoading(true);
+      setError(null);
       
-      const articleType = type === 'mainDish' 
-        ? 'main_dish' 
-        : type === 'sideDish' 
-          ? 'side_dish' 
-          : 'dessert';
+      try {
+        const articleType = type === 'mainDish' 
+          ? 'main_dish' 
+          : type === 'sideDish' 
+            ? 'side_dish' 
+            : 'dessert';
 
-      const { data, error } = await supabase
-        .from('articles')
-        .select('*')
-        .eq('type', articleType)
-        .order('name');
+        const { data, error } = await supabase
+          .from('articles')
+          .select('*')
+          .eq('type', articleType)
+          .order('name');
 
-      if (error) {
-        console.error('Error fetching articles:', error);
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Fetched articles:', data);
-      setAvailableArticles(data);
-      
-      // Si l'élément a déjà un articleId, utiliser celui-ci
-      if (item?.articleId) {
-        console.log('Setting selected article ID from item:', item.articleId);
-        setSelectedArticleId(item.articleId);
-      } else if (item?.name) {
-        // Sinon, essayer de trouver un article correspondant par nom
-        const matchingArticle = data.find(article => article.name === item.name);
-        if (matchingArticle) {
-          console.log('Found matching article by name:', matchingArticle.id);
-          setSelectedArticleId(matchingArticle.id);
+        if (error) {
+          throw error;
         }
+
+        console.log('Fetched articles:', data);
+        setAvailableArticles(data || []);
+        
+        // Si l'élément a déjà un articleId, utiliser celui-ci
+        if (item?.articleId) {
+          console.log('Setting selected article ID from item:', item.articleId);
+          setSelectedArticleId(item.articleId);
+        } else if (item?.name) {
+          // Sinon, essayer de trouver un article correspondant par nom
+          const matchingArticle = data?.find(article => article.name === item.name);
+          if (matchingArticle) {
+            console.log('Found matching article by name:', matchingArticle.id);
+            setSelectedArticleId(matchingArticle.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching articles:', error);
+        setError("Erreur lors du chargement des articles. Veuillez réessayer.");
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     fetchArticles();
@@ -88,26 +93,37 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   }, [type, item]);
 
   const handleSave = async () => {
-    console.log("Saving item with articleId:", selectedArticleId);
-    
-    const selectedArticle = availableArticles.find(article => article.id === selectedArticleId);
-    if (!selectedArticle) {
-      console.error("No article selected or article not found");
-      return;
+    try {
+      console.log("Saving item with articleId:", selectedArticleId);
+      
+      if (!selectedArticleId) {
+        setError("Veuillez sélectionner un article");
+        return;
+      }
+      
+      const selectedArticle = availableArticles.find(article => article.id === selectedArticleId);
+      if (!selectedArticle) {
+        setError("Article sélectionné non trouvé");
+        return;
+      }
+
+      const menuItem: MenuItem = {
+        id: item?.id || `${type}_${Date.now()}`,
+        name: selectedArticle.name,
+        price: selectedArticle.price,
+        description: selectedArticle.description || '',
+        imageUrl: selectedArticle.image_url || '',
+        articleId: selectedArticle.id,
+        type: type === 'mainDish' ? 'main_dish' : type === 'sideDish' ? 'side_dish' : 'dessert'
+      };
+
+      console.log("Menu item to save:", menuItem);
+      onSave(menuItem);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Error saving item:", error);
+      setError("Une erreur est survenue lors de la sauvegarde. Veuillez réessayer.");
     }
-
-    const menuItem: MenuItem = {
-      id: item?.id || `${type}_${Date.now()}`,
-      name: selectedArticle.name,
-      price: selectedArticle.price,
-      description: selectedArticle.description || '',
-      imageUrl: selectedArticle.image_url || '',
-      articleId: selectedArticle.id
-    };
-
-    console.log("Menu item to save:", menuItem);
-    onSave(menuItem);
-    setIsOpen(false);
   };
 
   const handleCloseDialog = () => {
@@ -134,9 +150,15 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+          
           {isLoading ? (
             <div className="flex justify-center py-4">
-              <div className="w-6 h-6 border-2 border-restaurant-purple border-t-transparent rounded-full animate-spin"></div>
+              <Loader2 className="w-6 h-6 text-restaurant-purple animate-spin" />
             </div>
           ) : (
             <div className="space-y-2">
@@ -151,11 +173,17 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
                   <SelectValue placeholder="Sélectionnez un article" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableArticles.map((article) => (
-                    <SelectItem key={article.id} value={article.id}>
-                      {article.name} - {article.price} FCFA
+                  {availableArticles.length > 0 ? (
+                    availableArticles.map((article) => (
+                      <SelectItem key={article.id} value={article.id}>
+                        {article.name} - {article.price} FCFA
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>
+                      Aucun article disponible
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
