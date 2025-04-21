@@ -1,8 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { supabase, isAdminUser } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from '@supabase/supabase-js';
-import { useSessionRefresh } from "@/hooks/use-session-refresh";
 
 interface AdminData {
   id: string;
@@ -19,37 +19,103 @@ export const useAdminAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
-  useSessionRefresh({
-    onSessionChange: (session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoggedIn(!!session);
-
-      if (session && session.user) {
-        setTimeout(async () => {
-          try {
-            const adminStatus = await isAdminUser(session.user.id);
-            setIsAdmin(adminStatus);
-            if (adminStatus) {
-              setAdminData({
-                id: session.user.id,
-                email: session.user.email || "",
-                isAdmin: true
-              });
+  useEffect(() => {
+    console.log("Setting up admin auth hook");
+    
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
+        
+        // Update session and user state immediately
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoggedIn(!!session);
+        
+        if (session && session.user) {
+          // Defer admin check to prevent blocking
+          setTimeout(async () => {
+            try {
+              console.log("Checking admin status for user:", session.user.id);
+              const adminStatus = await isAdminUser(session.user.id);
+              console.log("Admin status result:", adminStatus);
+              setIsAdmin(adminStatus);
+              
+              if (adminStatus) {
+                setAdminData({
+                  id: session.user.id,
+                  email: session.user.email || "",
+                  isAdmin: true
+                });
+              }
+            } catch (error) {
+              console.error("Error checking admin status:", error);
+              setIsAdmin(false);
+            } finally {
+              setIsLoading(false);
             }
-          } catch (error) {
-            setIsAdmin(false);
-          } finally {
-            setIsLoading(false);
+          }, 0);
+        } else {
+          setIsAdmin(false);
+          setAdminData(null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // Then check for existing session
+    const initializeSession = async () => {
+      try {
+        console.log("Initializing admin session");
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("Current session:", session?.user?.id);
+        
+        // Update session and user state
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoggedIn(!!session);
+        
+        if (session?.user) {
+          console.log("Checking admin status during init for user:", session.user.id);
+          const adminStatus = await isAdminUser(session.user.id);
+          console.log("Admin status check result:", adminStatus);
+          setIsAdmin(adminStatus);
+          
+          if (adminStatus) {
+            setAdminData({
+              id: session.user.id,
+              email: session.user.email || "",
+              isAdmin: true
+            });
           }
-        }, 0);
-      } else {
-        setIsAdmin(false);
-        setAdminData(null);
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
         setIsLoading(false);
       }
-    }
-  });
+    };
+
+    initializeSession();
+
+    // Setup refresh timer
+    const refreshTimer = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Session refresh is handled automatically by Supabase
+          console.log("Session refreshed successfully");
+        }
+      } catch (error) {
+        console.error("Error refreshing session:", error);
+      }
+    }, 10 * 60 * 1000); // Refresh every 10 minutes
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(refreshTimer);
+    };
+  }, []);
 
   const handleLogout = async () => {
     setIsLoading(true);
