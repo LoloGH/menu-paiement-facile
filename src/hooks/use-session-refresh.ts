@@ -24,8 +24,20 @@ export function useSessionRefresh({ onSessionChange }: UseSessionRefreshOptions)
     };
     initializeSession();
 
+    // 3. Timer pour garder la session toujours fraîche côté client
+    const refreshTimer = setInterval(async () => {
+      try {
+        await supabase.auth.getSession();
+        // (optionnel) : onSessionChange n'est pas requis ici, Supabase gère déjà le refresh côté SDK
+      } catch (error) {
+        // Erreurs en console si jamais refresh échoue
+        console.error("Error refreshing session:", error);
+      }
+    }, 10 * 60 * 1000); // 10 minutes
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(refreshTimer);
     };
   }, [onSessionChange]);
 }

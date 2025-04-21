@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
@@ -20,7 +19,6 @@ const Index = () => {
   const isMobile = useIsMobile();
   const [showWeeklyReceipt, setShowWeeklyReceipt] = useState(false);
   const [weeklyReceiptId, setWeeklyReceiptId] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
@@ -39,31 +37,15 @@ const Index = () => {
 
   useEffect(() => {
     const loadMenus = async () => {
-      setIsLoading(true);
       try {
-        console.log("Chargement des menus depuis Supabase...");
-        // Récupérer les menus hebdomadaires actifs
+        // First try to load from Supabase
         const { data: weeklyMenus, error: weeklyMenuError } = await supabase
           .from('weekly_menus')
           .select('*')
-          .eq('is_active', true)
-          .order('date', { ascending: true });
+          .eq('is_active', true);
 
-        if (weeklyMenuError) {
-          console.error("Erreur lors du chargement des menus hebdomadaires:", weeklyMenuError);
-          throw weeklyMenuError;
-        }
+        if (weeklyMenuError) throw weeklyMenuError;
 
-        if (!weeklyMenus || weeklyMenus.length === 0) {
-          console.log("Aucun menu hebdomadaire actif trouvé, utilisation des menus par défaut");
-          setMenus(defaultWeeklyMenu);
-          setIsLoading(false);
-          return;
-        }
-
-        console.log("Menus hebdomadaires chargés:", weeklyMenus);
-
-        // Récupération des articles de menu
         const { data: menuArticles, error: menuArticlesError } = await supabase
           .from('menu_articles')
           .select(`
@@ -79,41 +61,20 @@ const Index = () => {
             )
           `);
 
-        if (menuArticlesError) {
-          console.error("Erreur lors du chargement des articles de menu:", menuArticlesError);
-          throw menuArticlesError;
-        }
+        if (menuArticlesError) throw menuArticlesError;
 
-        console.log("Articles de menu chargés:", menuArticles);
-
-        // Regrouper les articles par jour et type
+        // Group articles by menu day and type
         const menusByDay = new Map();
-        
-        // Initialiser les jours disponibles dans les menus hebdomadaires
-        weeklyMenus.forEach(weeklyMenu => {
-          menusByDay.set(weeklyMenu.day, {
-            id: `menu_${weeklyMenu.day}`,
-            day: weeklyMenu.day,
-            date: weeklyMenu.date,
-            mainDishes: [],
-            sideDishes: [],
-            desserts: []
-          });
-        });
-
-        // Ajouter les articles aux jours correspondants
         menuArticles.forEach((menuArticle: any) => {
-          if (!menuArticle.articles) {
-            console.warn("Article manquant pour:", menuArticle);
-            return;
-          }
-
           const article = menuArticle.articles;
           const menuDay = menuArticle.menu_day;
           
           if (!menusByDay.has(menuDay)) {
-            console.warn(`Jour de menu "${menuDay}" non trouvé dans les menus hebdomadaires`);
-            return;
+            menusByDay.set(menuDay, {
+              mainDishes: [],
+              sideDishes: [],
+              desserts: []
+            });
           }
           
           const menu = menusByDay.get(menuDay);
@@ -122,48 +83,42 @@ const Index = () => {
           else if (article.type === 'dessert') menu.desserts.push(article);
         });
 
-        // Convertir en format d'application
-        const convertedMenus = Array.from(menusByDay.values()).map(menuData => ({
-          id: menuData.id,
-          day: menuData.day,
-          date: menuData.date || '',
-          mealOptions: convertToMealOptions(menuData)
+        // Convert to app format
+        const convertedMenus = Array.from(menusByDay.entries()).map(([day, items]) => ({
+          id: `menu_${day}`,
+          day,
+          date: weeklyMenus?.find(wm => wm.day === day)?.date || '',
+          mealOptions: convertToMealOptions(items)
         }));
 
         if (convertedMenus && convertedMenus.length > 0) {
-          console.log("Menus convertis pour l'affichage:", convertedMenus);
+          console.log("Menus chargés depuis Supabase:", convertedMenus);
           setMenus(convertedMenus);
-        } else {
-          console.log("Aucun menu converti, utilisation des menus par défaut");
-          setMenus(defaultWeeklyMenu);
+          return;
         }
       } catch (error) {
         console.error("Erreur lors du chargement des menus depuis Supabase:", error);
-        console.log("Utilisation des menus par défaut suite à une erreur");
-        
-        // Tentative de chargement depuis localStorage en cas d'erreur
-        try {
-          const savedMenus = localStorage.getItem('weeklyMenu');
-          if (savedMenus) {
-            const adminMenus = JSON.parse(savedMenus);
-            const convertedMenus = convertAdminMenusToAppFormat(adminMenus);
-            
-            if (convertedMenus && convertedMenus.length > 0) {
-              console.log("Menus chargés depuis localStorage:", convertedMenus);
-              setMenus(convertedMenus);
-            } else {
-              setMenus(defaultWeeklyMenu);
-            }
-          } else {
-            setMenus(defaultWeeklyMenu);
-          }
-        } catch (localError) {
-          console.error("Erreur lors du chargement des menus depuis localStorage:", localError);
-          setMenus(defaultWeeklyMenu);
-        }
-      } finally {
-        setIsLoading(false);
       }
+
+      // Fallback to localStorage or default menus
+      try {
+        const savedMenus = localStorage.getItem('weeklyMenu');
+        if (savedMenus) {
+          const adminMenus = JSON.parse(savedMenus);
+          const convertedMenus = convertAdminMenusToAppFormat(adminMenus);
+          
+          if (convertedMenus && convertedMenus.length > 0) {
+            console.log("Menus chargés depuis localStorage:", convertedMenus);
+            setMenus(convertedMenus);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des menus depuis localStorage:", error);
+      }
+
+      // Fallback to default menus
+      setMenus(defaultWeeklyMenu);
     };
 
     loadMenus();
@@ -242,37 +197,22 @@ const Index = () => {
   const convertToMealOptions = (items: any) => {
     const mealOptions = [];
 
-    // S'assurer que mainDishes existe et n'est pas vide
-    if (!items.mainDishes || items.mainDishes.length === 0) {
-      console.warn("Aucun plat principal trouvé pour le jour:", items.day);
-      return [];
-    }
-
     for (const mainDish of items.mainDishes) {
-      const sideDish = items.sideDishes && items.sideDishes.length > 0 
-        ? items.sideDishes[0] 
-        : {
-            id: `default_side_${Date.now()}`,
-            name: "Accompagnement standard",
-            price: 0,
-            description: "Accompagnement du jour"
-          };
+      const sideDish = items.sideDishes[0] || {
+        id: `default_side_${Date.now()}`,
+        name: "Accompagnement standard",
+        price: 0,
+        description: "Accompagnement du jour"
+      };
 
-      const dessert = items.desserts && items.desserts.length > 0 
-        ? items.desserts[0] 
-        : {
-            id: `default_dessert_${Date.now()}`,
-            name: "Dessert standard",
-            price: 0,
-            description: "Dessert du jour"
-          };
+      const dessert = items.desserts[0] || {
+        id: `default_dessert_${Date.now()}`,
+        name: "Dessert standard",
+        price: 0,
+        description: "Dessert du jour"
+      };
 
-      // S'assurer que les prix sont des nombres
-      const mainDishPrice = typeof mainDish.price === 'number' ? mainDish.price : parseFloat(String(mainDish.price)) || 0;
-      const sideDishPrice = typeof sideDish.price === 'number' ? sideDish.price : parseFloat(String(sideDish.price)) || 0;
-      const dessertPrice = typeof dessert.price === 'number' ? dessert.price : parseFloat(String(dessert.price)) || 0;
-      
-      const totalPrice = mainDishPrice + sideDishPrice + dessertPrice;
+      const totalPrice = (mainDish.price || 0) + (sideDish.price || 0) + (dessert.price || 0);
 
       mealOptions.push({
         id: `option_${mainDish.id}`,
@@ -280,22 +220,22 @@ const Index = () => {
           id: mainDish.id,
           name: mainDish.name,
           description: mainDish.description || "",
-          price: mainDishPrice,
+          price: mainDish.price || 0,
           image: mainDish.image_url || "/placeholder.svg"
         },
         sideDish: {
           id: sideDish.id,
           name: sideDish.name,
           description: sideDish.description || "",
-          price: sideDishPrice,
+          price: sideDish.price || 0,
           image: sideDish.image_url || "/placeholder.svg"
         },
         dessert: {
           id: dessert.id,
           name: dessert.name,
           description: dessert.description || "",
-          price: dessertPrice,
-          image: dessert.image_url || "/placeholder.svg"
+          price: dessert.price || 0,
+          image: sideDish.image_url || "/placeholder.svg"
         },
         totalPrice
       });
@@ -318,9 +258,7 @@ const Index = () => {
       }
     };
     
-    if (menus.length > 0) {
-      getCurrentDay();
-    }
+    getCurrentDay();
   }, [menus]);
 
   const handleWeeklyPayment = () => {
@@ -390,12 +328,7 @@ const Index = () => {
           </Button>
         </div>
 
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-pulse h-8 w-40 bg-gray-200 rounded-md mx-auto mb-4"></div>
-            <div className="animate-pulse h-64 bg-gray-200 rounded-md max-w-4xl mx-auto"></div>
-          </div>
-        ) : activeDay && menus.length > 0 ? (
+        {activeDay && (
           <>
             <WeekNavigation 
               menus={menus} 
@@ -416,10 +349,6 @@ const Index = () => {
               ))}
             </div>
           </>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-xl">Aucun menu disponible pour le moment.</p>
-          </div>
         )}
       </main>
 
