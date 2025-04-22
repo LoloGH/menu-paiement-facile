@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,6 +32,10 @@ const AdminInterface = () => {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [menus, setMenus] = useState<MenuDay[]>([]);
+  const [selectedMenu, setSelectedMenu] = useState<MenuDay | null>(null);
+  
   const {
     canViewDashboard,
     canViewUsers,
@@ -47,10 +50,44 @@ const AdminInterface = () => {
     isLoading: permissionsLoading,
   } = useRoleBasedAccess();
 
-  // Add a function to handle successful login
+  useEffect(() => {
+    const savedMenus = localStorage.getItem('weeklyMenu');
+    if (savedMenus) {
+      try {
+        const parsedMenus = JSON.parse(savedMenus);
+        setMenus(parsedMenus);
+        if (parsedMenus.length > 0) {
+          setSelectedMenu(parsedMenus[0]);
+        }
+      } catch (error) {
+        console.error("Error loading menus:", error);
+        initializeEmptyMenus();
+      }
+    } else {
+      initializeEmptyMenus();
+    }
+  }, []);
+
+  const initializeEmptyMenus = () => {
+    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    
+    const emptyMenus: MenuDay[] = days.map((day, index) => ({
+      id: day.toLowerCase(),
+      day: day,
+      date: '',
+      mainDishes: [],
+      sideDishes: [],
+      desserts: []
+    }));
+    
+    setMenus(emptyMenus);
+    if (emptyMenus.length > 0) {
+      setSelectedMenu(emptyMenus[0]);
+    }
+    localStorage.setItem('weeklyMenu', JSON.stringify(emptyMenus));
+  };
+
   const handleLoginSuccess = (user: any) => {
-    // The login was successful, we don't need to do anything special here
-    // because the useAdminAuth hook will automatically update the state
     toast({
       title: "Connexion réussie",
       description: "Vous êtes maintenant connecté en tant qu'administrateur.",
@@ -241,7 +278,7 @@ const AdminInterface = () => {
               
               {canViewOrders && (
                 <TabsContent value="orders" className="space-y-4">
-                  <OrdersTable />
+                  <OrdersTable searchTerm="" />
                 </TabsContent>
               )}
               
@@ -253,7 +290,13 @@ const AdminInterface = () => {
               
               {canViewMenus && (
                 <TabsContent value="menus" className="space-y-4">
-                  <MenuEditor />
+                  {selectedMenu && (
+                    <MenuEditor 
+                      menu={selectedMenu}
+                      menus={menus}
+                      setMenus={setMenus}
+                    />
+                  )}
                 </TabsContent>
               )}
               
