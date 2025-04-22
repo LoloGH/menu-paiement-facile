@@ -12,6 +12,7 @@ import { UserHeader } from '@/components/user-header/UserHeader';
 import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
 import { supabase } from "@/integrations/supabase/client";
 
+// Define a proper type that matches all possible day values in the database
 type DayName = "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi" | "Samedi" | "Dimanche";
 
 const Index = () => {
@@ -39,6 +40,7 @@ const Index = () => {
   useEffect(() => {
     const loadTodayMenu = async () => {
       try {
+        // Define days array with the correct DayName type
         const daysOfWeek: DayName[] = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
         const currentDayIndex = new Date().getDay();
         const currentDayName = daysOfWeek[currentDayIndex];
