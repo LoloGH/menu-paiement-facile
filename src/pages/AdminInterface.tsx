@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { Menu, Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw, History } from "lucide-react";
+import { Menu, Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw, History, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -362,7 +362,7 @@ const AdminInterface = () => {
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
-              <TabsList className={`${isMobile ? 'grid-cols-2' : 'grid-cols-8'} grid gap-4`}>
+              <TabsList className={`${isMobile ? 'grid-cols-2' : 'grid-cols-9'} grid gap-4`}>
                 <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                 {permissions.canViewOrders && (
                   <TabsTrigger value="orders">Commandes</TabsTrigger>
@@ -385,6 +385,12 @@ const AdminInterface = () => {
                     Menus
                   </TabsTrigger>
                 )}
+                {permissions.canViewMenus && (
+                  <TabsTrigger value="homepage">
+                    <LayoutDashboard className="h-4 w-4 mr-2" />
+                    Accueil
+                  </TabsTrigger>
+                )}
                 {permissions.canManageRoles && (
                   <TabsTrigger value="admins">
                     <Users className="h-4 w-4 mr-2" />
@@ -398,18 +404,6 @@ const AdminInterface = () => {
                   </TabsTrigger>
                 )}
               </TabsList>
-              {isMobile && permissions.canManageRoles && (
-                <TabsList className="grid grid-cols-2 gap-4 mt-2">
-                  <TabsTrigger value="admins">
-                    <Users className="h-4 w-4 mr-2" />
-                    Rôles
-                  </TabsTrigger>
-                  <TabsTrigger value="audit-log">
-                    <History className="h-4 w-4 mr-2" />
-                    Audit
-                  </TabsTrigger>
-                </TabsList>
-              )}
             </CardHeader>
             <CardContent>
               <TabsContent value="dashboard" className="space-y-4">
@@ -480,7 +474,11 @@ const AdminInterface = () => {
                       {selectedMenu && (
                         <MenuEditor 
                           key={activeMenuId}
-                          menu={selectedMenu}
+                          menu={menus.find(menu => {
+                            const daysOfWeek = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+                            const currentDayName = daysOfWeek[new Date().getDay()];
+                            return menu.day === currentDayName;
+                          }) || menus[0]}
                           menus={menus}
                           setMenus={setMenus}
                           readOnly={!permissions.canManageMenus}
