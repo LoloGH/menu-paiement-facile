@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { 
@@ -30,7 +29,6 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { weeklyMenu } from "@/data/menuData";
 import { 
   Save, 
   Edit, 
@@ -77,12 +75,10 @@ export const MenuEditor = () => {
   const [activeMenuTab, setActiveMenuTab] = useState("mainDish");
   const [previewMode, setPreviewMode] = useState(false);
   
-  // Charger les menus depuis le localStorage au démarrage
   useEffect(() => {
     loadMenus();
   }, []);
 
-  // Charger les menus depuis le localStorage ou les données par défaut
   const loadMenus = () => {
     console.log("Loading menus...");
     const savedMenus = localStorage.getItem('weeklyMenu');
@@ -93,70 +89,29 @@ export const MenuEditor = () => {
         setMenus(parsedMenus);
       } catch (error) {
         console.error("Erreur lors du chargement des menus sauvegardés:", error);
-        // Si erreur de chargement, convertir les données du weeklyMenu
-        convertAndSetMenus();
+        initializeEmptyMenus();
       }
     } else {
-      // Pas de données sauvegardées, convertir les données du weeklyMenu
-      console.log("No saved menus found, converting default data");
-      convertAndSetMenus();
+      console.log("No saved menus found, initializing empty menus");
+      initializeEmptyMenus();
     }
   };
 
-  const convertAndSetMenus = () => {
-    // Convertir les données du weeklyMenu au format MenuDay
-    console.log("Converting menu data from weeklyMenu:", weeklyMenu);
+  const initializeEmptyMenus = () => {
+    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
     
-    const convertedMenus: MenuDay[] = weeklyMenu.map(menu => {
-      const mainDishes: MenuItem[] = [];
-      const sideDishes: MenuItem[] = [];
-      const desserts: MenuItem[] = [];
-      
-      // Extraire les plats uniques des options de repas
-      menu.mealOptions.forEach(option => {
-        if (option.mainDish && !mainDishes.some(dish => dish.id === option.mainDish.id)) {
-          mainDishes.push({
-            id: option.mainDish.id,
-            name: option.mainDish.name,
-            price: option.mainDish.price,
-            description: option.mainDish.description,
-            imageUrl: option.mainDish.image
-          });
-        }
-        
-        if (option.sideDish && !sideDishes.some(dish => dish.id === option.sideDish.id)) {
-          sideDishes.push({
-            id: option.sideDish.id,
-            name: option.sideDish.name,
-            price: option.sideDish.price,
-            description: option.sideDish.description,
-            imageUrl: option.sideDish.image
-          });
-        }
-        
-        if (option.dessert && !desserts.some(dish => dish.id === option.dessert.id)) {
-          desserts.push({
-            id: option.dessert.id,
-            name: option.dessert.name,
-            price: option.dessert.price,
-            description: option.dessert.description,
-            imageUrl: option.dessert.image
-          });
-        }
-      });
-      
-      return {
-        id: menu.id,
-        day: menu.day,
-        date: menu.date,
-        mainDishes,
-        sideDishes,
-        desserts
-      };
-    });
+    const emptyMenus: MenuDay[] = days.map((day, index) => ({
+      id: day.toLowerCase(),
+      day: day,
+      date: '',
+      mainDishes: [],
+      sideDishes: [],
+      desserts: []
+    }));
     
-    console.log("Converted menus:", convertedMenus);
-    setMenus(convertedMenus);
+    console.log("Initialized empty menus:", emptyMenus);
+    setMenus(emptyMenus);
+    localStorage.setItem('weeklyMenu', JSON.stringify(emptyMenus));
   };
 
   const saveMenusToLocalStorage = (updatedMenus: MenuDay[]) => {
@@ -164,7 +119,6 @@ export const MenuEditor = () => {
       console.log("Saving menus to localStorage:", updatedMenus);
       localStorage.setItem('weeklyMenu', JSON.stringify(updatedMenus));
       
-      // Déclencher un événement personnalisé pour mettre à jour d'autres parties de l'application
       const event = new CustomEvent('menu-updated', { detail: updatedMenus });
       window.dispatchEvent(event);
       
@@ -200,7 +154,7 @@ export const MenuEditor = () => {
   const handleEditMenu = (menu: MenuDay) => {
     console.log("Editing menu:", menu);
     setEditingMenu({...menu});
-    setActiveMenuTab("mainDish"); // Réinitialiser à l'onglet des plats principaux
+    setActiveMenuTab("mainDish");
     setPreviewMode(false);
   };
 
@@ -240,7 +194,6 @@ export const MenuEditor = () => {
   const handleSaveItem = () => {
     if (!editingMenu || !editingItem.item || !editingItem.type) return;
     
-    // Vérifier si les champs obligatoires sont remplis
     if (!editingItem.item.name || editingItem.item.price === undefined) {
       toast({
         title: "Champs obligatoires",
@@ -258,12 +211,8 @@ export const MenuEditor = () => {
     const index = items.findIndex(item => item.id === editingItem.item?.id);
     
     if (index !== -1) {
-      // Mettre à jour l'élément existant
-      console.log("Updating existing item at index:", index);
       items[index] = editingItem.item;
     } else {
-      // Ajouter un nouvel élément
-      console.log("Adding new item");
       items.push({
         ...editingItem.item,
         id: `${editingItem.type}_${Date.now()}`
@@ -286,7 +235,7 @@ export const MenuEditor = () => {
   const handleAddNewItem = (type: string) => {
     console.log(`Adding new ${type} item`);
     const newItem: MenuItem = {
-      id: '', // Sera généré lors de la sauvegarde
+      id: '',
       name: '',
       price: 0,
       description: '',
@@ -323,10 +272,9 @@ export const MenuEditor = () => {
   
   const confirmReset = () => {
     console.log("Resetting menus to default values");
-    convertAndSetMenus();
+    initializeEmptyMenus();
     localStorage.removeItem('weeklyMenu');
     
-    // Déclencher un événement personnalisé pour mettre à jour d'autres parties de l'application
     const event = new CustomEvent('menu-updated');
     window.dispatchEvent(event);
     
@@ -430,9 +378,7 @@ export const MenuEditor = () => {
     );
   };
 
-  // Rendu des sections de la table pour les types de plats (principal, accompagnement, dessert)
   const getMenuTableSection = (menu: MenuDay, type: string, title: string, icon: React.ReactNode) => {
-    // Add null check to ensure menu exists
     if (!menu) {
       console.error(`Menu is undefined when displaying ${type} for ${title}`);
       return null;
@@ -440,7 +386,6 @@ export const MenuEditor = () => {
     
     const itemType = `${type}s` as keyof MenuDay;
     
-    // Add null check to ensure the items array exists before attempting to map
     const items = menu[itemType] as MenuItem[] || [];
     
     return (
@@ -528,7 +473,6 @@ export const MenuEditor = () => {
     );
   };
 
-  // Interface d'édition améliorée avec onglets pour les types de plats
   const renderEditingInterface = () => {
     if (!editingMenu) return null;
     
@@ -656,7 +600,6 @@ export const MenuEditor = () => {
         </Button>
       </div>
 
-      {/* Éditeur d'élément du menu (modal) */}
       <Dialog open={!!editingItem.item} onOpenChange={() => !editingItem.item || setEditingItem({item: null, type: ''})}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -733,7 +676,6 @@ export const MenuEditor = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialogue de confirmation pour la réinitialisation */}
       <Dialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
         <DialogContent>
           <DialogHeader>
@@ -760,10 +702,8 @@ export const MenuEditor = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Interface d'édition améliorée */}
       {editingMenu && renderEditingInterface()}
 
-      {/* Liste des menus */}
       <div className="grid gap-6">
         {menus.map(menu => (
           <Card 
