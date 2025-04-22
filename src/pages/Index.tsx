@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { DayMenu } from '@/data/menuData';
@@ -12,8 +11,9 @@ import { UserHeader } from '@/components/user-header/UserHeader';
 import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
 import { supabase } from "@/integrations/supabase/client";
 
-// Define a proper type that matches all possible day values in the database
-type DayName = "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi" | "Samedi" | "Dimanche";
+// Modify the type to include only weekdays for certain operations
+type WeekdayName = "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi";
+type DayName = WeekdayName | "Samedi" | "Dimanche";
 
 const Index = () => {
   const [todayMenu, setTodayMenu] = useState<DayMenu | null>(null);
@@ -40,17 +40,17 @@ const Index = () => {
   useEffect(() => {
     const loadTodayMenu = async () => {
       try {
-        // Define days array with the correct DayName type
         const daysOfWeek: DayName[] = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
         const currentDayIndex = new Date().getDay();
         const currentDayName = daysOfWeek[currentDayIndex];
 
-        // First try to load from Supabase
+        // Use type assertion or filtering when working with weekday-specific operations
         const { data: weeklyMenus, error: weeklyMenuError } = await supabase
           .from('weekly_menus')
           .select('*')
           .eq('is_active', true)
-          .eq('day', currentDayName);
+          // Ensure only valid weekdays are used here
+          .eq('day', currentDayName as WeekdayName);
 
         if (weeklyMenuError) throw weeklyMenuError;
 
