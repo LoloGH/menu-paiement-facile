@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,6 +47,16 @@ const AdminInterface = () => {
     isLoading: permissionsLoading,
   } = useRoleBasedAccess();
 
+  // Add a function to handle successful login
+  const handleLoginSuccess = (user: any) => {
+    // The login was successful, we don't need to do anything special here
+    // because the useAdminAuth hook will automatically update the state
+    toast({
+      title: "Connexion réussie",
+      description: "Vous êtes maintenant connecté en tant qu'administrateur.",
+    });
+  };
+
   if (isLoading || permissionsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -92,6 +103,7 @@ const AdminInterface = () => {
           <AdminLoginDialog 
             isOpen={isLoginDialogOpen} 
             onClose={() => setIsLoginDialogOpen(false)} 
+            onLoginSuccess={handleLoginSuccess}
           />
         </div>
       </div>
@@ -223,25 +235,25 @@ const AdminInterface = () => {
               
               {canViewUsers && (
                 <TabsContent value="users" className="space-y-4">
-                  <UserTable canManage={canManageUsers} />
+                  <UserTable searchTerm="" />
                 </TabsContent>
               )}
               
               {canViewOrders && (
                 <TabsContent value="orders" className="space-y-4">
-                  <OrdersTable canManage={canManageOrders} />
+                  <OrdersTable />
                 </TabsContent>
               )}
               
               {canViewArticles && (
                 <TabsContent value="articles" className="space-y-4">
-                  <ArticlesManager canManage={canManageArticles} />
+                  <ArticlesManager readOnly={!canManageArticles} />
                 </TabsContent>
               )}
               
               {canViewMenus && (
                 <TabsContent value="menus" className="space-y-4">
-                  <MenuEditor canManage={canManageMenus} />
+                  <MenuEditor />
                 </TabsContent>
               )}
               
