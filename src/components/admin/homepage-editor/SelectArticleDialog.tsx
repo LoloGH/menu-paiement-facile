@@ -17,7 +17,7 @@ interface Article {
   name: string;
   price: number;
   description: string | null;
-  type: 'main_dish' | 'side_dish' | 'dessert';
+  type: 'main_dish' | 'side_dish' | 'dessert' | 'other';
 }
 
 interface SelectArticleDialogProps {
