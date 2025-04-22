@@ -9,6 +9,7 @@ import { MoreVertical, Plus, Trash2, Edit } from "lucide-react";
 import { MenuEditorProps, MenuDay, MenuItem, DishType } from "./types";
 import { EditItemDialog } from "./EditItemDialog";
 import { supabase } from "@/integrations/supabase/client";
+
 export const MenuEditor: React.FC<MenuEditorProps> = ({
   menu,
   menus,
@@ -28,9 +29,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     type: 'mainDish'
   });
   const [isProcessing, setIsProcessing] = useState(false);
+
   useEffect(() => {
     console.log("MenuEditor: menu prop updated:", menu);
   }, [menu]);
+
   const handleAddItem = (type: DishType) => {
     if (isProcessing) return;
     setEditingItem({
@@ -39,6 +42,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     });
     setIsAddingItem(true);
   };
+
   const handleEditItem = (item: MenuItem, type: DishType) => {
     if (isProcessing) return;
     setEditingItem({
@@ -47,6 +51,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     });
     setIsAddingItem(true);
   };
+
   const handleSaveItem = async (updatedItem: MenuItem) => {
     if (isProcessing) return;
     try {
@@ -55,7 +60,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         type
       } = editingItem;
 
-      // Obtenir le nom du tableau correspondant au type
       const itemTypeMap: Record<DishType, keyof MenuDay> = {
         mainDish: 'mainDishes',
         sideDish: 'sideDishes',
@@ -65,13 +69,9 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       const actionType = updatedItem.id.includes(`${type}_`) ? `add_${type}` : `update_${type}`;
       let updatedMenus = [...menus];
 
-      // Mise à jour du menu concerné
       updatedMenus = menus.map(m => {
         if (m.id === menu.id) {
-          // Vérifier si c'est un nouvel élément ou une mise à jour
           if (editingItem.item && m[itemType]) {
-            // Mise à jour
-            // Ensure m[itemType] is an array before using find
             const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
             const items = [...currentItems];
             const index = items.findIndex(item => item.id === editingItem.item?.id);
@@ -85,8 +85,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               [itemType]: items
             };
           } else {
-            // Ajout
-            // Ensure m[itemType] is an array before spreading
             const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
             const items = [...currentItems, updatedItem];
             return {
@@ -98,16 +96,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         return m;
       });
 
-      // Mettre à jour l'état local
       setMenus(updatedMenus);
-
-      // Sauvegarder dans localStorage
       localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
 
-      // Mettre à jour la base de données si articleId est présent
       if (updatedItem.articleId) {
         try {
-          // Vérifier si l'article est déjà associé à ce menu
           const {
             data: existingAssociations,
             error: fetchError
@@ -117,7 +110,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
             throw fetchError;
           }
 
-          // Si l'association n'existe pas, la créer
           if (!existingAssociations || existingAssociations.length === 0) {
             const {
               error: insertError
@@ -143,7 +135,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         }
       }
 
-      // Callback de notification
       if (onMenuUpdated) {
         try {
           await onMenuUpdated(actionType, {
@@ -155,13 +146,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         }
       }
 
-      // Notification à l'utilisateur
       toast({
         title: "Succès",
         description: `${editingItem.item ? "Élément mis à jour" : "Nouvel élément ajouté"} avec succès.`
       });
 
-      // Réinitialiser l'état d'édition
       setEditingItem({
         item: null,
         type: 'mainDish'
@@ -178,6 +167,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       setIsProcessing(false);
     }
   };
+
   const handleCancelEdit = () => {
     setEditingItem({
       item: null,
@@ -185,12 +175,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     });
     setIsAddingItem(false);
   };
+
   const handleDeleteItem = async (dishId: string, dishType: DishType) => {
     if (isProcessing) return;
     try {
       setIsProcessing(true);
 
-      // Obtenir le nom du tableau correspondant au type
       const itemTypeMap: Record<DishType, keyof MenuDay> = {
         mainDish: 'mainDishes',
         sideDish: 'sideDishes',
@@ -198,16 +188,13 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       };
       const itemType = itemTypeMap[dishType];
 
-      // Ensure menu[itemType] is an array before using find
       const itemsArray = Array.isArray(menu[itemType]) ? menu[itemType] as MenuItem[] : [];
       const dishToDelete = itemsArray.find(dish => dish.id === dishId);
       const updatedMenus = menus.map(m => {
         if (m.id === menu.id) {
-          // Ensure m[itemType] is an array before finding or filtering
           const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
           const dish = currentItems.find(d => d.id === dishId);
 
-          // Si le plat a un articleId, supprimer l'association en base de données
           if (dish?.articleId) {
             supabase.from('menu_articles').delete().eq('menu_day', menu.id).eq('article_id', dish.articleId).then(({
               error
@@ -260,7 +247,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     }
   };
 
-  // Fonction pour rendre une section de type de plat
   const renderDishTypeSection = (title: string, type: DishType, items: MenuItem[]) => {
     return <Card className="mb-4">
         <CardHeader>
@@ -278,11 +264,59 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items && items.length > 0 ? items.map(dish => {}) : <TableRow>
+              {items && items.length > 0 ? items.map(dish => (
+                <TableRow key={dish.id}>
+                  <TableCell>{dish.name}</TableCell>
+                  <TableCell>{dish.price}</TableCell>
+                  <TableCell>{dish.description}</TableCell>
+                  <TableCell>{dish.imageUrl || 'N/A'}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditItem(dish, type)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Modifier
+                        </DropdownMenuItem>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Êtes-vous sûr?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action ne peut pas être annulée. Cela supprimera définitivement
+                                cet élément du menu.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteItem(dish.id, type)} className="bg-red-600">
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )) : (
+                <TableRow>
                   <TableCell colSpan={5} className="text-center py-4">
                     Aucun élément trouvé
                   </TableCell>
-                </TableRow>}
+                </TableRow>
+              )}
             </TableBody>
           </Table>
           {!readOnly && <Button variant="outline" onClick={() => handleAddItem(type)} className="mt-2" disabled={isProcessing}>
@@ -294,7 +328,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       </Card>;
   };
 
-  // Vérifie si le menu est valide
   if (!menu) {
     return <div className="p-4 text-center">
         <p>Aucun menu sélectionné ou menu invalide</p>
@@ -305,7 +338,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       {renderDishTypeSection("Accompagnements", "sideDish", menu.sideDishes || [])}
       {renderDishTypeSection("Desserts", "dessert", menu.desserts || [])}
 
-      {/* Dialog d'édition */}
       {isAddingItem && <EditItemDialog item={editingItem.item} type={editingItem.type} onClose={handleCancelEdit} onSave={handleSaveItem} />}
     </div>;
 };

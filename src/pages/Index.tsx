@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { DayMenu } from '@/data/menuData';
@@ -10,6 +11,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { UserHeader } from '@/components/user-header/UserHeader';
 import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
 import { supabase } from "@/integrations/supabase/client";
+
+type DayName = "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi" | "Samedi" | "Dimanche";
 
 const Index = () => {
   const [todayMenu, setTodayMenu] = useState<DayMenu | null>(null);
@@ -36,8 +39,9 @@ const Index = () => {
   useEffect(() => {
     const loadTodayMenu = async () => {
       try {
-        const daysOfWeek = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-        const currentDayName = daysOfWeek[new Date().getDay()];
+        const daysOfWeek: DayName[] = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+        const currentDayIndex = new Date().getDay();
+        const currentDayName = daysOfWeek[currentDayIndex];
 
         // First try to load from Supabase
         const { data: weeklyMenus, error: weeklyMenuError } = await supabase
