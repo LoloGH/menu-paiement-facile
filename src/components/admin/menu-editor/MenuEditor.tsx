@@ -162,7 +162,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       // Callback de notification
       if (onMenuUpdated) {
         try {
-          await onMenuUpdated(actionType, { menuId: menu.id, dish: updatedItem });
+          await Promise.resolve(onMenuUpdated(actionType, { menuId: menu.id, dish: updatedItem }));
         } catch (error) {
           console.error("Error in onMenuUpdated callback:", error);
         }
@@ -213,6 +213,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       const itemsArray = Array.isArray(menu[itemType]) ? menu[itemType] as MenuItem[] : [];
       const dishToDelete = itemsArray.find((dish) => dish.id === dishId);
       
+      // Créer une copie des menus pour mise à jour
       const updatedMenus = menus.map((m) => {
         if (m.id === menu.id) {
           // Ensure m[itemType] is an array before finding or filtering
@@ -221,6 +222,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
           
           // Si le plat a un articleId, supprimer l'association en base de données
           if (dish?.articleId) {
+            // Utiliser Promise pour gérer la suppression asynchrone
             supabase
               .from('menu_articles')
               .delete()
@@ -240,6 +242,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               });
           }
           
+          // Retourne le menu avec l'élément supprimé
           return {
             ...m,
             [itemType]: currentItems.filter((dish) => dish.id !== dishId),
@@ -248,17 +251,22 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         return m;
       });
 
+      // Mettre à jour l'état et localStorage immédiatement
       setMenus(updatedMenus);
       localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
 
+      // Appeler le callback de notification si défini
       if (onMenuUpdated) {
         try {
-          await onMenuUpdated(`delete_${dishType}`, { menuId: menu.id, dishId, dishDetails: dishToDelete });
+          // Utiliser Promise.resolve pour s'assurer que la promesse est traitée même si onMenuUpdated n'est pas async
+          await Promise.resolve(onMenuUpdated(`delete_${dishType}`, { menuId: menu.id, dishId, dishDetails: dishToDelete }));
         } catch (error) {
           console.error("Error in onMenuUpdated callback:", error);
+          // Ne pas bloquer l'interface en cas d'erreur dans le callback
         }
       }
 
+      // Notification utilisateur
       toast({
         title: "Succès",
         description: `Élément supprimé avec succès.`,
@@ -271,6 +279,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         variant: "destructive",
       });
     } finally {
+      // S'assurer que isProcessing est remis à false même en cas d'erreur
       setIsProcessing(false);
     }
   };
@@ -339,7 +348,10 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Annuler</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => handleDeleteItem(dish.id, type)}
+                                    onClick={() => {
+                                      // Gérer la suppression de manière optimiste
+                                      handleDeleteItem(dish.id, type);
+                                    }}
                                     disabled={isProcessing}
                                   >
                                     Supprimer
