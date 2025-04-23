@@ -1,8 +1,18 @@
 
 // Payment configuration
 
+// Weekly package price
+export const weeklyPackagePrice = 7500;
+
 // Redirect URL for payment processing (this should be replaced with your actual payment provider URL)
 export const paymentRedirectUrl = "https://payment-provider.example.com/process";
+
+// Payment messages and notifications
+export const paymentMessages = {
+  success: "Votre paiement a été effectué avec succès",
+  pending: "Votre paiement est en cours de traitement",
+  failed: "Votre paiement a échoué, veuillez réessayer"
+};
 
 // Generate a unique receipt ID
 export const generateReceiptId = (): string => {

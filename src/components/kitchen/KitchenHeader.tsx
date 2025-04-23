@@ -1,29 +1,27 @@
 
-import React from "react";
-import { Link } from "react-router-dom";
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronLeft, LogOut, Bell } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Bell, BellOff } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { Badge } from "@/components/ui/badge";
 
 interface KitchenHeaderProps {
   hasNewOrder: boolean;
-  setHasNewOrder: React.Dispatch<React.SetStateAction<boolean>>;
+  setHasNewOrder: (value: boolean) => void;
 }
 
-export const KitchenHeader: React.FC<KitchenHeaderProps> = ({ 
-  hasNewOrder, 
-  setHasNewOrder 
-}) => {
+export const KitchenHeader: React.FC<KitchenHeaderProps> = ({ hasNewOrder, setHasNewOrder }) => {
   const { adminData, handleLogout } = useAdminAuth();
 
-  const acknowledgeNewOrders = () => {
+  const handleAcknowledge = () => {
     setHasNewOrder(false);
   };
-
+  
   return (
     <header className="bg-restaurant-purple text-white p-4 shadow-md">
       <div className="container mx-auto">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center">
             <div className="bg-white p-2 rounded-md mr-3">
               <img 
@@ -32,33 +30,38 @@ export const KitchenHeader: React.FC<KitchenHeaderProps> = ({
                 className="h-10 w-auto"
               />
             </div>
-            <h1 className="text-2xl font-bold">Interface Cuisine</h1>
+            <div className="flex flex-col">
+              <h1 className="text-xl md:text-2xl font-bold">Interface Cuisine</h1>
+              <div className="text-sm opacity-75">
+                Connecté en tant que: {adminData?.email}
+              </div>
+            </div>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2">
             {hasNewOrder && (
               <Button 
-                onClick={acknowledgeNewOrders}
-                variant="outline"
-                size="sm"
-                className="bg-white text-restaurant-purple hover:bg-gray-100"
+                className="bg-restaurant-red text-white flex items-center" 
+                onClick={handleAcknowledge}
               >
-                <BellOff className="h-4 w-4 mr-2" />
-                Acquitter
+                <Bell className="h-4 w-4 mr-2" />
+                Nouvelles commandes
               </Button>
             )}
             
-            <div className="text-sm bg-white/20 px-3 py-1 rounded hidden md:block">
-              Admin: {adminData?.email}
-            </div>
-            
-            <Link 
-              to="/interface-admin" 
-              className="flex items-center text-white hover:text-gray-200 transition"
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={handleLogout}
+              className="bg-restaurant-red hover:bg-restaurant-red/80"
             >
+              <LogOut className="h-4 w-4 mr-2" />
+              Déconnexion
+            </Button>
+            
+            <Link to="/interface-admin" className="flex items-center text-white hover:text-gray-200 transition">
               <ChevronLeft className="w-5 h-5 mr-1" />
-              <span className="hidden md:inline">Retour à l'administration</span>
-              <span className="inline md:hidden">Retour</span>
+              Admin
             </Link>
           </div>
         </div>

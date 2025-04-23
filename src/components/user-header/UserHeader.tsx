@@ -13,7 +13,7 @@ interface UserHeaderProps {
 
 export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const { isLoggedIn, userData, handleLogout, setUserData } = useUserAuth();
+  const { isLoggedIn, userData, handleLogout } = useUserAuth();
   const { toast } = useToast();
 
   const handleLogin = () => {
@@ -33,7 +33,11 @@ export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
     <div className={className}>
       {isLoggedIn && userData ? (
         <UserProfilePopover 
-          userData={userData} 
+          userData={{
+            fullName: userData.fullName || "Utilisateur",
+            email: userData.email,
+            phoneNumber: userData.phoneNumber
+          }}
           onLogout={handleLogout} 
         />
       ) : (

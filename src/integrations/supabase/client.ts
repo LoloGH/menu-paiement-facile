@@ -11,8 +11,14 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-// User role checking functions
-export type AdminRoleType = 'admin' | 'order_manager' | 'viewer';
+// User role constants - use these instead of just the type
+export const AdminRoleType = {
+  ADMIN: 'admin' as const,
+  ORDER_MANAGER: 'order_manager' as const, 
+  VIEWER: 'viewer' as const
+};
+
+export type AdminRoleType = typeof AdminRoleType[keyof typeof AdminRoleType];
 
 /**
  * Checks if a user has a specific role
@@ -42,7 +48,7 @@ export const hasUserRole = async (userId: string, role: AdminRoleType): Promise<
  * Checks if a user is an admin
  */
 export const isAdminUser = async (userId: string): Promise<boolean> => {
-  return await hasUserRole(userId, 'admin');
+  return await hasUserRole(userId, AdminRoleType.ADMIN);
 };
 
 /**

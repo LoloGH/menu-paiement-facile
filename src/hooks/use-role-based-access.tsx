@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { hasUserRole } from '@/integrations/supabase/client';
-import { AdminRoleType } from '@/utils/roleUtils';
+import { AdminRoleType } from '@/integrations/supabase/client';
 
 export interface UserPermissions {
   canViewDashboard: boolean;

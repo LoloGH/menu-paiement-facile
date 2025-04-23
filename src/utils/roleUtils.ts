@@ -1,7 +1,8 @@
 
 import { supabase, AdminRoleType } from "@/integrations/supabase/client";
 
-export { AdminRoleType };
+// Re-export the type correctly with the 'export type' syntax
+export type { AdminRoleType };
 
 export interface UserRoleInfo {
   id: string;
@@ -28,15 +29,15 @@ export const getRoleDisplayName = (role: string): string => {
 };
 
 export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole('admin');
+  return fetchUsersByRole(AdminRoleType.ADMIN);
 };
 
 export const fetchOrderManagerUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole('order_manager');
+  return fetchUsersByRole(AdminRoleType.ORDER_MANAGER);
 };
 
 export const fetchViewerUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole('viewer');
+  return fetchUsersByRole(AdminRoleType.VIEWER);
 };
 
 const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {
@@ -60,9 +61,9 @@ const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {
       .filter(item => item.users)
       .map(item => ({
         id: item.user_id,
-        email: item.users.email,
-        name: item.users.name,
-        created_at: item.users.created_at
+        email: item.users?.email || '',
+        name: item.users?.name || null,
+        created_at: item.users?.created_at || ''
       }));
   } catch (error) {
     console.error(`Error fetching ${role} users:`, error);
