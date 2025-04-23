@@ -7,6 +7,8 @@ import { PaymentLoginDialog } from '@/components/PaymentLoginDialog';
 import { useToast } from "@/hooks/use-toast";
 import { useUserAuth } from '@/hooks/use-user-auth';
 import { supabase } from "@/integrations/supabase/client";
+import { playSounds } from '@/utils/soundEffects';
+
 interface PaymentButtonProps {
   price: number;
   label: string;
@@ -17,7 +19,6 @@ interface PaymentButtonProps {
   };
 }
 
-// Define an interface for the order item to fix TypeScript errors
 interface OrderItem {
   order_id: string;
   main_dish: string;
@@ -27,6 +28,7 @@ interface OrderItem {
   side_dish?: string;
   dessert?: string;
 }
+
 export const PaymentButton: React.FC<PaymentButtonProps> = ({
   price,
   label,
@@ -44,6 +46,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     userData
   } = useUserAuth();
   const roundedPrice = Math.round(price);
+
   const handlePayment = () => {
     if (!isLoggedIn) {
       setShowLoginDialog(true);
@@ -51,11 +54,13 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     }
     proceedWithPayment();
   };
+
   const saveOrderToDatabase = async (receiptId: string, fullDetails: any) => {
     if (!isLoggedIn || !userData) {
       console.log("Non connecté, commande non enregistrée");
       return;
     }
+
     try {
       console.log("Enregistrement de la commande dans la base de données", {
         receipt_id: receiptId,
@@ -64,7 +69,6 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         details: JSON.stringify(fullDetails)
       });
 
-      // Enregistrer la commande principale
       const {
         data: orderData,
         error: orderError
@@ -75,6 +79,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         details: JSON.stringify(fullDetails),
         payment_status: 'pending'
       }).select('id');
+
       if (orderError) {
         console.error("Erreur lors de l'enregistrement de la commande:", orderError);
         toast({
@@ -84,13 +89,12 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         });
         return;
       }
+
       console.log("Commande enregistrée avec succès:", orderData);
 
-      // Si nous avons bien un ID de commande, enregistrer les éléments
       if (orderData && orderData.length > 0) {
         const orderId = orderData[0].id;
 
-        // Create the orderItem with the correct type
         const orderItem: OrderItem = {
           order_id: orderId,
           main_dish: details,
@@ -100,15 +104,19 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           }),
           meal_option_id: `manual-${Date.now()}`
         };
+
         if (additionalData?.tableNumber) {
           orderItem.side_dish = `Table: ${additionalData.tableNumber}`;
         }
+
         if (additionalData?.clientNote) {
           orderItem.dessert = additionalData.clientNote;
         }
+
         const {
           error: itemError
         } = await supabase.from('order_items').insert(orderItem);
+
         if (itemError) {
           console.error("Erreur lors de l'enregistrement des éléments de commande:", itemError);
           toast({
@@ -117,6 +125,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
             variant: "default"
           });
         } else {
+          playSounds.newOrder();
           console.log("Éléments de commande enregistrés avec succès");
           toast({
             title: "Succès",
@@ -136,6 +145,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
       });
     }
   };
+
   const proceedWithPayment = () => {
     const newReceiptId = generateReceiptId();
     setReceiptId(newReceiptId);
@@ -153,35 +163,33 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
       })
     };
 
-    // Sauvegarder la commande dans la base de données
     saveOrderToDatabase(newReceiptId, fullDetails);
     toast({
       title: "Reçu disponible",
       description: "Votre reçu est disponible pour téléchargement."
     });
 
-    // Préparer l'URL de redirection
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
 
-    // Rediriger vers la page de paiement
     window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`;
   };
+
   const handleLoginSuccess = () => {
     setShowLoginDialog(false);
     proceedWithPayment();
   };
-  return <>
-      <div className="flex flex-col items-center gap-2">
-        
-        <Button onClick={handlePayment} className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors">
-          <ShoppingCart className="mr-2 h-5 w-5" />
-          {label}
-        </Button>
-      </div>
-      
-      {showReceiptDialog && <PaymentReceiptDialog isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} price={roundedPrice} details={details} date={new Date()} receiptId={receiptId} orderId={`ORD-${Date.now()}`} tableNumber={additionalData?.tableNumber} clientNote={additionalData?.clientNote} clientName={userData?.fullName} />}
 
-      <PaymentLoginDialog isOpen={showLoginDialog} onClose={() => setShowLoginDialog(false)} onLoginSuccess={handleLoginSuccess} price={roundedPrice} details={details} />
-    </>;
+  return <>
+    <div className="flex flex-col items-center gap-2">
+      <Button onClick={handlePayment} className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors">
+        <ShoppingCart className="mr-2 h-5 w-5" />
+        {label}
+      </Button>
+    </div>
+    
+    {showReceiptDialog && <PaymentReceiptDialog isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} price={roundedPrice} details={details} date={new Date()} receiptId={receiptId} orderId={`ORD-${Date.now()}`} tableNumber={additionalData?.tableNumber} clientNote={additionalData?.clientNote} clientName={userData?.fullName} />}
+
+    <PaymentLoginDialog isOpen={showLoginDialog} onClose={() => setShowLoginDialog(false)} onLoginSuccess={handleLoginSuccess} price={roundedPrice} details={details} />
+  </>;
 };

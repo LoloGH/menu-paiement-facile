@@ -57,6 +57,7 @@ import {
   UtensilsCrossed,
   Bell
 } from "lucide-react";
+import { playSounds } from '@/utils/soundEffects';
 
 interface OrdersTableProps {
   searchTerm: string;
@@ -212,6 +213,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         .eq("id", orderId);
 
       if (error) throw error;
+
+      // Jouer le son approprié selon le statut
+      if (statusToUpdate === 'preparing') {
+        playSounds.preparing();
+      } else if (statusToUpdate === 'ready') {
+        playSounds.ready();
+      }
 
       toast({
         title: "Statut mis à jour",
