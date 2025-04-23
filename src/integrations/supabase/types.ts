@@ -9,6 +9,137 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          resource: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          resource: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          resource?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      articles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          type: Database["public"]["Enums"]["article_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          type: Database["public"]["Enums"]["article_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          type?: Database["public"]["Enums"]["article_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      menu_articles: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          id: string
+          menu_day: string
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          id?: string
+          menu_day: string
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          id?: string
+          menu_day?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_articles_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_items: {
+        Row: {
+          article_id: string | null
+          article_type: Database["public"]["Enums"]["article_type"]
+          created_at: string
+          id: string
+          menu_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          article_id?: string | null
+          article_type?: Database["public"]["Enums"]["article_type"]
+          created_at?: string
+          id?: string
+          menu_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string | null
+          article_type?: Database["public"]["Enums"]["article_type"]
+          created_at?: string
+          id?: string
+          menu_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_menu_id_fkey"
+            columns: ["menu_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -16,8 +147,8 @@ export type Database = {
           dessert: string | null
           id: string
           main_dish: string
-          meal_option_id: string | null
-          order_id: string
+          meal_option_id: string
+          order_id: string | null
           price: number
           side_dish: string | null
         }
@@ -27,8 +158,8 @@ export type Database = {
           dessert?: string | null
           id?: string
           main_dish: string
-          meal_option_id?: string | null
-          order_id: string
+          meal_option_id: string
+          order_id?: string | null
           price: number
           side_dish?: string | null
         }
@@ -38,8 +169,8 @@ export type Database = {
           dessert?: string | null
           id?: string
           main_dish?: string
-          meal_option_id?: string | null
-          order_id?: string
+          meal_option_id?: string
+          order_id?: string | null
           price?: number
           side_dish?: string | null
         }
@@ -126,7 +257,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
-          id: string
+          id?: string
           name?: string | null
           phone?: string | null
         }
@@ -139,21 +270,59 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_menus: {
+        Row: {
+          created_at: string
+          date: string
+          day: Database["public"]["Enums"]["day_of_week"]
+          id: string
+          is_active: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          day: Database["public"]["Enums"]["day_of_week"]
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          day?: Database["public"]["Enums"]["day_of_week"]
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      add_role_to_user_by_email: {
+        Args: { user_email: string; role_name: string }
+        Returns: boolean
+      }
+      get_users_with_role: {
+        Args: { role_name: string }
+        Returns: Json[]
+      }
       has_role: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
+        Args: { user_id: string; required_role: string }
+        Returns: boolean
+      }
+      remove_role_from_user: {
+        Args: { user_id: string; role_name: string }
         Returns: boolean
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "user" | "order_manager" | "viewer"
+      article_type: "main_dish" | "side_dish" | "dessert" | "other"
+      day_of_week: "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -269,7 +438,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "user", "order_manager", "viewer"],
+      article_type: ["main_dish", "side_dish", "dessert", "other"],
+      day_of_week: ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"],
     },
   },
 } as const
