@@ -1,4 +1,5 @@
 
+
 export type Json =
   | string
   | number
@@ -135,3 +136,4 @@ export type Database = {
     }
   }
 }
+
