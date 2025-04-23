@@ -32,6 +32,7 @@ import { MoreVertical, Plus, Trash2, Edit } from "lucide-react";
 import { MenuEditorProps, MenuDay, MenuItem, DishType } from "./types";
 import { EditItemDialog } from "./EditItemDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { playSounds } from "@/utils/soundEffects";
 
 export const MenuEditor: React.FC<MenuEditorProps> = ({ 
   menu, 
@@ -47,6 +48,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     type: 'mainDish'
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [deleteProcessing, setDeleteProcessing] = useState<string | null>(null);
 
   useEffect(() => {
     console.log("MenuEditor: menu prop updated:", menu);
@@ -67,8 +69,9 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   const handleSaveItem = async (updatedItem: MenuItem) => {
     if (isProcessing) return;
     
+    setIsProcessing(true);
+    
     try {
-      setIsProcessing(true);
       const { type } = editingItem;
       
       // Obtenir le nom du tableau correspondant au type
@@ -110,62 +113,84 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         return m;
       });
       
-      // Mettre à jour l'état local
+      // Mettre à jour l'état local immédiatement pour une interface réactive
       setMenus(updatedMenus);
       
       // Sauvegarder dans localStorage
       localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
       
-      // Mettre à jour la base de données si articleId est présent
+      // Mettre à jour la base de données si articleId est présent - sans attendre
+      let dbUpdatePromise = Promise.resolve();
+      
       if (updatedItem.articleId) {
-        try {
-          // Vérifier si l'article est déjà associé à ce menu
-          const { data: existingAssociations, error: fetchError } = await supabase
-            .from('menu_articles')
-            .select('*')
-            .eq('menu_day', menu.id)
-            .eq('article_id', updatedItem.articleId);
-            
-          if (fetchError) {
-            console.error('Error checking existing menu article association:', fetchError);
-            throw fetchError;
-          }
-          
-          // Si l'association n'existe pas, la créer
-          if (!existingAssociations || existingAssociations.length === 0) {
-            const { error: insertError } = await supabase
+        dbUpdatePromise = new Promise<void>(async (resolve) => {
+          try {
+            // Vérifier si l'article est déjà associé à ce menu
+            const { data: existingAssociations, error: fetchError } = await supabase
               .from('menu_articles')
-              .insert({
-                menu_day: menu.id,
-                article_id: updatedItem.articleId
-              });
+              .select('*')
+              .eq('menu_day', menu.id)
+              .eq('article_id', updatedItem.articleId);
               
-            if (insertError) {
-              console.error('Error saving menu article association:', insertError);
-              throw insertError;
+            if (fetchError) {
+              console.error('Error checking existing menu article association:', fetchError);
+              // On résout quand même la promesse pour ne pas bloquer
+              resolve();
+              return;
             }
             
-            console.log('Menu article association saved successfully');
-          } else {
-            console.log('Menu article association already exists');
+            // Si l'association n'existe pas, la créer
+            if (!existingAssociations || existingAssociations.length === 0) {
+              const { error: insertError } = await supabase
+                .from('menu_articles')
+                .insert({
+                  menu_day: menu.id,
+                  article_id: updatedItem.articleId
+                });
+                
+              if (insertError) {
+                console.error('Error saving menu article association:', insertError);
+              } else {
+                console.log('Menu article association saved successfully');
+              }
+            } else {
+              console.log('Menu article association already exists');
+            }
+            
+            resolve();
+          } catch (error) {
+            console.error('Error in database operation:', error);
+            toast({
+              title: "Erreur de sauvegarde en base de données",
+              description: "Une erreur est survenue lors de la sauvegarde des associations d'articles.",
+              variant: "destructive",
+            });
+            resolve(); // Résoudre quand même pour éviter de bloquer
           }
-        } catch (error) {
-          console.error('Error in database operation:', error);
-          toast({
-            title: "Erreur de sauvegarde en base de données",
-            description: "Une erreur est survenue lors de la sauvegarde des associations d'articles.",
-            variant: "destructive",
-          });
-        }
+        });
       }
       
-      // Callback de notification
+      // Callback de notification - sans attendre la fin
+      let callbackPromise = Promise.resolve();
+      
       if (onMenuUpdated) {
-        try {
-          await Promise.resolve(onMenuUpdated(actionType, { menuId: menu.id, dish: updatedItem }));
-        } catch (error) {
-          console.error("Error in onMenuUpdated callback:", error);
-        }
+        callbackPromise = new Promise<void>((resolve) => {
+          setTimeout(async () => {
+            try {
+              // Ne pas attendre la résolution du callback
+              onMenuUpdated(actionType, { menuId: menu.id, dish: updatedItem })
+                .catch(error => {
+                  console.error("Error in onMenuUpdated callback:", error);
+                })
+                .finally(() => {
+                  resolve();
+                });
+            } catch (error) {
+              console.error("Error triggering onMenuUpdated callback:", error);
+              resolve();
+            }
+          }, 0);
+        });
       }
       
       // Notification à l'utilisateur
@@ -177,6 +202,14 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       // Réinitialiser l'état d'édition
       setEditingItem({item: null, type: 'mainDish'});
       setIsAddingItem(false);
+      
+      // Exécuter les promises en arrière-plan sans bloquer l'interface
+      Promise.all([dbUpdatePromise, callbackPromise])
+        .catch(e => console.error("Background operations error:", e))
+        .finally(() => {
+          // Ne rien faire ici, nous avons déjà mis à jour l'interface
+        });
+      
     } catch (error) {
       console.error('Error saving item:', error);
       toast({
@@ -195,11 +228,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   };
 
   const handleDeleteItem = async (dishId: string, dishType: DishType) => {
-    if (isProcessing) return;
+    if (isProcessing || deleteProcessing) return;
+    
+    // Marquer cet élément spécifique comme étant en cours de suppression
+    setDeleteProcessing(dishId);
     
     try {
-      setIsProcessing(true);
-      
       // Obtenir le nom du tableau correspondant au type
       const itemTypeMap: Record<DishType, keyof MenuDay> = {
         mainDish: 'mainDishes',
@@ -213,36 +247,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       const itemsArray = Array.isArray(menu[itemType]) ? menu[itemType] as MenuItem[] : [];
       const dishToDelete = itemsArray.find((dish) => dish.id === dishId);
       
-      // Créer une copie des menus pour mise à jour
+      // Mise à jour optimiste de l'interface - immédiatement
       const updatedMenus = menus.map((m) => {
         if (m.id === menu.id) {
           // Ensure m[itemType] is an array before finding or filtering
           const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
-          const dish = currentItems.find(d => d.id === dishId);
           
-          // Si le plat a un articleId, supprimer l'association en base de données
-          if (dish?.articleId) {
-            // Utiliser Promise pour gérer la suppression asynchrone
-            supabase
-              .from('menu_articles')
-              .delete()
-              .eq('menu_day', menu.id)
-              .eq('article_id', dish.articleId)
-              .then(({ error }) => {
-                if (error) {
-                  console.error(`Error deleting menu article association:`, error);
-                  toast({
-                    title: "Erreur",
-                    description: "Impossible de supprimer l'association en base de données.",
-                    variant: "destructive",
-                  });
-                } else {
-                  console.log('Menu article association deleted successfully');
-                }
-              });
-          }
-          
-          // Retourne le menu avec l'élément supprimé
           return {
             ...m,
             [itemType]: currentItems.filter((dish) => dish.id !== dishId),
@@ -250,37 +260,66 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         }
         return m;
       });
-
-      // Mettre à jour l'état et localStorage immédiatement
+      
+      // Mettre à jour l'état et localStorage immédiatement pour une interface réactive
       setMenus(updatedMenus);
       localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
-
-      // Appeler le callback de notification si défini
-      if (onMenuUpdated) {
-        try {
-          // Utiliser Promise.resolve pour s'assurer que la promesse est traitée même si onMenuUpdated n'est pas async
-          await Promise.resolve(onMenuUpdated(`delete_${dishType}`, { menuId: menu.id, dishId, dishDetails: dishToDelete }));
-        } catch (error) {
-          console.error("Error in onMenuUpdated callback:", error);
-          // Ne pas bloquer l'interface en cas d'erreur dans le callback
-        }
-      }
-
-      // Notification utilisateur
+      
+      // Notification utilisateur - immédiatement
       toast({
         title: "Succès",
         description: `Élément supprimé avec succès.`,
       });
+      
+      // Effectuer les opérations de base de données en arrière-plan
+      const dish = itemsArray.find(d => d.id === dishId);
+      
+      // Traitement en arrière-plan
+      if (dish?.articleId) {
+        // Supprimer l'association en base de données sans bloquer l'UI
+        supabase
+          .from('menu_articles')
+          .delete()
+          .eq('menu_day', menu.id)
+          .eq('article_id', dish.articleId)
+          .then(({ error }) => {
+            if (error) {
+              console.error(`Error deleting menu article association:`, error);
+              toast({
+                title: "Avertissement",
+                description: "L'élément a été supprimé localement mais l'association en base de données pourrait ne pas avoir été effacée.",
+                variant: "default",
+              });
+            } else {
+              console.log('Menu article association deleted successfully');
+            }
+          });
+      }
+      
+      // Appeler le callback de notification en arrière-plan sans bloquer l'interface
+      if (onMenuUpdated) {
+        setTimeout(() => {
+          try {
+            onMenuUpdated(`delete_${dishType}`, { menuId: menu.id, dishId, dishDetails: dishToDelete })
+              .catch(error => {
+                console.error("Error in onMenuUpdated callback:", error);
+              });
+          } catch (error) {
+            console.error("Error triggering onMenuUpdated callback:", error);
+          }
+        }, 0);
+      }
+      
     } catch (error) {
-      console.error('Error deleting item:', error);
+      console.error('Error in delete operation:', error);
       toast({
         title: "Erreur",
         description: "Une erreur est survenue lors de la suppression de l'élément.",
         variant: "destructive",
       });
     } finally {
-      // S'assurer que isProcessing est remis à false même en cas d'erreur
-      setIsProcessing(false);
+      // S'assurer que l'état de suppression est réinitialisé
+      setDeleteProcessing(null);
     }
   };
 
@@ -322,7 +361,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                           {!readOnly && (
                             <DropdownMenuItem
                               onClick={() => handleEditItem(dish, type)}
-                              disabled={isProcessing}
+                              disabled={isProcessing || deleteProcessing === dish.id}
                             >
                               <Edit className="h-4 w-4 mr-2" />
                               Modifier
@@ -331,7 +370,10 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                           {!readOnly && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-red-500" disabled={isProcessing}>
+                                <DropdownMenuItem 
+                                  className="text-red-500" 
+                                  disabled={isProcessing || deleteProcessing === dish.id}
+                                >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Supprimer
                                 </DropdownMenuItem>
@@ -348,13 +390,21 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Annuler</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => {
-                                      // Gérer la suppression de manière optimiste
-                                      handleDeleteItem(dish.id, type);
-                                    }}
-                                    disabled={isProcessing}
+                                    onClick={() => handleDeleteItem(dish.id, type)}
+                                    disabled={isProcessing || deleteProcessing === dish.id}
+                                    className={deleteProcessing === dish.id ? "opacity-50 cursor-not-allowed" : ""}
                                   >
-                                    Supprimer
+                                    {deleteProcessing === dish.id ? (
+                                      <span className="flex items-center">
+                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Suppression...
+                                      </span>
+                                    ) : (
+                                      "Supprimer"
+                                    )}
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
