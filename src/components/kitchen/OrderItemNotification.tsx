@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -9,13 +8,11 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bell, X } from "lucide-react";
+import { playSounds } from "@/utils/soundEffects";
 
 export const OrderItemNotification: React.FC = () => {
   const [newOrder, setNewOrder] = useState<any | null>(null);
   const [showNotification, setShowNotification] = useState(false);
-  const [audio] = useState<HTMLAudioElement | null>(
-    typeof Audio !== "undefined" ? new Audio("/notification-sound.mp3") : null
-  );
 
   useEffect(() => {
     // Subscribe to new orders
@@ -30,10 +27,11 @@ export const OrderItemNotification: React.FC = () => {
           setShowNotification(true);
           
           // Play notification sound
-          if (audio) {
-            audio.play().catch(err => {
-              console.error('Failed to play notification sound:', err);
-            });
+          try {
+            console.log("Playing new order sound");
+            playSounds.newOrder();
+          } catch (error) {
+            console.error('Failed to play notification sound:', error);
           }
           
           // Vibrate if supported
@@ -47,7 +45,7 @@ export const OrderItemNotification: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [audio]);
+  }, []);
 
   // Hide notification after 10 seconds
   useEffect(() => {
