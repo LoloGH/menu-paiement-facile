@@ -37,26 +37,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    fetchOrders();
-
-    const channel = supabase
-      .channel('kitchen-order-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
-          console.log('Order change event:', payload);
-          fetchOrders();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [status]);
-
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -108,6 +88,66 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchOrders();
+
+    const channels = [
+      supabase
+        .channel('new-orders')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'orders' },
+          (payload) => {
+            console.log('New order received:', payload);
+            fetchOrders();
+            
+            toast({
+              title: "Nouvelle commande !",
+              description: `Une nouvelle commande (${payload.new.receipt_id}) a été reçue.`,
+            });
+            
+            try {
+              console.log("Playing new order sound");
+              playSounds.newOrder();
+            } catch (error) {
+              console.error('Failed to play notification sound:', error);
+            }
+          }
+        )
+        .subscribe(),
+
+      supabase
+        .channel('order-updates')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'orders' },
+          () => {
+            console.log('Order updated, refreshing...');
+            fetchOrders();
+          }
+        )
+        .subscribe(),
+
+      supabase
+        .channel('order-deletions')
+        .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'orders' },
+          () => {
+            console.log('Order deleted, refreshing...');
+            fetchOrders();
+          }
+        )
+        .subscribe()
+    ];
+
+    return () => {
+      channels.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+    };
+  }, [status]);
 
   const toggleOrderExpanded = (orderId: string) => {
     setExpandedOrders(prev => ({
