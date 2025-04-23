@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -216,9 +217,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
       // Jouer le son approprié selon le statut
       if (statusToUpdate === 'preparing') {
+        console.log("Lecture du son pour commande en préparation");
         playSounds.preparing();
       } else if (statusToUpdate === 'ready') {
+        console.log("Lecture du son pour commande prête");
         playSounds.ready();
+      } else if (statusToUpdate === 'delivered') {
+        console.log("Lecture du son pour commande livrée");
+        playSounds.delivered();
       }
 
       toast({

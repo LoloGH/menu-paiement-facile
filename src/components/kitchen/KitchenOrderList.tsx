@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +21,7 @@ import {
   Printer 
 } from "lucide-react";
 import { KitchenOrderItems } from "./KitchenOrderItems";
+import { playSounds } from '@/utils/soundEffects';
 
 interface KitchenOrderListProps {
   status: "preparing" | "ready" | "all" | "archived";
@@ -40,7 +40,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
   useEffect(() => {
     fetchOrders();
 
-    // Subscribe to changes for real-time updates
     const channel = supabase
       .channel('kitchen-order-changes')
       .on(
@@ -68,7 +67,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
           users (email, name)
         `);
       
-      // Filter based on status
       if (status === "preparing") {
         query = query.eq('payment_status', 'preparing');
       } else if (status === "ready") {
@@ -79,12 +77,10 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
         query = query.or('payment_status.eq.preparing,payment_status.eq.validated,payment_status.eq.ready');
       }
       
-      // Sort by created_at, with the newest first
       const { data, error } = await query.order("created_at", { ascending: false });
       
       if (error) throw error;
       
-      // Check if there are any new orders
       const hasNewPreparing = data.some(order => 
         order.payment_status === "preparing" && 
         new Date(order.created_at) > new Date(Date.now() - 30 * 60 * 1000)
@@ -96,7 +92,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
       
       setOrders(data || []);
       
-      // Create expanded state for all orders
       const expanded: Record<string, boolean> = {};
       data?.forEach(order => {
         expanded[order.id] = expandedOrders[order.id] || false;
@@ -130,17 +125,16 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
 
       if (error) throw error;
 
-      // Toast for the kitchen staff
+      console.log("Lecture du son pour commande prête");
+      playSounds.ready();
+
       toast({
         title: "Commande prête",
         description: "La commande a été marquée comme prête.",
       });
 
-      // Notify the client if requested
       if (notify) {
         const order = orders.find(o => o.id === orderId);
-        // Here we would integrate with a notification system
-        // This could be email, SMS, or a real-time notification in the client app
         console.log("Notifying client about ready order:", order?.receipt_id);
         toast({
           title: "Client notifié",
@@ -166,6 +160,9 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
         .eq("id", orderId);
 
       if (error) throw error;
+
+      console.log("Lecture du son pour commande livrée");
+      playSounds.delivered();
 
       toast({
         title: "Commande livrée",
@@ -202,7 +199,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
   };
 
   const printOrder = (order: any) => {
-    // Create a window for printing
     const printWindow = window.open('', '_blank');
     
     if (!printWindow) {
@@ -214,7 +210,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
       return;
     }
     
-    // Print content will be generated dynamically
     printWindow.document.write(`
       <html>
         <head>
@@ -250,7 +245,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
           </div>
           
           <script>
-            // We'll dynamically load the order items and inject them here
             fetch('https://kqukhginnbwuqrejhlsp.supabase.co/rest/v1/order_items?order_id=eq.${order.id}', {
               headers: {
                 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxdWtoZ2lubmJ3dXFyZWpobHNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ0NTgzNTUsImV4cCI6MjA2MDAzNDM1NX0.-yB90sffHThPfh8dwwNpiCZCUbr2syv7rZWO6_7w2cs'
@@ -283,7 +277,6 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
               
               document.getElementById('itemsContainer').innerHTML = itemsHtml;
               
-              // Print automatically after loading
               setTimeout(() => {
                 window.print();
               }, 500);

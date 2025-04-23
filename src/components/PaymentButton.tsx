@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
@@ -125,7 +126,14 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
             variant: "default"
           });
         } else {
-          playSounds.newOrder();
+          // Lecture explicite du son de nouvelle commande
+          try {
+            console.log("Lecture du son de nouvelle commande");
+            playSounds.newOrder();
+          } catch (soundError) {
+            console.error("Erreur lors de la lecture du son:", soundError);
+          }
+          
           console.log("Éléments de commande enregistrés avec succès");
           toast({
             title: "Succès",
