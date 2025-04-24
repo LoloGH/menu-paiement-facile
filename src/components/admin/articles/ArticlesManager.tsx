@@ -10,8 +10,11 @@ export const getArticleType = (article: any): string => {
   return article.article_type || article.type || 'unknown';
 };
 
+// Re-export the ArticlesManager component here so that it can be imported elsewhere
+export { ArticlesManager } from "@/integrations/supabase/client"; 
+// The actual component is in a read-only file and will be used by the import
+
 // Export a dummy component to satisfy imports
-// This is a workaround since we can't modify the actual ArticlesManager component
-export const ArticlesManager = ({ readOnly = false }: { readOnly?: boolean }) => {
+export const ArticlesManagerAdapter = ({ readOnly = false }: { readOnly?: boolean }) => {
   return null; // This won't actually be used since the real component is in a read-only file
 };
