@@ -13,10 +13,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 
 // User role constants - use these instead of just the type
 export const AdminRoleType = {
-  ADMIN: 'admin' as const,
-  ORDER_MANAGER: 'order_manager' as const, 
-  VIEWER: 'viewer' as const
-};
+  ADMIN: 'admin',
+  ORDER_MANAGER: 'order_manager', 
+  VIEWER: 'viewer'
+} as const;
 
 export type AdminRoleType = typeof AdminRoleType[keyof typeof AdminRoleType];
 

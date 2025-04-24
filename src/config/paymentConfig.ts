@@ -11,7 +11,11 @@ export const paymentRedirectUrl = "https://payment-provider.example.com/process"
 export const paymentMessages = {
   success: "Votre paiement a été effectué avec succès",
   pending: "Votre paiement est en cours de traitement",
-  failed: "Votre paiement a échoué, veuillez réessayer"
+  failed: "Votre paiement a échoué, veuillez réessayer",
+  paymentSuccess: "Paiement réussi !",
+  paymentSuccessDescription: "Votre commande a été traitée avec succès.",
+  weeklyTitle: "Menu hebdomadaire",
+  weeklyDescription: (price: number) => `Votre commande pour la semaine complète d'un montant de ${price} FCFA`
 };
 
 // Generate a unique receipt ID

@@ -1,8 +1,6 @@
 
-import { supabase, AdminRoleType } from "@/integrations/supabase/client";
-
-// Re-export the type correctly with the 'export type' syntax
-export type { AdminRoleType };
+import { supabase } from "@/integrations/supabase/client";
+import { AdminRoleType } from "@/integrations/supabase/client";
 
 export interface UserRoleInfo {
   id: string;
