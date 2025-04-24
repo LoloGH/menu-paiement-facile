@@ -1,6 +1,9 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { AdminRoleType } from "@/integrations/supabase/client";
+import { AdminRoleType as SupabaseAdminRoleType } from "@/integrations/supabase/client";
+
+// Re-export the AdminRoleType
+export type AdminRoleType = SupabaseAdminRoleType;
 
 export interface UserRoleInfo {
   id: string;
@@ -27,15 +30,15 @@ export const getRoleDisplayName = (role: string): string => {
 };
 
 export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole(AdminRoleType.ADMIN);
+  return fetchUsersByRole(SupabaseAdminRoleType.ADMIN);
 };
 
 export const fetchOrderManagerUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole(AdminRoleType.ORDER_MANAGER);
+  return fetchUsersByRole(SupabaseAdminRoleType.ORDER_MANAGER);
 };
 
 export const fetchViewerUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole(AdminRoleType.VIEWER);
+  return fetchUsersByRole(SupabaseAdminRoleType.VIEWER);
 };
 
 const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {

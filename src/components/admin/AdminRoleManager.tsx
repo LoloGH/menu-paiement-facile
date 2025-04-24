@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { ShieldAlert, Trash2, UserPlus, Users, RefreshCw } from "lucide-react";
 import { 
   fetchAdminUsers, fetchOrderManagerUsers, fetchViewerUsers, 
-  addRoleToUser, removeRoleFromUser, UserRoleInfo, AdminRoleType, getRoleDisplayName
+  addRoleToUser, removeRoleFromUser, UserRoleInfo, getRoleDisplayName
 } from "@/utils/roleUtils";
+import { AdminRoleType } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { logAdminAction, supabase } from "@/integrations/supabase/client";
