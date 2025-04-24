@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,7 +25,7 @@ import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { StatCard } from "@/components/admin/stats/StatCard";
 import { logAdminAction } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
-import { playSounds } from "@/utils/soundEffects"; // Corrected import path
+import { playSounds } from "@/utils/soundEffects";
 
 const AdminInterface = () => {
   const { toast } = useToast();
