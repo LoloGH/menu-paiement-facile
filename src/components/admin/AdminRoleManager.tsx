@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShieldAlert, Trash2, UserPlus, Users, RefreshCw } from "lucide-react";
 import { 
   fetchAdminUsers, fetchOrderManagerUsers, fetchViewerUsers, 
-  addRoleToUser, removeRoleFromUser, UserRoleInfo, getRoleDisplayName,
-  AdminRoleTypes
+  addRoleToUser, removeRoleFromUser, UserRoleInfo, AdminRoleType, getRoleDisplayName
 } from "@/utils/roleUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -18,13 +16,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AdminRoleManager = () => {
   const [users, setUsers] = useState<{[key: string]: UserRoleInfo[]}>({
-    [AdminRoleTypes.ADMIN]: [],
-    [AdminRoleTypes.ORDER_MANAGER]: [],
-    [AdminRoleTypes.VIEWER]: [],
+    [AdminRoleType.ADMIN]: [],
+    [AdminRoleType.ORDER_MANAGER]: [],
+    [AdminRoleType.VIEWER]: [],
   });
   const [isLoading, setIsLoading] = useState(true);
   const [emailToAdd, setEmailToAdd] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string>(AdminRoleTypes.ADMIN);
+  const [selectedRole, setSelectedRole] = useState<string>(AdminRoleType.ADMIN);
   const { toast } = useToast();
   const { adminData } = useAdminAuth();
   const isMobile = useIsMobile();
@@ -40,9 +38,9 @@ export const AdminRoleManager = () => {
       ]);
       
       setUsers({
-        [AdminRoleTypes.ADMIN]: admins,
-        [AdminRoleTypes.ORDER_MANAGER]: orderManagers,
-        [AdminRoleTypes.VIEWER]: viewers,
+        [AdminRoleType.ADMIN]: admins,
+        [AdminRoleType.ORDER_MANAGER]: orderManagers,
+        [AdminRoleType.VIEWER]: viewers,
       });
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs:", error);
@@ -223,9 +221,9 @@ export const AdminRoleManager = () => {
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value)}
               >
-                <option value={AdminRoleTypes.ADMIN}>Administrateur (accès total)</option>
-                <option value={AdminRoleTypes.ORDER_MANAGER}>Gestionnaire de commandes</option>
-                <option value={AdminRoleTypes.VIEWER}>Visualiseur (lecture seule)</option>
+                <option value={AdminRoleType.ADMIN}>Administrateur (accès total)</option>
+                <option value={AdminRoleType.ORDER_MANAGER}>Gestionnaire de commandes</option>
+                <option value={AdminRoleType.VIEWER}>Visualiseur (lecture seule)</option>
               </select>
             </div>
           </div>
@@ -234,17 +232,17 @@ export const AdminRoleManager = () => {
         <div>
           <h3 className="font-medium mb-4">Liste des utilisateurs par rôle</h3>
           
-          <Tabs defaultValue={AdminRoleTypes.ADMIN} className="w-full">
+          <Tabs defaultValue={AdminRoleType.ADMIN} className="w-full">
             <TabsList className={`mb-4 ${isMobile ? 'grid grid-cols-3 gap-2' : 'flex'}`}>
-              <TabsTrigger value={AdminRoleTypes.ADMIN} className="flex items-center gap-2">
+              <TabsTrigger value={AdminRoleType.ADMIN} className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4" />
                 {!isMobile && "Administrateurs"}
               </TabsTrigger>
-              <TabsTrigger value={AdminRoleTypes.ORDER_MANAGER} className="flex items-center gap-2">
+              <TabsTrigger value={AdminRoleType.ORDER_MANAGER} className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 {!isMobile && "Gestionnaires"}
               </TabsTrigger>
-              <TabsTrigger value={AdminRoleTypes.VIEWER} className="flex items-center gap-2">
+              <TabsTrigger value={AdminRoleType.VIEWER} className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 {!isMobile && "Visualiseurs"}
               </TabsTrigger>

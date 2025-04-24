@@ -1,31 +1,35 @@
+// Configuration des paiements pour l'application
+// Vous pouvez modifier ces valeurs selon vos besoins
 
-// Payment configuration
+// Prix hebdomadaire pour tous les repas de la semaine (en FCFA)
+export const weeklyPackagePrice = 75000;
 
-// Weekly package price
-export const weeklyPackagePrice = 7500;
+// URL de redirection pour le paiement (lien Wave)
+export const paymentRedirectUrl = "https://pay.wave.com/m/M_sn_e0AALi3GMxex/c/sn/";
 
-// Redirect URL for payment processing (this should be replaced with your actual payment provider URL)
-export const paymentRedirectUrl = "https://payment-provider.example.com/process";
-
-// Payment messages and notifications
+// Messages de notification pour le paiement
 export const paymentMessages = {
-  success: "Votre paiement a été effectué avec succès",
-  pending: "Votre paiement est en cours de traitement",
-  failed: "Votre paiement a échoué, veuillez réessayer",
+  redirecting: "Redirection vers le paiement",
+  redirectDescription: (price: number, details?: string) => 
+    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${Math.round(price)} FCFA${details ? ` pour ${details}` : ''}. Votre reçu est déjà disponible.`,
+  simulatedTitle: "Paiement simulé",
+  simulatedDescription: "Dans une application réelle, vous seriez maintenant sur la page de paiement.",
+  weeklyTitle: "Commande pour la semaine",
+  weeklyDescription: (price: number) => 
+    `Vous allez être redirigé vers notre portail de paiement pour un montant de ${Math.round(price)} FCFA pour tous les menus de la semaine.`,
+  loginRequired: "Connexion requise",
+  loginDescription: "Veuillez vous connecter pour finaliser votre commande.",
   paymentSuccess: "Paiement réussi !",
-  paymentSuccessDescription: "Votre commande a été traitée avec succès.",
-  weeklyTitle: "Menu hebdomadaire",
-  weeklyDescription: (price: number) => `Votre commande pour la semaine complète d'un montant de ${price} FCFA`
+  paymentSuccessDescription: "Votre commande a été confirmée avec succès. Votre reçu est disponible.",
+  userCreated: "Compte créé avec succès",
+  userCreatedDescription: "Votre compte a été créé avec succès. Vous pouvez maintenant finaliser votre paiement.",
+  returnToSite: "Retour au site marchand",
+  returnToSiteDescription: "Vous êtes redirigé vers le site marchand..."
 };
 
-// Generate a unique receipt ID
+// Fonction pour générer un ID de reçu unique
 export const generateReceiptId = (): string => {
-  const timestamp = Date.now().toString();
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `RCPT-${timestamp}-${random}`;
-};
-
-// Format price in FCFA
-export const formatPriceInFCFA = (price: number): string => {
-  return `${price.toLocaleString()} FCFA`;
+  const timestamp = new Date().getTime().toString().slice(-6);
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `CMD-${timestamp}-${random}`;
 };

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import { hasUserRole } from '@/integrations/supabase/client';
-import { AdminRoleTypes } from '@/utils/roleUtils';
+import { AdminRoleType } from '@/utils/roleUtils';
 
 export interface UserPermissions {
   canViewDashboard: boolean;
@@ -46,9 +46,9 @@ export const useRoleBasedAccess = () => {
         
         // Vérifier chaque rôle séparément, car un utilisateur peut avoir plusieurs rôles
         const [isAdmin, isOrderManager, isViewer] = await Promise.all([
-          hasUserRole(userId, AdminRoleTypes.ADMIN),
-          hasUserRole(userId, AdminRoleTypes.ORDER_MANAGER),
-          hasUserRole(userId, AdminRoleTypes.VIEWER),
+          hasUserRole(userId, AdminRoleType.ADMIN),
+          hasUserRole(userId, AdminRoleType.ORDER_MANAGER),
+          hasUserRole(userId, AdminRoleType.VIEWER),
         ]);
         
         // Initialiser les permissions par défaut
