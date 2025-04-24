@@ -65,6 +65,7 @@ const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {
       
     if (error) throw error;
     
+    // Fix the mapping to correctly access user properties
     return data
       .filter(item => item.users)
       .map(item => ({
