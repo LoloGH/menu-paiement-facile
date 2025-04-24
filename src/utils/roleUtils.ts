@@ -70,9 +70,9 @@ const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {
       .filter(item => item.users)
       .map(item => ({
         id: item.user_id,
-        email: item.users?.email || '',
-        name: item.users?.name || null,
-        created_at: item.users?.created_at || ''
+        email: item.users.email || '',
+        name: item.users.name || null,
+        created_at: item.users.created_at || ''
       }));
   } catch (error) {
     console.error(`Error fetching ${role} users:`, error);
