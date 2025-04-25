@@ -1,13 +1,13 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { DayMenu } from '@/data/menuData';
 import { MealOption } from './MealOption';
 import { format, startOfWeek, addDays } from "date-fns";
 import { fr } from 'date-fns/locale';
-import { ProcessedMenu } from '@/hooks/use-weekly-menu';
 
 interface MenuCardProps {
-  menu: ProcessedMenu;
+  menu: DayMenu;
   isActive: boolean;
 }
 
@@ -37,60 +37,11 @@ const getDayDate = (dayName: string): string => {
   }
 };
 
-// Helper function to generate meal options from separate dish arrays
-const generateMealOptions = (menu: ProcessedMenu) => {
-  const mealOptions = [];
-  
-  // First, try to use any pre-existing mealOptions
-  if (menu.mealOptions && menu.mealOptions.length > 0) {
-    return menu.mealOptions;
-  }
-  
-  // If no meal options exist, create combinations from the available dishes
-  // Main dishes as separate options
-  for (const mainDish of menu.mainDishes) {
-    // For each main dish, create options with different side dishes if available
-    if (menu.sideDishes.length > 0) {
-      for (const sideDish of menu.sideDishes) {
-        // With desserts if available
-        if (menu.desserts.length > 0) {
-          for (const dessert of menu.desserts) {
-            mealOptions.push({
-              id: `${mainDish.id}-${sideDish.id}-${dessert.id}`,
-              mainDish,
-              sideDish,
-              dessert,
-              totalPrice: mainDish.price + sideDish.price + dessert.price
-            });
-          }
-        } else {
-          // Without dessert
-          mealOptions.push({
-            id: `${mainDish.id}-${sideDish.id}`,
-            mainDish,
-            sideDish,
-            totalPrice: mainDish.price + sideDish.price
-          });
-        }
-      }
-    } else {
-      // Main dish only
-      mealOptions.push({
-        id: mainDish.id,
-        mainDish,
-        totalPrice: mainDish.price
-      });
-    }
-  }
-  
-  return mealOptions;
-};
-
 export const MenuCard: React.FC<MenuCardProps> = ({ menu, isActive }) => {
   const dynamicDate = menu?.day ? getDayDate(menu.day) : '';
 
-  // Vérifier que menu existe
-  if (!menu) {
+  // Vérifier que menu et menu.mealOptions existent
+  if (!menu || !menu.mealOptions || !Array.isArray(menu.mealOptions)) {
     console.error('Menu data is invalid:', menu);
     return (
       <Card className="w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300 opacity-70">
@@ -103,8 +54,6 @@ export const MenuCard: React.FC<MenuCardProps> = ({ menu, isActive }) => {
       </Card>
     );
   }
-  
-  const generatedMealOptions = generateMealOptions(menu);
 
   return (
     <Card className={`w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300 ${isActive ? 'scale-100 opacity-100 shadow-lg' : 'scale-95 opacity-70'}`}>
@@ -114,22 +63,16 @@ export const MenuCard: React.FC<MenuCardProps> = ({ menu, isActive }) => {
       </CardHeader>
       <CardContent className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {generatedMealOptions.length > 0 ? (
-            generatedMealOptions.map((option) => (
-              <MealOption 
-                key={option.id}
-                id={option.id}
-                mainDish={option.mainDish}
-                sideDish={option.sideDish}
-                dessert={option.dessert}
-                basePrice={option.totalPrice}
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center p-8 bg-gray-100 rounded-lg">
-              <p>Pas d'options de repas disponibles pour ce jour.</p>
-            </div>
-          )}
+          {menu.mealOptions.map((option) => (
+            <MealOption 
+              key={option.id}
+              id={option.id}
+              mainDish={option.mainDish}
+              sideDish={option.sideDish}
+              dessert={option.dessert}
+              basePrice={option.totalPrice}
+            />
+          ))}
         </div>
       </CardContent>
       <CardFooter className="bg-muted p-6 text-center">
