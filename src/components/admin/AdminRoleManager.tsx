@@ -13,7 +13,7 @@ import {
 } from "@/utils/roleUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { logAdminAction, supabase } from "@/integrations/supabase/client";
+import { logAdminAction, supabase, AdminRoleType } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AdminRoleManager = () => {
@@ -24,7 +24,7 @@ export const AdminRoleManager = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [emailToAdd, setEmailToAdd] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string>(AdminRoleTypes.ADMIN);
+  const [selectedRole, setSelectedRole] = useState<AdminRoleType>(AdminRoleTypes.ADMIN);
   const { toast } = useToast();
   const { adminData } = useAdminAuth();
   const isMobile = useIsMobile();
@@ -127,7 +127,7 @@ export const AdminRoleManager = () => {
     }
   };
 
-  const handleRemoveUser = async (userId: string, email: string, role: string) => {
+  const handleRemoveUser = async (userId: string, email: string, role: AdminRoleType) => {
     try {
       const result = await removeRoleFromUser(userId, role);
       
