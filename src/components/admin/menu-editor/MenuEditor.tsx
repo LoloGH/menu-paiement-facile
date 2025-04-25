@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -136,80 +135,62 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
 
   const handleSaveItem = async (updatedItem: MenuItem) => {
     if (isProcessing) return;
-    
     setIsProcessing(true);
     
     try {
       const { type } = editingItem;
-      
-      // Obtenir le nom du tableau correspondant au type
       const itemTypeMap: Record<DishType, keyof MenuDay> = {
         mainDish: 'mainDishes',
         sideDish: 'sideDishes',
         dessert: 'desserts'
       };
-      
       const itemType = itemTypeMap[type];
-      const actionType = updatedItem.id.includes(`${type}_`) ? `add_${type}` : `update_${type}`;
       
-      let updatedMenus = [...menus];
-      
-      // Mise à jour du menu concerné - mise à jour optimiste de l'UI
-      updatedMenus = menus.map(m => {
+      // First update or create the menu item association
+      if (updatedItem.articleId) {
+        const { error: menuArticleError } = await supabase
+          .from('menu_articles')
+          .upsert({
+            menu_day: menu.day,
+            article_id: updatedItem.articleId
+          });
+
+        if (menuArticleError) throw menuArticleError;
+      }
+
+      // Update local state
+      const updatedMenus = menus.map(m => {
         if (m.id === menu.id) {
-          // Vérifier si c'est un nouvel élément ou une mise à jour
-          if (editingItem.item && m[itemType]) {
-            // Mise à jour
-            // Ensure m[itemType] is an array before using find
-            const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
-            const items = [...currentItems];
-            const index = items.findIndex(item => item.id === editingItem.item?.id);
-            if (index !== -1) {
-              items[index] = updatedItem;
-            } else {
-              items.push(updatedItem);
-            }
-            return {...m, [itemType]: items};
+          const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
+          const items = [...currentItems];
+          const index = items.findIndex(item => item.id === editingItem.item?.id);
+          
+          if (index !== -1) {
+            items[index] = updatedItem;
           } else {
-            // Ajout
-            // Ensure m[itemType] is an array before spreading
-            const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
-            const items = [...currentItems, updatedItem];
-            return {...m, [itemType]: items};
+            items.push(updatedItem);
           }
+          
+          return {...m, [itemType]: items};
         }
         return m;
       });
-      
-      // Mettre à jour l'état local immédiatement pour une interface réactive
+
       setMenus(updatedMenus);
       
-      // Sauvegarder dans localStorage
-      localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
-      
-      // Notification à l'utilisateur avant les opérations en arrière-plan
       toast({
         title: "Succès",
         description: `${editingItem.item ? "Élément mis à jour" : "Nouvel élément ajouté"} avec succès.`,
       });
-      
-      // Réinitialiser l'état d'édition pour libérer l'interface
-      setEditingItem({item: null, type: 'mainDish'});
-      setIsAddingItem(false);
-      
-      // Mettre à jour la base de données en arrière-plan
-      if (updatedItem.articleId) {
-        // Ne pas attendre la résolution pour ne pas bloquer l'UI
-        setTimeout(() => {
-          safeUpdateDatabase(updatedItem.articleId, menu.id, 'add');
-        }, 0);
+
+      // Notify parent component
+      if (onMenuUpdated) {
+        await onMenuUpdated(
+          editingItem.item ? `update_${type}` : `add_${type}`,
+          { menuId: menu.id, dish: updatedItem }
+        );
       }
-      
-      // Appeler le callback de notification en arrière-plan
-      setTimeout(() => {
-        safeUpdateRemote(actionType, { menuId: menu.id, dish: updatedItem });
-      }, 0);
-      
+
     } catch (error) {
       console.error('Error saving item:', error);
       toast({
@@ -218,7 +199,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         variant: "destructive",
       });
     } finally {
-      // S'assurer que isProcessing est toujours remis à false
+      setEditingItem({item: null, type: ''});
       setIsProcessing(false);
     }
   };
@@ -230,67 +211,56 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
 
   const handleDeleteItem = async (dishId: string, dishType: DishType) => {
     if (isProcessing || deleteProcessing) return;
-    
-    // Marquer cet élément spécifique comme étant en cours de suppression
     setDeleteProcessing(dishId);
     
     try {
-      // Obtenir le nom du tableau correspondant au type
       const itemTypeMap: Record<DishType, keyof MenuDay> = {
         mainDish: 'mainDishes',
         sideDish: 'sideDishes',
         dessert: 'desserts'
       };
-      
       const itemType = itemTypeMap[dishType];
-      
-      // Ensure menu[itemType] is an array before using find
       const itemsArray = Array.isArray(menu[itemType]) ? menu[itemType] as MenuItem[] : [];
       const dishToDelete = itemsArray.find((dish) => dish.id === dishId);
       
-      // Mise à jour optimiste de l'interface - immédiatement
-      const updatedMenus = menus.map((m) => {
+      if (dishToDelete?.articleId) {
+        // Remove the menu article association
+        const { error: deleteError } = await supabase
+          .from('menu_articles')
+          .delete()
+          .eq('article_id', dishToDelete.articleId)
+          .eq('menu_day', menu.day);
+
+        if (deleteError) throw deleteError;
+      }
+
+      // Update local state
+      const updatedMenus = menus.map(m => {
         if (m.id === menu.id) {
-          // Ensure m[itemType] is an array before finding or filtering
           const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
-          
           return {
             ...m,
-            [itemType]: currentItems.filter((dish) => dish.id !== dishId),
+            [itemType]: currentItems.filter(dish => dish.id !== dishId),
           };
         }
         return m;
       });
-      
-      // Mettre à jour l'état et localStorage immédiatement pour une interface réactive
+
       setMenus(updatedMenus);
-      localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
       
-      // Notification utilisateur - immédiatement
       toast({
         title: "Succès",
-        description: `Élément supprimé avec succès.`,
+        description: "Élément supprimé avec succès.",
       });
-      
-      // Effectuer les opérations de base de données en arrière-plan
-      const dish = itemsArray.find(d => d.id === dishId);
-      
-      // Traitement en arrière-plan sans bloquer l'UI
-      if (dish?.articleId) {
-        setTimeout(() => {
-          safeUpdateDatabase(dish.articleId, menu.id, 'remove');
-        }, 0);
-      }
-      
-      // Appeler le callback de notification en arrière-plan sans bloquer l'interface
-      setTimeout(() => {
-        safeUpdateRemote(`delete_${dishType}`, { 
+
+      if (onMenuUpdated) {
+        await onMenuUpdated(`delete_${dishType}`, { 
           menuId: menu.id, 
-          dishId, 
+          dishId: dishId, 
           dishDetails: dishToDelete 
         });
-      }, 0);
-      
+      }
+
     } catch (error) {
       console.error('Error in delete operation:', error);
       toast({
@@ -299,7 +269,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         variant: "destructive",
       });
     } finally {
-      // S'assurer que l'état de suppression est réinitialisé
       setDeleteProcessing(null);
     }
   };
