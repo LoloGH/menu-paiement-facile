@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { useWeeklyMenu } from '@/hooks/use-weekly-menu';
+import { useWeeklyMenu, ProcessedMenu } from '@/hooks/use-weekly-menu';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
-import { weeklyMenu as defaultWeeklyMenu, DayMenu } from '@/data/menuData';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarCheck, ShoppingCart } from "lucide-react";
@@ -129,7 +129,7 @@ const Index = () => {
             {activeDay && (
               <>
                 <WeekNavigation 
-                  menus={menus} 
+                  menus={menus as any} 
                   activeDay={activeDay} 
                   setActiveDay={setActiveDay} 
                 />

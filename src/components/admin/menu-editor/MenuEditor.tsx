@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -199,7 +200,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         variant: "destructive",
       });
     } finally {
-      setEditingItem({item: null, type: ''});
+      setEditingItem({item: null, type: 'mainDish'});
       setIsProcessing(false);
     }
   };

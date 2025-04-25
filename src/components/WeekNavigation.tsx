@@ -1,11 +1,11 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { DayMenu } from '@/data/menuData';
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ProcessedMenu } from '@/hooks/use-weekly-menu';
 
 interface WeekNavigationProps {
-  menus: DayMenu[];
+  menus: ProcessedMenu[];
   activeDay: string;
   setActiveDay: (day: string) => void;
 }
