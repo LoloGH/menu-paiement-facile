@@ -25,7 +25,7 @@ import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { StatCard } from "@/components/admin/stats/StatCard";
 import { logAdminAction } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
-import { playSounds } from "@/utils/soundEffects"; // Corrected import path
+import { playSounds } from "@/utils/soundEffects";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -397,7 +397,7 @@ const AdminInterface = () => {
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
-              <TabsList className={`${isMobile ? 'grid-cols-2' : 'grid-cols-7'} grid gap-4`}>
+              <TabsList className={`${isMobile ? 'grid-cols-2' : 'grid-cols-8'} grid gap-4`}>
                 <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                 {permissions.canViewOrders && (
                   <TabsTrigger value="orders" className={`relative ${
@@ -424,6 +424,12 @@ const AdminInterface = () => {
                     Articles
                   </TabsTrigger>
                 )}
+                {permissions.canViewMenus && (
+                  <TabsTrigger value="menus">
+                    <UtensilsCrossed className="h-4 w-4 mr-2" />
+                    Menus
+                  </TabsTrigger>
+                )}
                 {permissions.canManageRoles && (
                   <TabsTrigger value="admins">
                     <Users className="h-4 w-4 mr-2" />
@@ -437,6 +443,18 @@ const AdminInterface = () => {
                   </TabsTrigger>
                 )}
               </TabsList>
+              {isMobile && permissions.canManageRoles && (
+                <TabsList className="grid grid-cols-2 gap-4 mt-2">
+                  <TabsTrigger value="admins">
+                    <Users className="h-4 w-4 mr-2" />
+                    Rôles
+                  </TabsTrigger>
+                  <TabsTrigger value="audit-log">
+                    <History className="h-4 w-4 mr-2" />
+                    Audit
+                  </TabsTrigger>
+                </TabsList>
+              )}
             </CardHeader>
             <CardContent>
               <TabsContent value="dashboard" className="space-y-4">
@@ -478,6 +496,52 @@ const AdminInterface = () => {
               <TabsContent value="articles" className="space-y-4">
                 {permissions.canViewArticles ? (
                   <ArticlesManager readOnly={!permissions.canManageArticles} />
+                ) : (
+                  <AccessDenied />
+                )}
+              </TabsContent>
+              
+              <TabsContent value="menus" className="space-y-4">
+                {permissions.canViewMenus ? (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center mb-3">
+                        <CardTitle>Gestion des Menus Hebdomadaires</CardTitle>
+                        {permissions.canManageMenus && (
+                          <Button
+                            variant="outline"
+                            onClick={handleRefreshMenus}
+                            className="flex items-center"
+                            disabled={isRefreshing}
+                          >
+                            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Actualiser
+                          </Button>
+                        )}
+                      </div>
+                      {renderMenuButtons()}
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      {selectedMenu && (
+                        <MenuEditor 
+                          key={activeMenuId}
+                          menu={selectedMenu}
+                          menus={menus}
+                          setMenus={setMenus}
+                          readOnly={!permissions.canManageMenus}
+                          onMenuUpdated={async (action, details) => {
+                            try {
+                              if (adminData) {
+                                await logAdminAction(adminData.id, action, 'menu_items', details);
+                              }
+                            } catch (error) {
+                              console.error("Error logging admin action:", error);
+                            }
+                          }}
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
                 ) : (
                   <AccessDenied />
                 )}
