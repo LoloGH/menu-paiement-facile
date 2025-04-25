@@ -24,8 +24,6 @@ import { AccessDenied } from "@/components/admin/AccessDenied";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { StatCard } from "@/components/admin/stats/StatCard";
 import { logAdminAction } from "@/integrations/supabase/client";
-import { supabase } from "@/integrations/supabase/client";
-import { playSounds } from "@/utils/soundEffects";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -37,7 +35,6 @@ const AdminInterface = () => {
   const [activeMenuId, setActiveMenuId] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMenusOpen, setIsMenusOpen] = useState(false);
-  const [hasNewOrder, setHasNewOrder] = useState(false);
   const isMobile = useIsMobile();
   const permissions = useRoleBasedAccess();
 
@@ -57,32 +54,6 @@ const AdminInterface = () => {
     
     return () => {
       window.removeEventListener('menu-updated', handleMenuUpdated as EventListener);
-    };
-  }, []);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('new-admin-orders')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
-        (payload) => {
-          console.log('New order received:', payload);
-          setHasNewOrder(true);
-          
-          // Play notification sound
-          try {
-            console.log("Playing new order sound");
-            playSounds.newOrder();
-          } catch (error) {
-            console.error('Failed to play notification sound:', error);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -327,12 +298,6 @@ const AdminInterface = () => {
     );
   };
 
-  const handleTabChange = (value: string) => {
-    if (value === 'orders') {
-      setHasNewOrder(false);
-    }
-  };
-
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-restaurant-purple text-white p-4 shadow-md">
@@ -393,24 +358,14 @@ const AdminInterface = () => {
           </CardContent>
         </Card>
         
-        <Tabs defaultValue="dashboard" className="space-y-4" onValueChange={handleTabChange}>
+        <Tabs defaultValue="dashboard" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Gestion de la base de données</CardTitle>
               <TabsList className={`${isMobile ? 'grid-cols-2' : 'grid-cols-8'} grid gap-4`}>
                 <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                 {permissions.canViewOrders && (
-                  <TabsTrigger value="orders" className={`relative ${
-                    hasNewOrder ? 'animate-pulse bg-restaurant-red text-white hover:bg-restaurant-red/90' : ''
-                  }`}>
-                    {hasNewOrder && (
-                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-restaurant-red opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-restaurant-red"></span>
-                      </span>
-                    )}
-                    Commandes
-                  </TabsTrigger>
+                  <TabsTrigger value="orders">Commandes</TabsTrigger>
                 )}
                 {permissions.canViewUsers && (
                   <TabsTrigger value="users">Utilisateurs</TabsTrigger>

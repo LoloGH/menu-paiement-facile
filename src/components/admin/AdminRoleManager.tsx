@@ -1,30 +1,28 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Trash2, UserPlus, Users, RefreshCw, Loader2 } from "lucide-react";
+import { ShieldAlert, Trash2, UserPlus, Users, RefreshCw } from "lucide-react";
 import { 
   fetchAdminUsers, fetchOrderManagerUsers, fetchViewerUsers, 
-  addRoleToUser, removeRoleFromUser, UserRoleInfo, getRoleDisplayName,
-  AdminRoleTypes
+  addRoleToUser, removeRoleFromUser, UserRoleInfo, AdminRoleType, getRoleDisplayName
 } from "@/utils/roleUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { logAdminAction, supabase, AdminRoleType } from "@/integrations/supabase/client";
+import { logAdminAction, supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AdminRoleManager = () => {
   const [users, setUsers] = useState<{[key: string]: UserRoleInfo[]}>({
-    [AdminRoleTypes.ADMIN]: [],
-    [AdminRoleTypes.ORDER_MANAGER]: [],
-    [AdminRoleTypes.VIEWER]: [],
+    [AdminRoleType.ADMIN]: [],
+    [AdminRoleType.ORDER_MANAGER]: [],
+    [AdminRoleType.VIEWER]: [],
   });
   const [isLoading, setIsLoading] = useState(true);
   const [emailToAdd, setEmailToAdd] = useState("");
-  const [selectedRole, setSelectedRole] = useState<AdminRoleType>(AdminRoleTypes.ADMIN);
+  const [selectedRole, setSelectedRole] = useState<string>(AdminRoleType.ADMIN);
   const { toast } = useToast();
   const { adminData } = useAdminAuth();
   const isMobile = useIsMobile();
@@ -40,9 +38,9 @@ export const AdminRoleManager = () => {
       ]);
       
       setUsers({
-        [AdminRoleTypes.ADMIN]: admins,
-        [AdminRoleTypes.ORDER_MANAGER]: orderManagers,
-        [AdminRoleTypes.VIEWER]: viewers,
+        [AdminRoleType.ADMIN]: admins,
+        [AdminRoleType.ORDER_MANAGER]: orderManagers,
+        [AdminRoleType.VIEWER]: viewers,
       });
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs:", error);
@@ -127,7 +125,7 @@ export const AdminRoleManager = () => {
     }
   };
 
-  const handleRemoveUser = async (userId: string, email: string, role: AdminRoleType) => {
+  const handleRemoveUser = async (userId: string, email: string, role: string) => {
     try {
       const result = await removeRoleFromUser(userId, role);
       
@@ -174,169 +172,119 @@ export const AdminRoleManager = () => {
     });
   };
 
-  const handleInsertMenuItems = async () => {
-    setIsLoading(true);
-    try {
-      const { insertMenuItems } = await import('@/scripts/insertMenuItems');
-      const success = await insertMenuItems();
-      
-      if (success) {
-        toast({
-          title: "Succès",
-          description: "Tous les articles du menu ont été insérés.",
-        });
-      } else {
-        toast({
-          title: "Erreur",
-          description: "Une erreur est survenue lors de l'insertion des articles.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error inserting menu items:', error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de l'insertion des articles.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Gestion des rôles</h1>
-        <Button 
-          onClick={handleInsertMenuItems}
-          disabled={isLoading}
-          className="bg-restaurant-purple hover:bg-restaurant-purple/90"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Insertion en cours...
-            </>
-          ) : (
-            'Insérer les articles du menu'
-          )}
-        </Button>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-restaurant-purple" />
-              Gestion des Rôles et Permissions
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {!isMobile && "Actualiser"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <Label htmlFor="role-email" className="mb-2 block">Ajouter un utilisateur par email</Label>
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  id="role-email"
-                  placeholder="email@exemple.com"
-                  value={emailToAdd}
-                  onChange={(e) => setEmailToAdd(e.target.value)}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={handleAddUser} 
-                  disabled={isLoading || !emailToAdd.trim()}
-                  className="whitespace-nowrap"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  {!isMobile ? "Ajouter Utilisateur" : "Ajouter"}
-                </Button>
-              </div>
-              <div>
-                <Label htmlFor="role-select" className="mb-2 block">Type de rôle</Label>
-                <select 
-                  id="role-select"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as AdminRoleType)}
-                >
-                  <option value={AdminRoleTypes.ADMIN}>Administrateur (accès total)</option>
-                  <option value={AdminRoleTypes.ORDER_MANAGER}>Gestionnaire de commandes</option>
-                  <option value={AdminRoleTypes.VIEWER}>Visualiseur (lecture seule)</option>
-                </select>
-              </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-restaurant-purple" />
+            Gestion des Rôles et Permissions
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {!isMobile && "Actualiser"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-6">
+          <Label htmlFor="role-email" className="mb-2 block">Ajouter un utilisateur par email</Label>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                id="role-email"
+                placeholder="email@exemple.com"
+                value={emailToAdd}
+                onChange={(e) => setEmailToAdd(e.target.value)}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleAddUser} 
+                disabled={isLoading || !emailToAdd.trim()}
+                className="whitespace-nowrap"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                {!isMobile ? "Ajouter Utilisateur" : "Ajouter"}
+              </Button>
+            </div>
+            <div>
+              <Label htmlFor="role-select" className="mb-2 block">Type de rôle</Label>
+              <select 
+                id="role-select"
+                className="w-full p-2 border rounded-md"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              >
+                <option value={AdminRoleType.ADMIN}>Administrateur (accès total)</option>
+                <option value={AdminRoleType.ORDER_MANAGER}>Gestionnaire de commandes</option>
+                <option value={AdminRoleType.VIEWER}>Visualiseur (lecture seule)</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          <div>
-            <h3 className="font-medium mb-4">Liste des utilisateurs par rôle</h3>
+        <div>
+          <h3 className="font-medium mb-4">Liste des utilisateurs par rôle</h3>
+          
+          <Tabs defaultValue={AdminRoleType.ADMIN} className="w-full">
+            <TabsList className={`mb-4 ${isMobile ? 'grid grid-cols-3 gap-2' : 'flex'}`}>
+              <TabsTrigger value={AdminRoleType.ADMIN} className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4" />
+                {!isMobile && "Administrateurs"}
+              </TabsTrigger>
+              <TabsTrigger value={AdminRoleType.ORDER_MANAGER} className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                {!isMobile && "Gestionnaires"}
+              </TabsTrigger>
+              <TabsTrigger value={AdminRoleType.VIEWER} className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                {!isMobile && "Visualiseurs"}
+              </TabsTrigger>
+            </TabsList>
             
-            <Tabs defaultValue={AdminRoleTypes.ADMIN} className="w-full">
-              <TabsList className={`mb-4 ${isMobile ? 'grid grid-cols-3 gap-2' : 'flex'}`}>
-                <TabsTrigger value={AdminRoleTypes.ADMIN} className="flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4" />
-                  {!isMobile && "Administrateurs"}
-                </TabsTrigger>
-                <TabsTrigger value={AdminRoleTypes.ORDER_MANAGER} className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  {!isMobile && "Gestionnaires"}
-                </TabsTrigger>
-                <TabsTrigger value={AdminRoleTypes.VIEWER} className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  {!isMobile && "Visualiseurs"}
-                </TabsTrigger>
-              </TabsList>
-              
-              {Object.entries(users).map(([role, roleUsers]) => (
-                <TabsContent key={role} value={role}>
-                  {isLoading ? (
-                    <div className="text-center p-4">Chargement...</div>
-                  ) : roleUsers.length === 0 ? (
-                    <div className="text-center p-4 bg-gray-50 rounded-md">
-                      Aucun utilisateur trouvé avec le rôle {getRoleDisplayName(role)}.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {roleUsers.map((user) => (
-                        <div 
-                          key={`${user.id}-${role}`} 
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                        >
-                          <div className="overflow-hidden">
-                            <div className="font-medium truncate">{user.email}</div>
-                            <div className="text-xs text-gray-500">ID: {user.id.substring(0, 8)}...</div>
-                          </div>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => handleRemoveUser(user.id, user.email, role as AdminRoleType)}
-                            className="shrink-0 ml-2"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {!isMobile && <span className="ml-2">Retirer</span>}
-                          </Button>
+            {Object.entries(users).map(([role, roleUsers]) => (
+              <TabsContent key={role} value={role}>
+                {isLoading ? (
+                  <div className="text-center p-4">Chargement...</div>
+                ) : roleUsers.length === 0 ? (
+                  <div className="text-center p-4 bg-gray-50 rounded-md">
+                    Aucun utilisateur trouvé avec le rôle {getRoleDisplayName(role)}.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {roleUsers.map((user) => (
+                      <div 
+                        key={`${user.id}-${role}`} 
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                      >
+                        <div className="overflow-hidden">
+                          <div className="font-medium truncate">{user.email}</div>
+                          <div className="text-xs text-gray-500">ID: {user.id.substring(0, 8)}...</div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-              ))}
-            </Tabs>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => handleRemoveUser(user.id, user.email, role)}
+                          className="shrink-0 ml-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {!isMobile && <span className="ml-2">Retirer</span>}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
+      </CardContent>
+    </Card>
   );
 };

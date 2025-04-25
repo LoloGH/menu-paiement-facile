@@ -1,25 +1,15 @@
 
-// Sound effects for the application
-
-// Helper to create and play audio
-const playAudio = (url: string) => {
-  try {
-    const audio = new Audio(url);
-    audio.volume = 0.5; // Set volume to 50%
-    return audio.play();
-  } catch (error) {
-    console.error("Error playing sound:", error);
-    return Promise.reject(error);
-  }
+const playSound = (soundUrl: string) => {
+  const audio = new Audio(soundUrl);
+  audio.play().catch(error => {
+    console.error('Erreur lors de la lecture du son:', error);
+  });
 };
 
-// Common sound effects for the application
 export const playSounds = {
-  newOrder: () => playAudio('/sounds/new-order.mp3'),
-  preparing: () => playAudio('/sounds/preparing.mp3'),
-  ready: () => playAudio('/sounds/ready.mp3'),
-  delivered: () => playAudio('/sounds/delivered.mp3'),
-  error: () => playAudio('/sounds/error.mp3'),
-  success: () => playAudio('/sounds/success.mp3'),
-  notification: () => playAudio('/sounds/notification.mp3')
+  newOrder: () => playSound('/new-order.mp3'),
+  preparing: () => playSound('/preparing.mp3'),
+  ready: () => playSound('/ready.mp3'),
+  delivered: () => playSound('/ready.mp3'), // Nous utilisons le même son pour le moment
+  success: () => playSound('/notification-sound.mp3')
 };

@@ -9,78 +9,97 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
 
-// Define AdminRoleType for export
-export type AdminRoleType = 'admin' | 'order_manager' | 'viewer';
-
-// Function to check if a user has admin privileges
+/**
+ * Checks if a user has the admin role in the database
+ * @param userId User ID to check
+ * @returns Promise resolving to boolean
+ */
 export const isAdminUser = async (userId: string): Promise<boolean> => {
   try {
-    // Check if user exists in the user_roles table with 'admin' role
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error("Error checking admin status:", error);
-      return false;
-    }
-
-    // If the query found a matching row, the user is an admin
-    return !!data;
-  } catch (error) {
-    console.error("Exception checking admin status:", error);
-    return false;
-  }
-};
-
-// Function to check if a user has a specific role
-export const hasUserRole = async (userId: string, role: AdminRoleType): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('role', role)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error(`Error checking ${role} status:`, error);
-      return false;
-    }
-
-    return !!data;
-  } catch (error) {
-    console.error(`Exception checking ${role} status:`, error);
-    return false;
-  }
-};
-
-// Function to log admin actions
-export const logAdminAction = async (
-  userId: string, 
-  action: string, 
-  resource: string, 
-  details?: any
-): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('admin_audit_log')
-      .insert({
-        user_id: userId,
-        action,
-        resource,
-        details: details || null
-      });
+    console.log(`Checking if user ${userId} has admin role`);
+    
+    // Call the RPC function to check if the user has the admin role
+    const { data, error } = await supabase.rpc('has_role', {
+      user_id: userId,
+      required_role: 'admin'
+    });
 
     if (error) {
-      console.error("Error logging admin action:", error);
+      console.error("Error checking admin role:", error);
+      return false;
     }
+
+    console.log(`Admin role check result:`, !!data);
+    return !!data;
+  } catch (error) {
+    console.error("Exception checking admin role:", error);
+    return false;
+  }
+};
+
+/**
+ * Checks if a user has the specified role in the database
+ * @param userId User ID to check
+ * @param role Role to check
+ * @returns Promise resolving to boolean
+ */
+export const hasUserRole = async (userId: string, role: string): Promise<boolean> => {
+  try {
+    console.log(`Checking if user ${userId} has role ${role}`);
+    
+    // Call the RPC function to check if the user has the specified role
+    const { data, error } = await supabase.rpc('has_role', {
+      user_id: userId,
+      required_role: role
+    });
+
+    if (error) {
+      console.error(`Error checking ${role} role:`, error);
+      return false;
+    }
+
+    console.log(`Role check result for ${role}:`, !!data);
+    return !!data;
+  } catch (error) {
+    console.error(`Exception checking ${role} role:`, error);
+    return false;
+  }
+};
+
+/**
+ * Logs an admin action to the audit log
+ * @param userId User ID performing the action
+ * @param action Description of the action
+ * @param resource Resource being acted upon
+ * @param details Additional details
+ */
+export const logAdminAction = async (user_id: string, action: string, resource: string, details?: any): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from("admin_audit_log")
+      .insert({
+        user_id,
+        action,
+        resource,
+        details
+      });
+    
+    if (error) {
+      console.error("Error logging admin action:", error);
+      return false;
+    }
+    
+    return true;
   } catch (error) {
     console.error("Exception logging admin action:", error);
+    return false;
   }
 };

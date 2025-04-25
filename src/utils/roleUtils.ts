@@ -1,159 +1,128 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import type { AdminRoleType } from "@/integrations/supabase/client";
 
-// Create a value object for AdminRoleTypes to use in the code
-export const AdminRoleTypes = {
-  ADMIN: 'admin' as AdminRoleType,
-  ORDER_MANAGER: 'order_manager' as AdminRoleType,
-  VIEWER: 'viewer' as AdminRoleType
-} as const;
-
-export interface UserRoleInfo {
+export type UserRoleInfo = {
   id: string;
   email: string;
-  name?: string | null;
-  created_at: string;
+  role: string;
+};
+
+export enum AdminRoleType {
+  ADMIN = 'admin',
+  ORDER_MANAGER = 'order_manager',
+  VIEWER = 'viewer'
 }
 
-export interface RoleActionResult {
-  success: boolean;
-  message: string;
-}
-
-export const getRoleDisplayName = (role: string): string => {
-  const displayNames: Record<string, string> = {
-    'admin': 'Administrateur',
-    'order_manager': 'Gestionnaire de commandes',
-    'viewer': 'Visualiseur',
-    'user': 'Utilisateur',
-    'moderator': 'Modérateur'
-  };
-  
-  return displayNames[role] || role;
-};
-
-export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole(AdminRoleTypes.ADMIN);
-};
-
-export const fetchOrderManagerUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole(AdminRoleTypes.ORDER_MANAGER);
-};
-
-export const fetchViewerUsers = async (): Promise<UserRoleInfo[]> => {
-  return fetchUsersByRole(AdminRoleTypes.VIEWER);
-};
-
-const fetchUsersByRole = async (role: AdminRoleType): Promise<UserRoleInfo[]> => {
+// Fonction pour récupérer tous les utilisateurs avec un rôle spécifique
+export const fetchUsersWithRole = async (role: string): Promise<UserRoleInfo[]> => {
   try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select(`
-        user_id,
-        users (
-          id,
-          email,
-          name,
-          created_at
-        )
-      `)
-      .eq('role', role);
-      
-    if (error) throw error;
-    
-    // Filter out items with no users data and map to the required format
-    return data
-      .filter(item => item.users)
-      .map(item => ({
-        id: item.user_id,
-        email: item.users && typeof item.users === 'object' ? (item.users as any).email || '' : '',
-        name: item.users && typeof item.users === 'object' ? (item.users as any).name || null : null,
-        created_at: item.users && typeof item.users === 'object' ? (item.users as any).created_at || '' : ''
-      }));
+    const { data, error } = await (supabase.rpc as any)('get_users_with_role', {
+      role_name: role
+    });
+
+    if (error) {
+      console.error(`Erreur lors du chargement des utilisateurs avec le rôle ${role}:`, error);
+      return [];
+    }
+
+    return data || [];
   } catch (error) {
-    console.error(`Error fetching ${role} users:`, error);
+    console.error(`Erreur lors du chargement des utilisateurs avec le rôle ${role}:`, error);
     return [];
   }
 };
 
-export const addRoleToUser = async (email: string, role: AdminRoleType): Promise<RoleActionResult> => {
+// Fonction pour récupérer tous les utilisateurs avec le rôle admin
+export const fetchAdminUsers = async (): Promise<UserRoleInfo[]> => {
+  return fetchUsersWithRole(AdminRoleType.ADMIN);
+};
+
+// Fonction pour récupérer tous les utilisateurs avec le rôle gestionnaire de commandes
+export const fetchOrderManagerUsers = async (): Promise<UserRoleInfo[]> => {
+  return fetchUsersWithRole(AdminRoleType.ORDER_MANAGER);
+};
+
+// Fonction pour récupérer tous les utilisateurs avec le rôle visualiseur
+export const fetchViewerUsers = async (): Promise<UserRoleInfo[]> => {
+  return fetchUsersWithRole(AdminRoleType.VIEWER);
+};
+
+// Fonction pour ajouter un utilisateur avec un rôle spécifique
+export const addRoleToUser = async (email: string, role: string): Promise<{ success: boolean; message: string }> => {
   try {
-    // First check if the user exists
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-      
-    if (userError) throw userError;
-    
-    if (!userData) {
-      return {
-        success: false,
-        message: `Aucun utilisateur trouvé avec l'email ${email}`
+    const { data, error } = await (supabase.rpc as any)('add_role_to_user_by_email', {
+      user_email: email,
+      role_name: role
+    });
+
+    if (error) {
+      return { 
+        success: false, 
+        message: error.message || `Erreur lors de l'ajout du rôle ${role}` 
       };
     }
-    
-    // Now check if the role assignment already exists
-    const { data: existingRole, error: roleCheckError } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', userData.id)
-      .eq('role', role)
-      .maybeSingle();
-      
-    if (roleCheckError) throw roleCheckError;
-    
-    if (existingRole) {
-      return {
-        success: false,
-        message: `L'utilisateur a déjà le rôle ${getRoleDisplayName(role)}`
-      };
-    }
-    
-    // Assign the role
-    const { error: insertError } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: userData.id,
-        role: role
-      });
-      
-    if (insertError) throw insertError;
-    
-    return {
-      success: true,
-      message: `Rôle ${getRoleDisplayName(role)} attribué à ${email}`
+
+    return { 
+      success: true, 
+      message: `Droits ${role} attribués avec succès.` 
     };
-  } catch (error: any) {
-    console.error("Error adding role to user:", error);
-    return {
-      success: false,
-      message: `Erreur lors de l'attribution du rôle: ${error.message}`
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue";
+    return { 
+      success: false, 
+      message 
     };
   }
 };
 
-export const removeRoleFromUser = async (userId: string, role: AdminRoleType): Promise<RoleActionResult> => {
+// Fonction pour ajouter un utilisateur en tant qu'admin
+export const addAdminRole = async (email: string): Promise<{ success: boolean; message: string }> => {
+  return addRoleToUser(email, AdminRoleType.ADMIN);
+};
+
+// Fonction pour supprimer un rôle d'un utilisateur
+export const removeRoleFromUser = async (userId: string, role: string): Promise<{ success: boolean; message: string }> => {
   try {
-    const { error } = await supabase
-      .from('user_roles')
-      .delete()
-      .eq('user_id', userId)
-      .eq('role', role);
-      
-    if (error) throw error;
-    
-    return {
-      success: true,
-      message: `Rôle ${getRoleDisplayName(role)} retiré avec succès`
+    const { data, error } = await (supabase.rpc as any)('remove_role_from_user', {
+      user_id: userId,
+      role_name: role
+    });
+
+    if (error) {
+      return { 
+        success: false, 
+        message: error.message || `Erreur lors de la suppression du rôle ${role}` 
+      };
+    }
+
+    return { 
+      success: true, 
+      message: `Droits ${role} retirés avec succès.` 
     };
-  } catch (error: any) {
-    console.error("Error removing role from user:", error);
-    return {
-      success: false,
-      message: `Erreur lors du retrait du rôle: ${error.message}`
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inconnue";
+    return { 
+      success: false, 
+      message 
     };
+  }
+};
+
+// Fonction pour supprimer un rôle admin
+export const removeAdminRole = async (userId: string): Promise<{ success: boolean; message: string }> => {
+  return removeRoleFromUser(userId, AdminRoleType.ADMIN);
+};
+
+// Fonction pour obtenir le nom lisible d'un rôle
+export const getRoleDisplayName = (role: string): string => {
+  switch (role) {
+    case AdminRoleType.ADMIN:
+      return "Admin principal";
+    case AdminRoleType.ORDER_MANAGER:
+      return "Gestionnaire de commandes";
+    case AdminRoleType.VIEWER:
+      return "Visualiseur";
+    default:
+      return role;
   }
 };
