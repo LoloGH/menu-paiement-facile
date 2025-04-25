@@ -11,6 +11,9 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// Define AdminRoleType for export
+export type AdminRoleType = 'admin' | 'order_manager' | 'viewer';
+
 // Function to check if a user has admin privileges
 export const isAdminUser = async (userId: string): Promise<boolean> => {
   try {
@@ -35,11 +38,8 @@ export const isAdminUser = async (userId: string): Promise<boolean> => {
   }
 };
 
-// Define AdminRoleType for export
-export type AdminRoleType = 'admin' | 'order_manager' | 'viewer';
-
 // Function to check if a user has a specific role
-export const hasUserRole = async (userId: string, role: string): Promise<boolean> => {
+export const hasUserRole = async (userId: string, role: AdminRoleType): Promise<boolean> => {
   try {
     const { data, error } = await supabase
       .from('user_roles')

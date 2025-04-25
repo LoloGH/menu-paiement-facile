@@ -1,15 +1,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import type { AdminRoleType as SupabaseAdminRoleType } from "@/integrations/supabase/client";
+import type { AdminRoleType } from "@/integrations/supabase/client";
 
-// Re-export the AdminRoleType
-export type AdminRoleType = SupabaseAdminRoleType;
-
-// Also create a value object for AdminRoleTypes to use in the code
+// Create a value object for AdminRoleTypes to use in the code
 export const AdminRoleTypes = {
-  ADMIN: 'admin',
-  ORDER_MANAGER: 'order_manager',
-  VIEWER: 'viewer'
+  ADMIN: 'admin' as AdminRoleType,
+  ORDER_MANAGER: 'order_manager' as AdminRoleType,
+  VIEWER: 'viewer' as AdminRoleType
 } as const;
 
 export interface UserRoleInfo {
@@ -48,7 +45,7 @@ export const fetchViewerUsers = async (): Promise<UserRoleInfo[]> => {
   return fetchUsersByRole(AdminRoleTypes.VIEWER);
 };
 
-const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {
+const fetchUsersByRole = async (role: AdminRoleType): Promise<UserRoleInfo[]> => {
   try {
     const { data, error } = await supabase
       .from('user_roles')
@@ -65,14 +62,14 @@ const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {
       
     if (error) throw error;
     
-    // Fix the mapping to correctly access user properties
+    // Filter out items with no users data and map to the required format
     return data
       .filter(item => item.users)
       .map(item => ({
         id: item.user_id,
-        email: item.users.email || '',
-        name: item.users.name || null,
-        created_at: item.users.created_at || ''
+        email: item.users?.email || '',
+        name: item.users?.name || null,
+        created_at: item.users?.created_at || ''
       }));
   } catch (error) {
     console.error(`Error fetching ${role} users:`, error);
@@ -80,7 +77,7 @@ const fetchUsersByRole = async (role: string): Promise<UserRoleInfo[]> => {
   }
 };
 
-export const addRoleToUser = async (email: string, role: string): Promise<RoleActionResult> => {
+export const addRoleToUser = async (email: string, role: AdminRoleType): Promise<RoleActionResult> => {
   try {
     // First check if the user exists
     const { data: userData, error: userError } = await supabase
@@ -120,7 +117,7 @@ export const addRoleToUser = async (email: string, role: string): Promise<RoleAc
       .from('user_roles')
       .insert({
         user_id: userData.id,
-        role
+        role: role
       });
       
     if (insertError) throw insertError;
@@ -138,7 +135,7 @@ export const addRoleToUser = async (email: string, role: string): Promise<RoleAc
   }
 };
 
-export const removeRoleFromUser = async (userId: string, role: string): Promise<RoleActionResult> => {
+export const removeRoleFromUser = async (userId: string, role: AdminRoleType): Promise<RoleActionResult> => {
   try {
     const { error } = await supabase
       .from('user_roles')
