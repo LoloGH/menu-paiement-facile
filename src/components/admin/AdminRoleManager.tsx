@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -269,7 +270,7 @@ export const AdminRoleManager = () => {
                   id="role-select"
                   className="w-full p-2 border rounded-md"
                   value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
+                  onChange={(e) => setSelectedRole(e.target.value as AdminRoleType)}
                 >
                   <option value={AdminRoleTypes.ADMIN}>Administrateur (accès total)</option>
                   <option value={AdminRoleTypes.ORDER_MANAGER}>Gestionnaire de commandes</option>
@@ -320,7 +321,7 @@ export const AdminRoleManager = () => {
                           <Button 
                             variant="destructive" 
                             size="sm"
-                            onClick={() => handleRemoveUser(user.id, user.email, role)}
+                            onClick={() => handleRemoveUser(user.id, user.email, role as AdminRoleType)}
                             className="shrink-0 ml-2"
                           >
                             <Trash2 className="h-4 w-4" />

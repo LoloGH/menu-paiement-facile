@@ -67,9 +67,9 @@ const fetchUsersByRole = async (role: AdminRoleType): Promise<UserRoleInfo[]> =>
       .filter(item => item.users)
       .map(item => ({
         id: item.user_id,
-        email: item.users ? item.users.email || '' : '',
-        name: item.users ? item.users.name || null : null,
-        created_at: item.users ? item.users.created_at || '' : ''
+        email: item.users && typeof item.users === 'object' ? (item.users as any).email || '' : '',
+        name: item.users && typeof item.users === 'object' ? (item.users as any).name || null : null,
+        created_at: item.users && typeof item.users === 'object' ? (item.users as any).created_at || '' : ''
       }));
   } catch (error) {
     console.error(`Error fetching ${role} users:`, error);

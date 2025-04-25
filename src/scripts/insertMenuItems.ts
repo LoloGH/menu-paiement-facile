@@ -1,7 +1,17 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
 
-const platsArticles = [
+type ArticleType = Database['public']['Enums']['article_type'];
+
+interface Article {
+  name: string;
+  description: string | null;
+  price: number;
+  type: ArticleType;
+}
+
+const platsArticles: Article[] = [
   {
     name: 'Thiebou Dieune',
     description: 'Riz au poisson et légumes',
@@ -64,7 +74,7 @@ const platsArticles = [
   }
 ];
 
-const accompagnementsArticles = [
+const accompagnementsArticles: Article[] = [
   {
     name: 'Riz blanc',
     description: 'Riz nature légèrement parfumé',
@@ -127,7 +137,7 @@ const accompagnementsArticles = [
   }
 ];
 
-const dessertsArticles = [
+const dessertsArticles: Article[] = [
   {
     name: 'Thiakry (Deguê)',
     description: 'Couscous sucré au lait',
@@ -220,4 +230,3 @@ export const insertMenuItems = async () => {
     return false;
   }
 };
-
