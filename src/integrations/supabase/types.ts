@@ -188,6 +188,8 @@ export type Database = {
         Row: {
           created_at: string
           details: string | null
+          guest_name: string | null
+          guest_phone: string | null
           id: string
           payment_status: string
           receipt_id: string
@@ -198,6 +200,8 @@ export type Database = {
         Insert: {
           created_at?: string
           details?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           payment_status?: string
           receipt_id: string
@@ -208,6 +212,8 @@ export type Database = {
         Update: {
           created_at?: string
           details?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           payment_status?: string
           receipt_id?: string
