@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 const guestInfoSchema = z.object({
   fullName: z.string().min(3, "Le nom doit contenir au moins 3 caractères"),
-  phoneNumber: z.string().min(9, "Le numéro de téléphone doit contenir au moins 9 chiffres"),
+  phoneNumber: z.string().optional(),
 });
 
 type GuestInfoFormValues = z.infer<typeof guestInfoSchema>;
@@ -77,7 +77,7 @@ export const GuestInfoDialog: React.FC<GuestInfoDialogProps> = ({
               name="phoneNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Numéro de téléphone</FormLabel>
+                  <FormLabel>Numéro de téléphone (optionnel)</FormLabel>
                   <FormControl>
                     <Input placeholder="70 123 45 67" {...field} />
                   </FormControl>
@@ -103,3 +103,4 @@ export const GuestInfoDialog: React.FC<GuestInfoDialogProps> = ({
     </Dialog>
   );
 };
+
