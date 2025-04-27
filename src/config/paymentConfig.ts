@@ -1,3 +1,4 @@
+
 // Configuration des paiements pour l'application
 // Vous pouvez modifier ces valeurs selon vos besoins
 
