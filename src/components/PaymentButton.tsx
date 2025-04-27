@@ -49,12 +49,58 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   const saveOrderToDatabase = async (
     receiptId: string, 
     fullDetails: any, 
-    guestInfo?: { fullName: string; phoneNumber: string }
+    guestInfo?: { fullName: string; phoneNumber?: string; loyaltyNumber?: string }
   ) => {
     try {
+      let clientId = null;
+
+      // Si nous avons des informations client, créer ou mettre à jour le client
+      if (guestInfo) {
+        // Chercher d'abord un client existant avec le même numéro de fidélité si fourni
+        if (guestInfo.loyaltyNumber) {
+          const { data: existingClient } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('loyalty_number', guestInfo.loyaltyNumber)
+            .single();
+
+          if (existingClient) {
+            clientId = existingClient.id;
+            // Mettre à jour les informations du client si nécessaire
+            await supabase
+              .from('clients')
+              .update({
+                name: guestInfo.fullName,
+                phone: guestInfo.phoneNumber,
+              })
+              .eq('id', clientId);
+          }
+        }
+
+        // Si aucun client existant n'a été trouvé, créer un nouveau client
+        if (!clientId) {
+          const { data: newClient, error: clientError } = await supabase
+            .from('clients')
+            .insert({
+              name: guestInfo.fullName,
+              phone: guestInfo.phoneNumber,
+              loyalty_number: guestInfo.loyaltyNumber,
+            })
+            .select('id')
+            .single();
+
+          if (clientError) {
+            console.error("Erreur lors de la création du client:", clientError);
+          } else {
+            clientId = newClient.id;
+          }
+        }
+      }
+
       console.log("Enregistrement de la commande dans la base de données", {
         receipt_id: receiptId,
         user_id: userData?.id || null,
+        client_id: clientId,
         total_amount: roundedPrice,
         details: JSON.stringify(fullDetails),
         guest_name: guestInfo?.fullName,
@@ -64,6 +110,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         receipt_id: receiptId,
         user_id: userData?.id || null,
+        client_id: clientId,
         total_amount: roundedPrice,
         details: JSON.stringify(fullDetails),
         guest_name: guestInfo?.fullName,
