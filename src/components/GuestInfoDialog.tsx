@@ -11,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 const guestInfoSchema = z.object({
   fullName: z.string().min(3, "Le nom doit contenir au moins 3 caractères"),
   phoneNumber: z.string().optional(),
+  loyaltyNumber: z.string().optional(),
 });
 
 type GuestInfoFormValues = z.infer<typeof guestInfoSchema>;
@@ -35,6 +36,7 @@ export const GuestInfoDialog: React.FC<GuestInfoDialogProps> = ({
     defaultValues: {
       fullName: "",
       phoneNumber: "",
+      loyaltyNumber: "",
     },
   });
 
@@ -86,6 +88,20 @@ export const GuestInfoDialog: React.FC<GuestInfoDialogProps> = ({
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="loyaltyNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Numéro de fidélité (optionnel)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Votre numéro de fidélité" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button 
                 type="submit" 
@@ -103,4 +119,3 @@ export const GuestInfoDialog: React.FC<GuestInfoDialogProps> = ({
     </Dialog>
   );
 };
-
