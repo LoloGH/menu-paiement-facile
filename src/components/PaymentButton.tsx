@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
@@ -50,17 +51,19 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   ) => {
     try {
       let clientId = null;
+      let loyaltyNumber = null;
 
       if (guestInfo) {
         if (guestInfo.loyaltyNumber) {
           const { data: existingClient } = await supabase
             .from('clients')
-            .select('id')
+            .select('id, loyalty_number')
             .eq('loyalty_number', guestInfo.loyaltyNumber)
             .single();
 
           if (existingClient) {
             clientId = existingClient.id;
+            loyaltyNumber = existingClient.loyalty_number;
             await supabase
               .from('clients')
               .update({
@@ -68,6 +71,11 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
                 phone: guestInfo.phoneNumber,
               })
               .eq('id', clientId);
+
+            toast({
+              title: "Client fidèle reconnu",
+              description: `Merci de votre fidélité ! Votre commande sera ajoutée à votre historique.`,
+            });
           }
         }
 
@@ -77,35 +85,35 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
             .insert({
               name: guestInfo.fullName,
               phone: guestInfo.phoneNumber,
-              loyalty_number: guestInfo.loyaltyNumber,
             })
-            .select('id')
+            .select('id, loyalty_number')
             .single();
 
           if (clientError) {
             console.error("Erreur lors de la création du client:", clientError);
           } else {
             clientId = newClient.id;
+            loyaltyNumber = newClient.loyalty_number;
+            
+            toast({
+              title: "Numéro de fidélité créé",
+              description: `Votre numéro de fidélité est : ${loyaltyNumber}. Conservez-le pour vos prochaines commandes !`,
+            });
           }
         }
       }
 
-      console.log("Enregistrement de la commande dans la base de données", {
-        receipt_id: receiptId,
-        user_id: userData?.id || null,
-        client_id: clientId,
-        total_amount: roundedPrice,
-        details: JSON.stringify(fullDetails),
-        guest_name: guestInfo?.fullName,
-        guest_phone: guestInfo?.phoneNumber
-      });
+      const orderDetails = {
+        ...fullDetails,
+        loyalty_number: loyaltyNumber
+      };
 
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         receipt_id: receiptId,
         user_id: userData?.id || null,
         client_id: clientId,
         total_amount: roundedPrice,
-        details: JSON.stringify(fullDetails),
+        details: JSON.stringify(orderDetails),
         guest_name: guestInfo?.fullName,
         guest_phone: guestInfo?.phoneNumber,
         payment_status: 'pending'

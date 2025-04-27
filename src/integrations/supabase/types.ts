@@ -376,6 +376,10 @@ export type Database = {
         Args: { user_email: string; role_name: string }
         Returns: boolean
       }
+      generate_loyalty_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_users_with_role: {
         Args: { role_name: string }
         Returns: Json[]

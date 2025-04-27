@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ interface PaymentReceiptDialogProps {
   tableNumber?: string;
   clientNote?: string;
   clientName?: string;
+  loyaltyNumber?: string;
 }
 
 export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
@@ -29,7 +29,8 @@ export const PaymentReceiptDialog: React.FC<PaymentReceiptDialogProps> = ({
   orderId,
   tableNumber,
   clientNote,
-  clientName
+  clientName,
+  loyaltyNumber
 }) => {
   const { toast } = useToast();
   const roundedPrice = Math.round(price);
@@ -54,6 +55,7 @@ ID Commande: ${receiptId}
 ${orderId ? `Référence DB: ${orderId}` : ''}
 Date: ${formatDate(date)}
 ${clientName ? `Client: ${clientName}` : ''}
+${loyaltyNumber ? `N° de fidélité: ${loyaltyNumber}` : ''}
 ${tableNumber ? `N° de Table: ${tableNumber}` : ''}
 ${clientNote ? `Notes spéciales: ${clientNote}` : ''}
 
@@ -117,6 +119,11 @@ Merci pour votre commande !
     
     if (clientName) {
       doc.text(`Client: ${clientName}`, 40, yPos);
+      yPos += 10;
+    }
+    
+    if (loyaltyNumber) {
+      doc.text(`N° de fidélité: ${loyaltyNumber}`, 40, yPos);
       yPos += 10;
     }
     
