@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { paymentRedirectUrl, generateReceiptId } from '@/config/paymentConfig';
 import { PaymentReceiptDialog } from '@/components/PaymentReceiptDialog';
-import { GuestInfoDialog } from '@/components/GuestInfoDialog';
+import { PaymentLoginDialog } from '@/components/PaymentLoginDialog';
 import { useToast } from "@/hooks/use-toast";
 import { useUserAuth } from '@/hooks/use-user-auth';
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,16 @@ interface PaymentButtonProps {
   };
 }
 
+interface OrderItem {
+  order_id: string;
+  main_dish: string;
+  price: number;
+  day: string;
+  meal_option_id: string;
+  side_dish?: string;
+  dessert?: string;
+}
+
 export const PaymentButton: React.FC<PaymentButtonProps> = ({
   price,
   label,
@@ -27,170 +37,115 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   additionalData
 }) => {
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
-  const [showGuestInfoDialog, setShowGuestInfoDialog] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [receiptId, setReceiptId] = useState("");
-  const [loyaltyNumberForReceipt, setLoyaltyNumberForReceipt] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { isLoggedIn, userData } = useUserAuth();
+  const {
+    toast
+  } = useToast();
+  const {
+    isLoggedIn,
+    userData
+  } = useUserAuth();
   const roundedPrice = Math.round(price);
 
   const handlePayment = () => {
-    if (isLoggedIn && userData) {
-      proceedWithPayment({
-        fullName: userData.fullName,
-        phoneNumber: userData.phoneNumber
-      });
-    } else {
-      setShowGuestInfoDialog(true);
+    if (!isLoggedIn) {
+      setShowLoginDialog(true);
+      return;
     }
+    proceedWithPayment();
   };
 
-  const saveOrderToDatabase = async (
-    receiptId: string, 
-    fullDetails: any, 
-    guestInfo?: { fullName: string; phoneNumber?: string; loyaltyNumber?: string }
-  ) => {
+  const saveOrderToDatabase = async (receiptId: string, fullDetails: any) => {
+    if (!isLoggedIn || !userData) {
+      console.log("Non connecté, commande non enregistrée");
+      return;
+    }
+
     try {
-      let clientId = null;
-      let loyaltyNumber = null;
+      console.log("Enregistrement de la commande dans la base de données", {
+        receipt_id: receiptId,
+        user_id: userData.id,
+        total_amount: roundedPrice,
+        details: JSON.stringify(fullDetails)
+      });
 
-      if (guestInfo) {
-        if (guestInfo.loyaltyNumber) {
-          try {
-            const { data: existingClient, error: clientLookupError } = await supabase
-              .from('clients')
-              .select('id, loyalty_number, name, phone')
-              .eq('loyalty_number', guestInfo.loyaltyNumber)
-              .maybeSingle();
+      const {
+        data: orderData,
+        error: orderError
+      } = await supabase.from('orders').insert({
+        receipt_id: receiptId,
+        user_id: userData.id,
+        total_amount: roundedPrice,
+        details: JSON.stringify(fullDetails),
+        payment_status: 'pending'
+      }).select('id');
 
-            if (clientLookupError) {
-              console.error("Erreur lors de la recherche du client:", clientLookupError);
-            }
-
-            if (existingClient) {
-              clientId = existingClient.id;
-              loyaltyNumber = existingClient.loyalty_number;
-              
-              // Mise à jour du client existant avec les dernières informations
-              const { error: updateError } = await supabase
-                .from('clients')
-                .update({
-                  name: guestInfo.fullName || existingClient.name,
-                  phone: guestInfo.phoneNumber || existingClient.phone,
-                })
-                .eq('id', clientId);
-              
-              if (updateError) {
-                console.error("Erreur lors de la mise à jour du client:", updateError);
-              } else {
-                toast({
-                  title: "Client fidèle reconnu",
-                  description: `Merci de votre fidélité ! Votre commande sera ajoutée à votre historique.`,
-                });
-              }
-            } else {
-              // Le numéro de fidélité n'existe pas, on crée un nouveau client
-              const { data: newClient, error: insertError } = await supabase
-                .from('clients')
-                .insert({
-                  name: guestInfo.fullName,
-                  phone: guestInfo.phoneNumber,
-                  loyalty_number: guestInfo.loyaltyNumber,
-                })
-                .select('id, loyalty_number')
-                .single();
-                
-              if (insertError) {
-                console.error("Erreur lors de la création du client avec numéro de fidélité spécifié:", insertError);
-              } else {
-                clientId = newClient.id;
-                loyaltyNumber = newClient.loyalty_number;
-              }
-            }
-          } catch (error) {
-            console.error("Erreur lors de la vérification du numéro de fidélité:", error);
-          }
-        }
-
-        // Si aucun client n'a été trouvé ou créé avec le numéro de fidélité
-        if (!clientId) {
-          try {
-            const { data: newClient, error: clientError } = await supabase
-              .from('clients')
-              .insert({
-                name: guestInfo.fullName,
-                phone: guestInfo.phoneNumber,
-              })
-              .select('id, loyalty_number')
-              .single();
-
-            if (clientError) {
-              console.error("Erreur lors de la création du client:", clientError);
-            } else {
-              clientId = newClient.id;
-              loyaltyNumber = newClient.loyalty_number;
-              
-              toast({
-                title: "Numéro de fidélité créé",
-                description: `Votre numéro de fidélité est : ${loyaltyNumber}. Conservez-le pour vos prochaines commandes !`,
-              });
-            }
-          } catch (error) {
-            console.error("Erreur lors de la création du client:", error);
-          }
-        }
-      }
-
-      setLoyaltyNumberForReceipt(loyaltyNumber);
-
-      const orderDetails = {
-        ...fullDetails,
-        loyalty_number: loyaltyNumber
-      };
-
-      // Enregistrement de la commande
-      try {
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            receipt_id: receiptId,
-            user_id: userData?.id || null,
-            client_id: clientId,
-            total_amount: roundedPrice,
-            details: JSON.stringify(orderDetails),
-            guest_name: guestInfo?.fullName,
-            guest_phone: guestInfo?.phoneNumber,
-            payment_status: 'pending'
-          })
-          .select('id');
-
-        if (orderError) {
-          console.error("Erreur lors de l'enregistrement de la commande:", orderError);
-          toast({
-            title: "Erreur",
-            description: "Impossible d'enregistrer votre commande. Veuillez réessayer.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        console.log("Commande enregistrée avec succès:", orderData);
-        playSounds.newOrder();
-        
-        toast({
-          title: "Succès",
-          description: "Votre commande a été enregistrée avec succès.",
-        });
-      } catch (error) {
-        console.error("Erreur lors de l'enregistrement de la commande:", error);
+      if (orderError) {
+        console.error("Erreur lors de l'enregistrement de la commande:", orderError);
         toast({
           title: "Erreur",
-          description: "Une erreur est survenue lors de l'enregistrement de votre commande.",
+          description: "Impossible d'enregistrer votre commande. Veuillez réessayer.",
           variant: "destructive"
         });
+        return;
+      }
+
+      console.log("Commande enregistrée avec succès:", orderData);
+
+      if (orderData && orderData.length > 0) {
+        const orderId = orderData[0].id;
+
+        const orderItem: OrderItem = {
+          order_id: orderId,
+          main_dish: details,
+          price: roundedPrice,
+          day: new Date().toLocaleDateString('fr-FR', {
+            weekday: 'long'
+          }),
+          meal_option_id: `manual-${Date.now()}`
+        };
+
+        if (additionalData?.tableNumber) {
+          orderItem.side_dish = `Table: ${additionalData.tableNumber}`;
+        }
+
+        if (additionalData?.clientNote) {
+          orderItem.dessert = additionalData.clientNote;
+        }
+
+        const {
+          error: itemError
+        } = await supabase.from('order_items').insert(orderItem);
+
+        if (itemError) {
+          console.error("Erreur lors de l'enregistrement des éléments de commande:", itemError);
+          toast({
+            title: "Avertissement",
+            description: "Votre commande a été enregistrée mais certains détails n'ont pas pu être sauvegardés.",
+            variant: "default"
+          });
+        } else {
+          // Lecture explicite du son de nouvelle commande
+          try {
+            console.log("Lecture du son de nouvelle commande");
+            playSounds.newOrder();
+          } catch (soundError) {
+            console.error("Erreur lors de la lecture du son:", soundError);
+          }
+          
+          console.log("Éléments de commande enregistrés avec succès");
+          toast({
+            title: "Succès",
+            description: "Votre commande a été enregistrée avec succès.",
+            variant: "default"
+          });
+        }
+      } else {
+        console.error("Aucun ID de commande retourné après insertion");
       }
     } catch (err) {
-      console.error("Erreur générale lors de l'enregistrement de la commande:", err);
+      console.error("Erreur lors de l'enregistrement de la commande:", err);
       toast({
         title: "Erreur",
         description: "Une erreur est survenue lors de l'enregistrement de votre commande.",
@@ -199,62 +154,50 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     }
   };
 
-  const proceedWithPayment = (guestInfo?: { fullName: string; phoneNumber: string; loyaltyNumber?: string }) => {
+  const proceedWithPayment = () => {
     const newReceiptId = generateReceiptId();
     setReceiptId(newReceiptId);
-    
+    setShowReceiptDialog(true);
     const fullDetails = {
       items: details,
-      ...(additionalData?.tableNumber && { table: additionalData.tableNumber }),
-      ...(additionalData?.clientNote && { note: additionalData.clientNote }),
-      ...(guestInfo?.fullName && { client: guestInfo.fullName }),
-      ...(guestInfo?.phoneNumber && { phone: guestInfo.phoneNumber }),
-      ...(guestInfo?.loyaltyNumber && { loyaltyNumber: guestInfo.loyaltyNumber })
+      ...(additionalData?.tableNumber && {
+        table: additionalData.tableNumber
+      }),
+      ...(additionalData?.clientNote && {
+        note: additionalData.clientNote
+      }),
+      ...(userData?.fullName && {
+        client: userData.fullName
+      })
     };
 
-    saveOrderToDatabase(newReceiptId, fullDetails, guestInfo);
-    setShowReceiptDialog(true);
+    saveOrderToDatabase(newReceiptId, fullDetails);
+    toast({
+      title: "Reçu disponible",
+      description: "Votre reçu est disponible pour téléchargement."
+    });
 
     const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
     const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
 
-    // Redirection vers la page de paiement après l'enregistrement de la commande
-    setTimeout(() => {
-      window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`;
-    }, 1500);
+    window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`;
   };
 
-  return (
-    <>
-      <div className="flex flex-col items-center gap-2">
-        <Button 
-          onClick={handlePayment} 
-          className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors"
-        >
-          <ShoppingCart className="mr-2 h-5 w-5" />
-          {label}
-        </Button>
-      </div>
-      
-      {showReceiptDialog && (
-        <PaymentReceiptDialog
-          isOpen={showReceiptDialog}
-          onClose={() => setShowReceiptDialog(false)}
-          price={roundedPrice}
-          details={details}
-          date={new Date()}
-          receiptId={receiptId}
-          loyaltyNumber={loyaltyNumberForReceipt || undefined}
-        />
-      )}
+  const handleLoginSuccess = () => {
+    setShowLoginDialog(false);
+    proceedWithPayment();
+  };
 
-      <GuestInfoDialog
-        isOpen={showGuestInfoDialog}
-        onClose={() => setShowGuestInfoDialog(false)}
-        onSubmit={proceedWithPayment}
-        price={roundedPrice}
-        details={details}
-      />
-    </>
-  );
+  return <>
+    <div className="flex flex-col items-center gap-2">
+      <Button onClick={handlePayment} className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors">
+        <ShoppingCart className="mr-2 h-5 w-5" />
+        {label}
+      </Button>
+    </div>
+    
+    {showReceiptDialog && <PaymentReceiptDialog isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} price={roundedPrice} details={details} date={new Date()} receiptId={receiptId} orderId={`ORD-${Date.now()}`} tableNumber={additionalData?.tableNumber} clientNote={additionalData?.clientNote} clientName={userData?.fullName} />}
+
+    <PaymentLoginDialog isOpen={showLoginDialog} onClose={() => setShowLoginDialog(false)} onLoginSuccess={handleLoginSuccess} price={roundedPrice} details={details} />
+  </>;
 };
