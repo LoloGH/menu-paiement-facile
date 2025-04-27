@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
@@ -34,14 +33,12 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   const roundedPrice = Math.round(price);
 
   const handlePayment = () => {
-    // Si l'utilisateur est connecté, utiliser ses informations
     if (isLoggedIn && userData) {
       proceedWithPayment({
         fullName: userData.fullName,
         phoneNumber: userData.phoneNumber
       });
     } else {
-      // Sinon, afficher le dialogue pour saisir les informations
       setShowGuestInfoDialog(true);
     }
   };
@@ -54,9 +51,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     try {
       let clientId = null;
 
-      // Si nous avons des informations client, créer ou mettre à jour le client
       if (guestInfo) {
-        // Chercher d'abord un client existant avec le même numéro de fidélité si fourni
         if (guestInfo.loyaltyNumber) {
           const { data: existingClient } = await supabase
             .from('clients')
@@ -66,7 +61,6 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
 
           if (existingClient) {
             clientId = existingClient.id;
-            // Mettre à jour les informations du client si nécessaire
             await supabase
               .from('clients')
               .update({
@@ -77,7 +71,6 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           }
         }
 
-        // Si aucun client existant n'a été trouvé, créer un nouveau client
         if (!clientId) {
           const { data: newClient, error: clientError } = await supabase
             .from('clients')
