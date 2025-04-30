@@ -6,6 +6,7 @@
 /**
  * Executes a task in the background using setTimeout with a minimal delay
  * to ensure it doesn't block the UI thread
+ * @returns Promise that resolves with the result of the task
  */
 export const runInBackground = <T>(task: () => Promise<T>, delay = 10): Promise<T> => {
   return new Promise((resolve, reject) => {

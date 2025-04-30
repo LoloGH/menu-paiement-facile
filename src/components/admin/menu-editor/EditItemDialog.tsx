@@ -66,16 +66,18 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
           : 'dessert';
 
       // Run the fetch in background to prevent UI blocking
-      const { data, error } = await runInBackground(() => 
-        supabase
+      const result = await runInBackground(async () => {
+        const response = await supabase
           .from('articles')
           .select('*')
           .eq('type', articleType)
-          .order('name')
-      );
+          .order('name');
+          
+        return response;
+      });
 
-      if (error) {
-        console.error('Error fetching articles:', error);
+      if (result.error) {
+        console.error('Error fetching articles:', result.error);
         
         // Retry after a delay if we haven't reached the max retries
         if (retry < maxRetries) {
@@ -83,11 +85,11 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
           return;
         }
         
-        throw error;
+        throw result.error;
       }
 
-      console.log('Fetched articles:', data);
-      setAvailableArticles(data || []);
+      console.log('Fetched articles:', result.data);
+      setAvailableArticles(result.data || []);
       
       // Set the selected article ID if available
       if (item?.articleId) {
@@ -95,7 +97,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         setSelectedArticleId(item.articleId);
       } else if (item?.name) {
         // Try to find a matching article by name
-        const matchingArticle = data?.find(article => article.name === item.name);
+        const matchingArticle = result.data?.find(article => article.name === item.name);
         if (matchingArticle) {
           console.log('Found matching article by name:', matchingArticle.id);
           setSelectedArticleId(matchingArticle.id);
