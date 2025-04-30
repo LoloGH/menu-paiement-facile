@@ -69,8 +69,8 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         .from('articles')
         .select('*')
         .eq('type', articleType)
-        .order('name')
-        .timeout(5000); // Ajouter un timeout pour éviter les requêtes bloquantes
+        .order('name');
+        // Removed timeout to fix TypeScript error
 
       if (error) {
         console.error('Error fetching articles:', error);

@@ -118,8 +118,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               .from('menu_articles')
               .select('*')
               .eq('menu_day', menuId)
-              .eq('article_id', articleId)
-              .timeout(3000); // Ajouter un timeout pour éviter les requêtes bloquantes
+              .eq('article_id', articleId);
+              // Removed timeout to fix TypeScript error
               
             if (fetchError) {
               console.error('Error checking existing menu article association:', fetchError);
@@ -134,8 +134,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                 .insert({
                   menu_day: menuId,
                   article_id: articleId
-                })
-                .timeout(3000);
+                });
+                // Removed timeout to fix TypeScript error
                 
               if (insertError) {
                 console.error('Error saving menu article association:', insertError);
@@ -151,8 +151,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               .from('menu_articles')
               .delete()
               .eq('menu_day', menuId)
-              .eq('article_id', articleId)
-              .timeout(3000);
+              .eq('article_id', articleId);
+              // Removed timeout to fix TypeScript error
 
             if (error) {
               console.error(`Error deleting menu article association:`, error);
