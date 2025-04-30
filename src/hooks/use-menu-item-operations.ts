@@ -80,6 +80,31 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
   }, []);
 
   /**
+   * Log admin action safely in background with retry
+   */
+  const safelyLogAdminAction = useCallback(async (
+    actionType: string,
+    details: any
+  ): Promise<void> => {
+    if (!onMenuUpdated) return;
+    
+    return globalTaskQueue.add(async () => {
+      try {
+        // Use withRetry to automatically retry in case of failure
+        await withRetry(async () => {
+          await onMenuUpdated(actionType, details);
+          return { error: null }; // Format to match withRetry expectation
+        }, 3, 500); // 3 retries with 500ms base delay
+        
+        console.log(`Admin action logged successfully: ${actionType}`);
+      } catch (error) {
+        // Just log the error but don't throw - this prevents UI blocking
+        console.error(`Failed to log admin action after retries: ${actionType}`, error);
+      }
+    });
+  }, [onMenuUpdated]);
+
+  /**
    * Save a menu item with optimistic updates and background processing
    */
   const saveMenuItem = useCallback(async (
@@ -106,13 +131,11 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
             await updateMenuArticleAssociation(item.articleId, menuId, 'add');
           }
           
-          // Call the onMenuUpdated callback if available
-          if (onMenuUpdated) {
-            await onMenuUpdated(actionType, { 
-              menuId, 
-              dish: item 
-            });
-          }
+          // Call the safelyLogAdminAction function for logging
+          await safelyLogAdminAction(actionType, { 
+            menuId, 
+            dish: item 
+          });
         } catch (error) {
           console.error("Error in background tasks:", error);
         }
@@ -127,7 +150,7 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
     } finally {
       setIsLoading(false);
     }
-  }, [updateMenuItem, updateMenuArticleAssociation, onMenuUpdated, toast]);
+  }, [updateMenuItem, updateMenuArticleAssociation, safelyLogAdminAction, toast]);
   
   /**
    * Delete a menu item with optimistic updates and background processing
@@ -152,13 +175,11 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
             await updateMenuArticleAssociation(articleId, menuId, 'remove');
           }
           
-          // Call the onMenuUpdated callback if available
-          if (onMenuUpdated) {
-            await onMenuUpdated(`delete_${dishType}`, { 
-              menuId,
-              dishId,
-            });
-          }
+          // Call the safelyLogAdminAction function for logging
+          await safelyLogAdminAction(`delete_${dishType}`, { 
+            menuId,
+            dishId,
+          });
         } catch (error) {
           console.error("Error in background tasks:", error);
         }
@@ -173,7 +194,7 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
     } finally {
       setIsLoading(false);
     }
-  }, [deleteMenuItem, updateMenuArticleAssociation, onMenuUpdated, toast]);
+  }, [deleteMenuItem, updateMenuArticleAssociation, safelyLogAdminAction, toast]);
 
   return {
     isLoading,

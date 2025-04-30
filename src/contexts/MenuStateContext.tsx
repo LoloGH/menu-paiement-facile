@@ -74,157 +74,139 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const saveMenusToLocalStorage = useCallback((updatedMenus: MenuDay[]) => {
     try {
-      console.log("Saving menus to localStorage:", updatedMenus);
       localStorage.setItem('weeklyMenu', JSON.stringify(updatedMenus));
       
-      // Trigger an event to notify other components
+      // Dispatch an event to notify other components about the update
       const event = new CustomEvent('menu-updated', { detail: updatedMenus });
       window.dispatchEvent(event);
+      
+      console.log('Menus saved to localStorage successfully');
     } catch (error) {
-      console.error("Error saving menus to localStorage:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la sauvegarde des menus.",
-        variant: "destructive",
-      });
+      console.error('Error saving menus to localStorage:', error);
     }
-  }, [toast]);
+  }, []);
 
   const addEditingItemId = useCallback((itemId: string) => {
-    setEditingItemIds(prev => [...prev, itemId]);
+    setEditingItemIds(prevIds => [...prevIds, itemId]);
   }, []);
 
   const removeEditingItemId = useCallback((itemId: string) => {
-    setEditingItemIds(prev => prev.filter(id => id !== itemId));
+    setEditingItemIds(prevIds => prevIds.filter(id => id !== itemId));
   }, []);
 
-  // Function to update a menu item with optimistic updates
-  const updateMenuItem = useCallback(async (menuId: string, item: MenuItem, isNew: boolean) => {
+  // Update a menu item with optimistic updates
+  const updateMenuItem = useCallback(async (
+    menuId: string, 
+    item: MenuItem, 
+    isNew: boolean
+  ): Promise<void> => {
+    setIsProcessing(true);
+    
     try {
-      // Get the type key (mainDishes, sideDishes, desserts)
-      const typeMap: Record<string, keyof MenuDay> = {
-        main_dish: 'mainDishes',
-        side_dish: 'sideDishes',
-        dessert: 'desserts'
-      };
-      
-      const itemType = typeMap[item.type] as keyof MenuDay;
-      
-      // Update menus with optimistic update
-      const updatedMenus = menus.map(m => {
-        if (m.id === menuId) {
-          const currentItems = [...(Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [])];
-          
-          if (isNew) {
-            return { ...m, [itemType]: [...currentItems, item] };
-          } else {
-            const updatedItems = currentItems.map(existingItem => 
-              existingItem.id === item.id ? item : existingItem
-            );
+      setMenus(prevMenus => {
+        const updatedMenus = prevMenus.map(menu => {
+          if (menu.id === menuId) {
+            const itemType = item.type === 'main_dish' 
+              ? 'mainDishes' 
+              : item.type === 'side_dish' 
+                ? 'sideDishes' 
+                : 'desserts';
+                
+            const itemsArray = [...(menu[itemType as keyof MenuDay] as MenuItem[])];
             
-            // If item wasn't found, add it
-            if (!updatedItems.some(i => i.id === item.id)) {
-              updatedItems.push(item);
+            if (isNew) {
+              // Add new item
+              itemsArray.push(item);
+            } else {
+              // Update existing item
+              const index = itemsArray.findIndex(existing => existing.id === item.id);
+              if (index !== -1) {
+                itemsArray[index] = item;
+              } else {
+                // Item wasn't found but we need to update, so add it
+                itemsArray.push(item);
+              }
             }
             
-            return { ...m, [itemType]: updatedItems };
+            return { ...menu, [itemType]: itemsArray };
           }
-        }
-        return m;
+          return menu;
+        });
+        
+        // Save to localStorage
+        saveMenusToLocalStorage(updatedMenus);
+        
+        return updatedMenus;
       });
-      
-      // Update UI immediately
-      setMenus(updatedMenus);
-      
-      // Save to localStorage
-      saveMenusToLocalStorage(updatedMenus);
-      
-      // Show success toast
-      toast({
-        title: "Succès",
-        description: isNew ? "Élément ajouté avec succès" : "Élément mis à jour avec succès",
-      });
-      
-      return Promise.resolve();
     } catch (error) {
       console.error("Error updating menu item:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de la mise à jour de l'élément.",
+        description: "Une erreur est survenue lors de la mise à jour du menu.",
         variant: "destructive",
       });
-      return Promise.reject(error);
     }
-  }, [menus, saveMenusToLocalStorage, toast]);
+  }, [saveMenusToLocalStorage, toast]);
 
-  // Function to delete a menu item with optimistic updates
-  const deleteMenuItem = useCallback(async (menuId: string, dishId: string, dishType: DishType) => {
+  // Delete a menu item with optimistic updates
+  const deleteMenuItem = useCallback(async (
+    menuId: string, 
+    dishId: string, 
+    dishType: DishType
+  ): Promise<void> => {
+    // Set the deleteProcessing state for UI feedback
+    setDeleteProcessing(dishId);
+    
     try {
-      // Get the type key (mainDishes, sideDishes, desserts)
-      const typeMap: Record<DishType, keyof MenuDay> = {
-        mainDish: 'mainDishes',
-        sideDish: 'sideDishes',
-        dessert: 'desserts'
-      };
-      
-      const itemType = typeMap[dishType];
-      
-      // Update menus with optimistic delete
-      const updatedMenus = menus.map(m => {
-        if (m.id === menuId) {
-          const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
-          return {
-            ...m,
-            [itemType]: currentItems.filter(item => item.id !== dishId)
-          };
-        }
-        return m;
+      setMenus(prevMenus => {
+        const updatedMenus = prevMenus.map(menu => {
+          if (menu.id === menuId) {
+            const itemTypeKey = `${dishType}s` as keyof MenuDay;
+            const currentItems = [...(menu[itemTypeKey] as MenuItem[] || [])];
+            
+            // Filter out the item to be deleted
+            const updatedItems = currentItems.filter(item => item.id !== dishId);
+            
+            return { ...menu, [itemTypeKey]: updatedItems };
+          }
+          return menu;
+        });
+        
+        // Save to localStorage
+        saveMenusToLocalStorage(updatedMenus);
+        
+        return updatedMenus;
       });
-      
-      // Update UI immediately
-      setMenus(updatedMenus);
-      
-      // Save to localStorage
-      saveMenusToLocalStorage(updatedMenus);
-      
-      // Show success toast
-      toast({
-        title: "Succès",
-        description: "Élément supprimé avec succès",
-      });
-      
-      return Promise.resolve();
     } catch (error) {
       console.error("Error deleting menu item:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de la suppression de l'élément.",
+        description: "Une erreur est survenue lors de la suppression de l'élément du menu.",
         variant: "destructive",
       });
-      return Promise.reject(error);
     }
-  }, [menus, saveMenusToLocalStorage, toast]);
+  }, [saveMenusToLocalStorage, toast]);
+
+  const value = {
+    menus,
+    updateMenus,
+    saveMenusToLocalStorage,
+    activeMenuId,
+    setActiveMenuId,
+    isProcessing,
+    setIsProcessing,
+    deleteProcessing,
+    setDeleteProcessing,
+    editingItemIds,
+    addEditingItemId,
+    removeEditingItemId,
+    pendingOperations,
+    updateMenuItem,
+    deleteMenuItem
+  };
 
   return (
-    <MenuStateContext.Provider 
-      value={{
-        menus,
-        updateMenus,
-        saveMenusToLocalStorage,
-        activeMenuId,
-        setActiveMenuId,
-        isProcessing,
-        setIsProcessing,
-        deleteProcessing,
-        setDeleteProcessing,
-        editingItemIds,
-        addEditingItemId,
-        removeEditingItemId,
-        pendingOperations,
-        updateMenuItem,
-        deleteMenuItem,
-      }}
-    >
+    <MenuStateContext.Provider value={value}>
       {children}
     </MenuStateContext.Provider>
   );
@@ -232,8 +214,10 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
 
 export const useMenuState = (): MenuStateContextProps => {
   const context = useContext(MenuStateContext);
-  if (context === undefined) {
+  
+  if (!context) {
     throw new Error('useMenuState must be used within a MenuStateProvider');
   }
+  
   return context;
 };
