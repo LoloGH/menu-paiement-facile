@@ -19,7 +19,8 @@ import {
 import { Check, Loader2, AlertCircle } from "lucide-react";
 import { MenuItem, DishType } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { runInBackground } from "@/utils/backgroundWorker";
+import { runInBackground, globalTaskQueue, withRetry } from "@/utils/backgroundWorker";
+import { useMenuState } from "@/contexts/MenuStateContext";
 
 interface Article {
   id: string;
@@ -46,8 +47,9 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   const [error, setError] = useState<string | null>(null);
   const [fetchRetries, setFetchRetries] = useState(0);
   const maxRetries = 3;
+  const { editingItemIds, removeEditingItemId } = useMenuState();
   
-  // Memoized fetch articles function to prevent unnecessary re-renders
+  // Memoized fetch articles function with improved error handling
   const fetchArticles = useCallback(async (retry = 0) => {
     if (retry > maxRetries) {
       setError("Erreur persistante lors du chargement des articles. Veuillez réessayer plus tard.");
@@ -66,14 +68,22 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
           : 'dessert';
 
       // Run the fetch in background to prevent UI blocking
-      const result = await runInBackground(async () => {
-        const response = await supabase
-          .from('articles')
-          .select('*')
-          .eq('type', articleType)
-          .order('name');
-          
-        return response;
+      const result = await globalTaskQueue.add(async () => {
+        try {
+          // Use withRetry for automatic retry with backoff
+          return await withRetry(async () => {
+            const response = await supabase
+              .from('articles')
+              .select('*')
+              .eq('type', articleType)
+              .order('name');
+              
+            return response;
+          });
+        } catch (error) {
+          console.error('Error in background fetch:', error);
+          throw error;
+        }
       });
 
       if (result.error) {
@@ -126,7 +136,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
     };
   }, [fetchArticles]);
 
-  // Modified save handler with improved sequence for dialog closing
+  // Improved save handler with optimized dialog closing sequence
   const handleSave = useCallback(() => {
     if (isSaving) return;
     
@@ -157,24 +167,19 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
       console.log("Menu item prepared:", menuItem);
       
-      // Mark as saving
+      // Mark as saving and close the dialog at the same time
       setIsSaving(true);
-      
-      // Close the dialog FIRST to prevent UI freeze
       setIsOpen(false);
       
-      // Schedule the save operation after the dialog begins to close
-      runInBackground(() => {
-        return new Promise<void>((resolve) => {
-          try {
-            onSave(menuItem);
-          } catch (error) {
-            console.error("Error in save callback:", error);
-          } finally {
-            resolve();
-          }
-        });
-      });
+      // Use a short timeout to allow the dialog closing animation to start
+      // before performing the save operation (which might briefly block the main thread)
+      setTimeout(() => {
+        try {
+          onSave(menuItem);
+        } catch (error) {
+          console.error("Error in save callback:", error);
+        }
+      }, 50);
       
     } catch (error) {
       console.error("Error preparing item for save:", error);
@@ -192,10 +197,13 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
     requestAnimationFrame(() => {
       // Small delay to ensure the animation starts before we call onClose
       setTimeout(() => {
+        if (item?.id) {
+          removeEditingItemId(item.id);
+        }
         onClose();
       }, 50);
     });
-  }, [onClose]);
+  }, [onClose, item, removeEditingItemId]);
 
   const typeLabel = type === "mainDish" 
     ? "plat principal" 
