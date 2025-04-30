@@ -24,6 +24,7 @@ import { AccessDenied } from "@/components/admin/AccessDenied";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { StatCard } from "@/components/admin/stats/StatCard";
 import { logAdminAction } from "@/integrations/supabase/client";
+import { MenuStateProvider } from "@/contexts/MenuStateContext";
 
 const AdminInterface = () => {
   const { toast } = useToast();
@@ -458,45 +459,47 @@ const AdminInterface = () => {
               
               <TabsContent value="menus" className="space-y-4">
                 {permissions.canViewMenus ? (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex justify-between items-center mb-3">
-                        <CardTitle>Gestion des Menus Hebdomadaires</CardTitle>
-                        {permissions.canManageMenus && (
-                          <Button
-                            variant="outline"
-                            onClick={handleRefreshMenus}
-                            className="flex items-center"
-                            disabled={isRefreshing}
-                          >
-                            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                            Actualiser
-                          </Button>
-                        )}
-                      </div>
-                      {renderMenuButtons()}
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      {selectedMenu && (
-                        <MenuEditor 
-                          key={activeMenuId}
-                          menu={selectedMenu}
-                          menus={menus}
-                          setMenus={setMenus}
-                          readOnly={!permissions.canManageMenus}
-                          onMenuUpdated={async (action, details) => {
-                            try {
-                              if (adminData) {
-                                await logAdminAction(adminData.id, action, 'menu_items', details);
+                  <MenuStateProvider>
+                    <Card>
+                      <CardHeader>
+                        <div className="flex justify-between items-center mb-3">
+                          <CardTitle>Gestion des Menus Hebdomadaires</CardTitle>
+                          {permissions.canManageMenus && (
+                            <Button
+                              variant="outline"
+                              onClick={handleRefreshMenus}
+                              className="flex items-center"
+                              disabled={isRefreshing}
+                            >
+                              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                              Actualiser
+                            </Button>
+                          )}
+                        </div>
+                        {renderMenuButtons()}
+                      </CardHeader>
+                      <CardContent className="pt-6">
+                        {selectedMenu && (
+                          <MenuEditor 
+                            key={activeMenuId}
+                            menu={selectedMenu}
+                            menus={menus}
+                            setMenus={setMenus}
+                            readOnly={!permissions.canManageMenus}
+                            onMenuUpdated={async (action, details) => {
+                              try {
+                                if (adminData) {
+                                  await logAdminAction(adminData.id, action, 'menu_items', details);
+                                }
+                              } catch (error) {
+                                console.error("Error logging admin action:", error);
                               }
-                            } catch (error) {
-                              console.error("Error logging admin action:", error);
-                            }
-                          }}
-                        />
-                      )}
-                    </CardContent>
-                  </Card>
+                            }}
+                          />
+                        )}
+                      </CardContent>
+                    </Card>
+                  </MenuStateProvider>
                 ) : (
                   <AccessDenied />
                 )}

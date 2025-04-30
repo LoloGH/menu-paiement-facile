@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +19,7 @@ import {
 import { Check, Loader2, AlertCircle } from "lucide-react";
 import { MenuItem, DishType } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { runInBackground } from "@/utils/backgroundWorker";
 
 interface Article {
   id: string;
@@ -38,7 +38,6 @@ interface EditItemDialogProps {
 }
 
 export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogProps) => {
-  const { toast } = useToast();
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
   const [isOpen, setIsOpen] = useState(true);
@@ -48,7 +47,8 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   const [fetchRetries, setFetchRetries] = useState(0);
   const maxRetries = 3;
   
-  const fetchArticles = async (retry = 0) => {
+  // Memoized fetch articles function to prevent unnecessary re-renders
+  const fetchArticles = useCallback(async (retry = 0) => {
     if (retry > maxRetries) {
       setError("Erreur persistante lors du chargement des articles. Veuillez réessayer plus tard.");
       setIsLoading(false);
@@ -65,17 +65,19 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
           ? 'side_dish' 
           : 'dessert';
 
-      const { data, error } = await supabase
-        .from('articles')
-        .select('*')
-        .eq('type', articleType)
-        .order('name');
-        // Removed timeout to fix TypeScript error
+      // Run the fetch in background to prevent UI blocking
+      const { data, error } = await runInBackground(() => 
+        supabase
+          .from('articles')
+          .select('*')
+          .eq('type', articleType)
+          .order('name')
+      );
 
       if (error) {
         console.error('Error fetching articles:', error);
         
-        // Retenter après un délai si on n'a pas atteint le max de tentatives
+        // Retry after a delay if we haven't reached the max retries
         if (retry < maxRetries) {
           setTimeout(() => fetchArticles(retry + 1), 1000);
           return;
@@ -87,12 +89,12 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
       console.log('Fetched articles:', data);
       setAvailableArticles(data || []);
       
-      // Si l'élément a déjà un articleId, utiliser celui-ci
+      // Set the selected article ID if available
       if (item?.articleId) {
         console.log('Setting selected article ID from item:', item.articleId);
         setSelectedArticleId(item.articleId);
       } else if (item?.name) {
-        // Sinon, essayer de trouver un article correspondant par nom
+        // Try to find a matching article by name
         const matchingArticle = data?.find(article => article.name === item.name);
         if (matchingArticle) {
           console.log('Found matching article by name:', matchingArticle.id);
@@ -103,28 +105,27 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
       console.error('Error fetching articles:', error);
       setError("Erreur lors du chargement des articles. Veuillez réessayer.");
       
-      // Mettre à jour le compteur de tentatives pour le prochain essai
+      // Update the retry counter for the next attempt
       setFetchRetries(prevRetries => prevRetries + 1);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [type, item, maxRetries]);
 
   useEffect(() => {
     fetchArticles();
-    setIsOpen(true);
     
-    // Nettoyer l'état à la fermeture
+    // Clean up state when the dialog closes
     return () => {
       setSelectedArticleId("");
       setError(null);
       setIsLoading(false);
       setIsSaving(false);
     };
-  }, [type, item]);
+  }, [fetchArticles]);
 
-  // Fonction modifiée pour améliorer la séquence de fermeture et éviter le gel
-  const handleSave = () => {
+  // Modified save handler with improved sequence for dialog closing
+  const handleSave = useCallback(() => {
     if (isSaving) return;
     
     try {
@@ -141,7 +142,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         return;
       }
 
-      // Préparer les données à l'avance
+      // Prepare the data in advance
       const menuItem: MenuItem = {
         id: item?.id || `${type}_${Date.now()}`,
         name: selectedArticle.name,
@@ -154,49 +155,45 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
       console.log("Menu item prepared:", menuItem);
       
-      // Marquer comme en cours de sauvegarde
+      // Mark as saving
       setIsSaving(true);
       
-      // Fermer le dialogue AVANT d'exécuter onSave pour éviter le gel de l'interface
+      // Close the dialog FIRST to prevent UI freeze
       setIsOpen(false);
       
-      // Utiliser requestAnimationFrame pour déplacer l'opération de sauvegarde après la fermeture visuelle
-      requestAnimationFrame(() => {
-        // Appeler le callback de sauvegarde en dehors du thread principal
-        setTimeout(() => {
+      // Schedule the save operation after the dialog begins to close
+      runInBackground(() => {
+        return new Promise<void>((resolve) => {
           try {
             onSave(menuItem);
-            
-            // Notification de succès
-            toast({
-              title: "Succès",
-              description: "L'élément a été enregistré avec succès",
-            });
           } catch (error) {
             console.error("Error in save callback:", error);
+          } finally {
+            resolve();
           }
-        }, 50); // Un petit délai pour s'assurer que l'UI a eu le temps de se mettre à jour
+        });
       });
+      
     } catch (error) {
       console.error("Error preparing item for save:", error);
       setError("Une erreur est survenue lors de la préparation de l'élément. Veuillez réessayer.");
       setIsSaving(false);
     }
-  };
+  }, [selectedArticleId, availableArticles, item, type, isSaving, onSave]);
 
-  // Gérer la fermeture du dialogue de manière plus propre
-  const handleCloseDialog = () => {
-    // Marquer d'abord le dialogue comme fermé pour l'animation
+  // Improved close handler to ensure clean dialog closing
+  const handleCloseDialog = useCallback(() => {
+    // Mark the dialog as closed to start the animation
     setIsOpen(false);
     
-    // Utiliser requestAnimationFrame pour permettre à l'animation de fermeture de se produire
+    // Use requestAnimationFrame to allow the closing animation to start
     requestAnimationFrame(() => {
-      // Petit délai pour s'assurer que l'animation est en cours
+      // Small delay to ensure the animation starts before we call onClose
       setTimeout(() => {
         onClose();
       }, 50);
     });
-  };
+  }, [onClose]);
 
   const typeLabel = type === "mainDish" 
     ? "plat principal" 
@@ -204,7 +201,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
       ? "accompagnement" 
       : "dessert";
 
-  // Si le dialogue est fermé, ne rien rendre
+  // If the dialog is closed, don't render anything
   if (!isOpen) return null;
 
   return (
