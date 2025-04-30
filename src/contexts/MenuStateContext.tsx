@@ -50,7 +50,7 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [activeMenuId]);
   
-  // Monitor background task queue and update pending operations count
+  // Improved monitoring of background task queue with better error handling
   useEffect(() => {
     const checkPendingOperations = () => {
       const totalPending = globalTaskQueue.pending + globalTaskQueue.active;
@@ -62,8 +62,13 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (totalPending === 0) {
         // Use a slight delay to avoid immediate UI transitions
         setTimeout(() => {
-          setIsProcessing(false);
-          // Correction: Réinitialiser deleteProcessing uniquement s'il n'y a plus d'opérations en attente
+          // If there are no pending operations, reset processing states
+          if (isProcessing) {
+            console.log("No pending operations, resetting isProcessing state");
+            setIsProcessing(false);
+          }
+          
+          // Only reset deleteProcessing if it's set and there are no pending operations
           if (deleteProcessing) {
             console.log(`Resetting deleteProcessing state for ${deleteProcessing}`);
             setDeleteProcessing(null);
@@ -72,11 +77,11 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
     };
     
-    // Check pending operations every 250ms
-    const intervalId = setInterval(checkPendingOperations, 250);
+    // Check pending operations every 200ms (slightly more responsive)
+    const intervalId = setInterval(checkPendingOperations, 200);
     
     return () => clearInterval(intervalId);
-  }, [deleteProcessing]);
+  }, [deleteProcessing, isProcessing]);
 
   const updateMenus = useCallback((updatedMenus: MenuDay[]) => {
     setMenus(updatedMenus);
@@ -177,7 +182,7 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [saveMenusToLocalStorage, removeEditingItemId, toast]);
 
-  // Delete a menu item with optimistic updates
+  // Modified deleteMenuItem to better handle state resets and provide more debugging
   const deleteMenuItem = useCallback(async (
     menuId: string, 
     dishId: string, 
@@ -186,37 +191,40 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       console.log(`Starting optimistic delete for dish ${dishId} in menu ${menuId}`);
       
-      const optimisticDelete = () => {
-        setMenus(prevMenus => {
-          const updatedMenus = prevMenus.map(menu => {
-            if (menu.id === menuId) {
-              const itemTypeKey = `${dishType}s` as keyof MenuDay;
-              const currentItems = [...(menu[itemTypeKey] as MenuItem[] || [])];
-              
-              // Filter out the item to be deleted
-              const updatedItems = currentItems.filter(item => item.id !== dishId);
-              
-              return { ...menu, [itemTypeKey]: updatedItems };
-            }
-            return menu;
-          });
-          
-          // Save to localStorage in background, using requestAnimationFrame to keep UI smooth
-          requestAnimationFrame(() => {
-            saveMenusToLocalStorage(updatedMenus);
-          });
-          
-          return updatedMenus;
-        });
-      };
-      
-      // Use requestAnimationFrame for smooth UI updates
+      // Use requestAnimationFrame to ensure UI updates before heavy operations
       requestAnimationFrame(() => {
+        // Optimistic update function
+        const optimisticDelete = () => {
+          setMenus(prevMenus => {
+            const updatedMenus = prevMenus.map(menu => {
+              if (menu.id === menuId) {
+                const itemTypeKey = `${dishType}s` as keyof MenuDay;
+                const currentItems = [...(menu[itemTypeKey] as MenuItem[] || [])];
+                
+                // Filter out the item to be deleted
+                const updatedItems = currentItems.filter(item => item.id !== dishId);
+                
+                return { ...menu, [itemTypeKey]: updatedItems };
+              }
+              return menu;
+            });
+            
+            // Save to localStorage in background, using requestAnimationFrame again for smoother UI
+            requestAnimationFrame(() => {
+              saveMenusToLocalStorage(updatedMenus);
+            });
+            
+            return updatedMenus;
+          });
+        };
+        
+        // Execute the optimistic delete
         optimisticDelete();
         console.log(`Optimistic delete completed for dish ${dishId}`);
       });
       
-      // Note: We don't clear deleteProcessing here - it will be cleared by the useEffect monitoring the task queue
+      // Note: We deliberately don't clear deleteProcessing or isProcessing here
+      // The monitoring useEffect will handle this once all pending tasks are completed
       
     } catch (error) {
       console.error("Error deleting menu item:", error);
@@ -225,8 +233,15 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
         description: "Une erreur est survenue lors de la suppression de l'élément du menu.",
         variant: "destructive",
       });
-      // En cas d'erreur, réinitialiser
-      setDeleteProcessing(null);
+      
+      // In case of error, explicitly reset the processing state after a small delay
+      setTimeout(() => {
+        if (deleteProcessing === dishId) {
+          console.log(`Error occurred, explicitly resetting deleteProcessing for ${dishId}`);
+          setDeleteProcessing(null);
+        }
+        setIsProcessing(false);
+      }, 100);
     }
   }, [saveMenusToLocalStorage, toast]);
 

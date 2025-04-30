@@ -23,7 +23,7 @@ export const runInBackground = <T>(task: () => Promise<T>, delay = 10): Promise<
 
 /**
  * Simple task queue manager to handle sequential background tasks
- * with configurable concurrency control
+ * with configurable concurrency control and improved UI responsiveness
  */
 export class TaskQueue {
   private queue: (() => Promise<any>)[] = [];
@@ -31,6 +31,7 @@ export class TaskQueue {
   private concurrency: number;
   private activeCount = 0;
   private pauseProcessing = false;
+  private lastUIUpdateTime = 0;
 
   /**
    * @param concurrency Number of concurrent tasks that can run (default: 1)
@@ -47,18 +48,22 @@ export class TaskQueue {
     return new Promise((resolve, reject) => {
       this.queue.push(async () => {
         try {
-          // Use requestAnimationFrame to ensure we're not blocking rendering
-          // and then run the task in the next tick
-          await new Promise(resolve => {
+          // Improved UI responsiveness: use both requestAnimationFrame and setTimeout
+          // to ensure we don't block rendering and give time for UI updates
+          await new Promise(animResolve => {
             requestAnimationFrame(() => {
-              setTimeout(resolve, 0);
+              setTimeout(animResolve, 0);
             });
           });
+          
+          // Ensure we're not running too many tasks too quickly and blocking the UI
+          await this.ensureUIResponsiveness();
           
           const result = await task();
           resolve(result);
           return result;
         } catch (error) {
+          console.error("Task error:", error);
           reject(error);
           throw error;
         } finally {
@@ -109,6 +114,23 @@ export class TaskQueue {
   }
   
   /**
+   * Ensure the UI remains responsive by adding small delays when processing many tasks
+   * @private
+   */
+  private async ensureUIResponsiveness(): Promise<void> {
+    const now = Date.now();
+    // If less than 50ms since last UI update checkpoint, add a small delay
+    if (now - this.lastUIUpdateTime < 50) {
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 5);
+        });
+      });
+    }
+    this.lastUIUpdateTime = Date.now();
+  }
+  
+  /**
    * Temporarily pause processing tasks (queued tasks will remain in queue)
    */
   public pause(): void {
@@ -155,16 +177,19 @@ export class TaskQueue {
 
   /**
    * Safely execute a task immediately, outside the queue but still
-   * without blocking the UI thread
+   * without blocking the UI thread, with improved UI responsiveness
    */
   public safeExecute<T>(task: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
       requestAnimationFrame(() => {
         setTimeout(async () => {
           try {
+            // Ensure UI remains responsive
+            await this.ensureUIResponsiveness();
             const result = await task();
             resolve(result);
           } catch (error) {
+            console.error("Safe execute error:", error);
             reject(error);
           }
         }, 0);

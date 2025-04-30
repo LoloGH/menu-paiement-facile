@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -264,15 +263,22 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     return editingItemIds.includes(itemId);
   }, [editingItemIds]);
 
-  // Fonction pour gérer l'ouverture/fermeture des dialogues de suppression
+  // Fonction améliorée pour gérer l'ouverture/fermeture des dialogues de suppression
   const handleDeleteDialogState = useCallback((itemId: string, isOpen: boolean) => {
     // Ne pas fermer le dialogue si une suppression est en cours
-    if (deleteProcessing === itemId && !isOpen) return;
+    if (deleteProcessing === itemId && !isOpen) {
+      console.log(`Preventing dialog close for item ${itemId} as deletion is in progress`);
+      return;
+    }
     
-    setDeleteDialogOpen(prev => ({
-      ...prev,
-      [itemId]: isOpen
-    }));
+    // Utiliser requestAnimationFrame pour éviter les blocages d'interface
+    requestAnimationFrame(() => {
+      console.log(`Setting dialog state for ${itemId} to ${isOpen ? 'open' : 'closed'}`);
+      setDeleteDialogOpen(prev => ({
+        ...prev,
+        [itemId]: isOpen
+      }));
+    });
   }, [deleteProcessing]);
 
   const handleAddItem = useCallback((type: DishType) => {
@@ -340,33 +346,53 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     setIsAddingItem(false);
   }, [editingItem, removeEditingItemId]);
 
+  // New effect to monitor pending operations and handle dialog closure
+  useEffect(() => {
+    // If there are no pending operations and we have a deleteProcessing item,
+    // it means the deletion has completed and we can close the dialog
+    if (pendingOperations === 0 && deleteProcessing) {
+      console.log(`All operations completed, closing dialog for ${deleteProcessing}`);
+      
+      // Small delay before closing to ensure smooth transitions
+      setTimeout(() => {
+        handleDeleteDialogState(deleteProcessing, false);
+        // We don't reset deleteProcessing here - that's handled by the context
+      }, 100);
+    }
+  }, [pendingOperations, deleteProcessing, handleDeleteDialogState]);
+
   const handleDeleteItem = useCallback(async (dishId: string, dishType: DishType, articleId?: string) => {
-    if (isProcessing || deleteProcessing) return;
+    if (isProcessing || deleteProcessing) {
+      console.log(`Deletion already in progress, ignoring request for ${dishId}`);
+      return;
+    }
     
-    // Marquer cet élément spécifique comme étant en cours de suppression
+    // Mark this specific item as being in deletion process
+    console.log(`Setting deleteProcessing state for ${dishId}`);
     setDeleteProcessing(dishId);
     
-    // Run the delete operation in the next event cycle to allow UI to update
+    // Use setTimeout to allow UI to update before starting delete operation
     setTimeout(async () => {
       try {
         console.log(`Starting removeMenuItem for dish: ${dishId}`);
-        // Utiliser le hook pour supprimer l'élément
+        
+        // Use the hook to remove the item (now runs in background)
         await removeMenuItem(dishId, menu.id, dishType, articleId);
         
-        // Fermer le dialogue de confirmation après que la suppression soit terminée
-        // avec un petit délai pour éviter un gel de l'interface
-        setTimeout(() => {
-          handleDeleteDialogState(dishId, false);
-        }, 100);
+        // We intentionally keep the dialog open until the task completes
+        // The MenuStateContext monitoring will tell us when it's done
         
-        console.log(`Delete completed for dish: ${dishId}`);
+        // Only after a confirmation that deletion is complete should we close the dialog
+        // This is now handled by the effect monitoring pendingOperations in this component
+        
       } catch (error) {
         console.error('Error in handleDeleteItem:', error);
-        // Réinitialiser l'état de suppression en cas d'erreur
+        
+        // In case of error, we need to reset the deletion state and close dialog
+        handleDeleteDialogState(dishId, false);
         setDeleteProcessing(null);
-        // Ne pas fermer la modale en cas d'erreur
       }
-    }, 0);
+    }, 50); // Small timeout to allow UI update first
   }, [isProcessing, deleteProcessing, menu, handleDeleteDialogState, setDeleteProcessing, removeMenuItem]);
 
   // Vérifie si le menu est valide

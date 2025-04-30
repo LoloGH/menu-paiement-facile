@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -80,7 +79,7 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
   }, []);
 
   /**
-   * Log admin action safely in background with retry
+   * Log admin action safely in background with retry and improved error handling
    */
   const safelyLogAdminAction = useCallback(async (
     actionType: string,
@@ -88,10 +87,12 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
   ): Promise<void> => {
     if (!onMenuUpdated) return;
     
-    // Use setTimeout to ensure UI doesn't freeze
+    // Use the background task queue to avoid UI blocking
     return await globalTaskQueue.safeExecute(async () => {
       try {
-        // Use withRetry to automatically retry in case of failure
+        console.log(`Background: Logging admin action ${actionType}`);
+        
+        // Use withRetry with improved parameters for better resilience
         await withRetry(async () => {
           await onMenuUpdated(actionType, details);
           return { error: null };
@@ -100,6 +101,7 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
         console.log(`Admin action logged successfully: ${actionType}`);
       } catch (error) {
         console.error(`Failed to log admin action after retries: ${actionType}`, error);
+        // We don't throw here to prevent the UI from getting stuck
       }
     });
   }, [onMenuUpdated]);
@@ -157,7 +159,7 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
   }, [updateMenuItem, updateMenuArticleAssociation, safelyLogAdminAction, toast]);
   
   /**
-   * Delete a menu item with optimistic updates and background processing
+   * Delete a menu item with optimistic updates and improved background processing
    */
   const removeMenuItem = useCallback(async (
     dishId: string,
@@ -168,29 +170,44 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
     setIsLoading(true);
     
     try {
+      console.log(`Starting delete operation for dish ${dishId} in menu ${menuId}`);
+      
       // Delete in context (which handles optimistic updates)
+      // This will update the UI immediately while the background tasks run
       await deleteMenuItem(menuId, dishId, dishType);
       
-      // Amélioration: utiliser safeExecute au lieu d'une exécution directe
-      await globalTaskQueue.safeExecute(async () => {
+      // Run background tasks in a non-blocking way
+      globalTaskQueue.add(async () => {
         try {
-          // Remove the association from the database
+          console.log(`Background task: removing article association for dish ${dishId}`);
+          
+          // Remove the association from the database if there's an article ID
           if (articleId) {
             await updateMenuArticleAssociation(articleId, menuId, 'remove');
           }
           
-          // Call the safelyLogAdminAction function for logging - await pour garantir la complétion
-          await safelyLogAdminAction(`delete_${dishType}`, { 
+          // Log the admin action - we deliberately don't await this
+          // to avoid blocking and let it run in parallel
+          safelyLogAdminAction(`delete_${dishType}`, { 
             menuId,
             dishId,
+          }).catch(err => {
+            console.error("Error in admin action logging:", err);
+            // We catch here to avoid impacting the main operation
           });
+          
+          console.log(`Background tasks completed for dish ${dishId}`);
+          // State cleanup is handled by the MenuStateContext monitoring
         } catch (error) {
           console.error("Error in background tasks:", error);
+          // Even in error cases, we don't reset the state here
+          // The monitoring in MenuStateContext will clean up
         }
       });
       
-      // On ne réinitialise pas ici l'état isLoading, c'est MenuStateContext qui s'en occupe
-      console.log("Delete operation completed in use-menu-item-operations");
+      // Continue with normal flow - isLoading state will be reset by the MenuStateContext
+      console.log("Delete operation queued in background tasks");
+      
     } catch (error) {
       console.error('Error removing menu item:', error);
       toast({
