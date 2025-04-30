@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { MenuDay, MenuItem, DishType } from '../components/admin/menu-editor/types';
 import { globalTaskQueue } from '@/utils/backgroundWorker';
@@ -64,7 +63,11 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Use a slight delay to avoid immediate UI transitions
         setTimeout(() => {
           setIsProcessing(false);
-          setDeleteProcessing(null);
+          // Correction: Réinitialiser deleteProcessing uniquement s'il n'y a plus d'opérations en attente
+          if (deleteProcessing) {
+            console.log(`Resetting deleteProcessing state for ${deleteProcessing}`);
+            setDeleteProcessing(null);
+          }
         }, 300);
       }
     };
@@ -73,7 +76,7 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     const intervalId = setInterval(checkPendingOperations, 250);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [deleteProcessing]);
 
   const updateMenus = useCallback((updatedMenus: MenuDay[]) => {
     setMenus(updatedMenus);
@@ -181,6 +184,8 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     dishType: DishType
   ): Promise<void> => {
     try {
+      console.log(`Starting optimistic delete for dish ${dishId} in menu ${menuId}`);
+      
       const optimisticDelete = () => {
         setMenus(prevMenus => {
           const updatedMenus = prevMenus.map(menu => {
@@ -196,10 +201,10 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
             return menu;
           });
           
-          // Save to localStorage in background
-          setTimeout(() => {
+          // Save to localStorage in background, using requestAnimationFrame to keep UI smooth
+          requestAnimationFrame(() => {
             saveMenusToLocalStorage(updatedMenus);
-          }, 0);
+          });
           
           return updatedMenus;
         });
@@ -208,7 +213,11 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
       // Use requestAnimationFrame for smooth UI updates
       requestAnimationFrame(() => {
         optimisticDelete();
+        console.log(`Optimistic delete completed for dish ${dishId}`);
       });
+      
+      // Note: We don't clear deleteProcessing here - it will be cleared by the useEffect monitoring the task queue
+      
     } catch (error) {
       console.error("Error deleting menu item:", error);
       toast({
@@ -216,6 +225,7 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
         description: "Une erreur est survenue lors de la suppression de l'élément du menu.",
         variant: "destructive",
       });
+      // En cas d'erreur, réinitialiser
       setDeleteProcessing(null);
     }
   }, [saveMenusToLocalStorage, toast]);

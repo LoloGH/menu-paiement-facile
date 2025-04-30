@@ -152,6 +152,25 @@ export class TaskQueue {
   public clear(): void {
     this.queue = [];
   }
+
+  /**
+   * Safely execute a task immediately, outside the queue but still
+   * without blocking the UI thread
+   */
+  public safeExecute<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      requestAnimationFrame(() => {
+        setTimeout(async () => {
+          try {
+            const result = await task();
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        }, 0);
+      });
+    });
+  }
 }
 
 // Create a singleton instance for global use

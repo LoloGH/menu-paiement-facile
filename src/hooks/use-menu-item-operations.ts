@@ -89,23 +89,19 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
     if (!onMenuUpdated) return;
     
     // Use setTimeout to ensure UI doesn't freeze
-    setTimeout(() => {
-      globalTaskQueue.add(async () => {
-        try {
-          // Use withRetry to automatically retry in case of failure
-          await withRetry(async () => {
-            await onMenuUpdated(actionType, details);
-            return { error: null };
-          }, 3, 500); // 3 retries with 500ms base delay
-          
-          console.log(`Admin action logged successfully: ${actionType}`);
-        } catch (error) {
-          console.error(`Failed to log admin action after retries: ${actionType}`, error);
-        }
-      });
-    }, 0);
-    
-    return Promise.resolve(); // Resolve immediately
+    return await globalTaskQueue.safeExecute(async () => {
+      try {
+        // Use withRetry to automatically retry in case of failure
+        await withRetry(async () => {
+          await onMenuUpdated(actionType, details);
+          return { error: null };
+        }, 3, 500); // 3 retries with 500ms base delay
+        
+        console.log(`Admin action logged successfully: ${actionType}`);
+      } catch (error) {
+        console.error(`Failed to log admin action after retries: ${actionType}`, error);
+      }
+    });
   }, [onMenuUpdated]);
 
   /**
@@ -175,15 +171,15 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
       // Delete in context (which handles optimistic updates)
       await deleteMenuItem(menuId, dishId, dishType);
       
-      // Process database updates in background with no await
-      globalTaskQueue.add(async () => {
+      // Amélioration: utiliser safeExecute au lieu d'une exécution directe
+      await globalTaskQueue.safeExecute(async () => {
         try {
           // Remove the association from the database
           if (articleId) {
             await updateMenuArticleAssociation(articleId, menuId, 'remove');
           }
           
-          // Call the safelyLogAdminAction function for logging
+          // Call the safelyLogAdminAction function for logging - await pour garantir la complétion
           await safelyLogAdminAction(`delete_${dishType}`, { 
             menuId,
             dishId,
@@ -193,10 +189,8 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
         }
       });
       
-      // Reset loading state after a short delay to allow UI update
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 50);
+      // On ne réinitialise pas ici l'état isLoading, c'est MenuStateContext qui s'en occupe
+      console.log("Delete operation completed in use-menu-item-operations");
     } catch (error) {
       console.error('Error removing menu item:', error);
       toast({

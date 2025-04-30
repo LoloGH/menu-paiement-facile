@@ -141,7 +141,11 @@ const DishTypeSection: React.FC<{
                     {/* Dialogue de confirmation de suppression - séparé du DropdownMenu */}
                     <AlertDialog 
                       open={deleteDialogOpen[dish.id] || false}
-                      onOpenChange={(open) => handleDeleteDialogState(dish.id, open)}
+                      onOpenChange={(open) => {
+                        // N'autorise pas la fermeture par clic à l'extérieur pendant la suppression
+                        if (deleteProcessing === dish.id && !open) return;
+                        handleDeleteDialogState(dish.id, open);
+                      }}
                     >
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -160,7 +164,11 @@ const DishTypeSection: React.FC<{
                             Annuler
                           </AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => onDeleteItem(dish.id, type, dish.articleId)}
+                            onClick={() => {
+                              // Déclencher la suppression sans fermer immédiatement le dialogue
+                              onDeleteItem(dish.id, type, dish.articleId);
+                              // Le dialogue sera fermé par le callback après la suppression
+                            }}
                             disabled={deleteProcessing === dish.id}
                             className={deleteProcessing === dish.id ? "opacity-50 cursor-not-allowed" : ""}
                           >
@@ -258,11 +266,14 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
 
   // Fonction pour gérer l'ouverture/fermeture des dialogues de suppression
   const handleDeleteDialogState = useCallback((itemId: string, isOpen: boolean) => {
+    // Ne pas fermer le dialogue si une suppression est en cours
+    if (deleteProcessing === itemId && !isOpen) return;
+    
     setDeleteDialogOpen(prev => ({
       ...prev,
       [itemId]: isOpen
     }));
-  }, []);
+  }, [deleteProcessing]);
 
   const handleAddItem = useCallback((type: DishType) => {
     if (isProcessing) return;
@@ -332,20 +343,28 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   const handleDeleteItem = useCallback(async (dishId: string, dishType: DishType, articleId?: string) => {
     if (isProcessing || deleteProcessing) return;
     
-    // Fermer le dialogue de confirmation
-    handleDeleteDialogState(dishId, false);
-    
     // Marquer cet élément spécifique comme étant en cours de suppression
     setDeleteProcessing(dishId);
     
     // Run the delete operation in the next event cycle to allow UI to update
     setTimeout(async () => {
       try {
+        console.log(`Starting removeMenuItem for dish: ${dishId}`);
         // Utiliser le hook pour supprimer l'élément
         await removeMenuItem(dishId, menu.id, dishType, articleId);
+        
+        // Fermer le dialogue de confirmation après que la suppression soit terminée
+        // avec un petit délai pour éviter un gel de l'interface
+        setTimeout(() => {
+          handleDeleteDialogState(dishId, false);
+        }, 100);
+        
+        console.log(`Delete completed for dish: ${dishId}`);
       } catch (error) {
         console.error('Error in handleDeleteItem:', error);
+        // Réinitialiser l'état de suppression en cas d'erreur
         setDeleteProcessing(null);
+        // Ne pas fermer la modale en cas d'erreur
       }
     }, 0);
   }, [isProcessing, deleteProcessing, menu, handleDeleteDialogState, setDeleteProcessing, removeMenuItem]);
