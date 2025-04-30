@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MoreVertical, Plus, Trash2, Edit, Loader2, RefreshCw } from "lucide-react";
-import { MenuEditorProps, MenuItem, DishType } from "./types";
+import { MenuEditorProps, MenuItem, DishType, MenuDay } from "./types";
 import { EditItemDialog } from "./EditItemDialog";
 import { useMenuItemOperations } from "@/hooks/use-menu-item-operations";
 import { useMenuState } from "@/contexts/MenuStateContext";
