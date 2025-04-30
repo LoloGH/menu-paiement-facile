@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -31,26 +31,41 @@ import { MoreVertical, Plus, Trash2, Edit, Loader2, RefreshCw } from "lucide-rea
 import { MenuEditorProps, MenuDay, MenuItem, DishType } from "./types";
 import { EditItemDialog } from "./EditItemDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { MenuStateProvider, useMenuState } from "@/contexts/MenuStateContext";
 
-export const MenuEditor: React.FC<MenuEditorProps> = ({ 
+// Composant wrapper qui fournit le contexte
+export const MenuEditor: React.FC<MenuEditorProps> = (props) => {
+  return (
+    <MenuStateProvider initialMenus={props.menus} onMenusChanged={props.setMenus}>
+      <MenuEditorContent {...props} />
+    </MenuStateProvider>
+  );
+};
+
+// Composant principal qui utilise le contexte
+const MenuEditorContent: React.FC<MenuEditorProps> = ({ 
   menu, 
   menus, 
-  setMenus, 
   readOnly = false,
   onMenuUpdated 
 }) => {
   const { toast } = useToast();
+  const { 
+    isProcessingAction, 
+    setIsProcessingAction,
+    editingItemIds, 
+    addEditingItemId, 
+    removeEditingItemId 
+  } = useMenuState();
+
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<{item: MenuItem | null, type: DishType}>({
     item: null,
     type: 'mainDish'
   });
-  const [isProcessing, setIsProcessing] = useState(false);
   const [deleteProcessing, setDeleteProcessing] = useState<string | null>(null);
   // État pour suivre les dialogues de confirmation de suppression ouverts
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<{[key: string]: boolean}>({});
-  // État pour suivre les éléments en cours d'édition
-  const [editingItemIds, setEditingItemIds] = useState<string[]>([]);
   // Référence au dernier menu reçu par les props
   const [lastMenu, setLastMenu] = useState<MenuDay | null>(null);
 
@@ -60,48 +75,50 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   }, [menu]);
 
   // Méthode pour vérifier si un élément est en cours d'édition
-  const isItemBeingEdited = (itemId: string) => {
+  const isItemBeingEdited = useCallback((itemId: string) => {
     return editingItemIds.includes(itemId);
-  };
+  }, [editingItemIds]);
 
   // Fonction pour gérer l'ouverture/fermeture des dialogues de suppression
-  const handleDeleteDialogState = (itemId: string, isOpen: boolean) => {
+  const handleDeleteDialogState = useCallback((itemId: string, isOpen: boolean) => {
     setDeleteDialogOpen(prev => ({
       ...prev,
       [itemId]: isOpen
     }));
-  };
+  }, []);
 
-  const handleAddItem = (type: DishType) => {
-    if (isProcessing) return;
+  const handleAddItem = useCallback((type: DishType) => {
+    if (isProcessingAction) return;
     setEditingItem({item: null, type});
     setIsAddingItem(true);
-  };
+  }, [isProcessingAction]);
 
-  const handleEditItem = (item: MenuItem, type: DishType) => {
-    if (isProcessing || isItemBeingEdited(item.id)) return;
+  const handleEditItem = useCallback((item: MenuItem, type: DishType) => {
+    if (isProcessingAction || isItemBeingEdited(item.id)) return;
     
     // Ajouter l'ID de l'élément à la liste des éléments en cours d'édition
-    setEditingItemIds(prev => [...prev, item.id]);
+    addEditingItemId(item.id);
     
     setEditingItem({item, type});
     setIsAddingItem(true);
-  };
+  }, [isProcessingAction, isItemBeingEdited, addEditingItemId]);
 
   // Fonction sécurisée pour faire une mise à jour sans bloquer l'interface
   const safeUpdateRemote = useCallback(async (actionType: string, details: any) => {
     if (onMenuUpdated) {
       try {
-        // Utiliser setTimeout pour s'assurer que cette opération est non-bloquante
-        setTimeout(() => {
-          onMenuUpdated(actionType, details).catch(error => {
-            console.error("Error in onMenuUpdated callback:", error);
-          });
-        }, 0);
+        // Créer une promesse pour cette opération
+        const updatePromise = onMenuUpdated(actionType, details).catch(error => {
+          console.error("Error in onMenuUpdated callback:", error);
+        });
+        
+        // Retourner la promesse sans l'attendre
+        return updatePromise;
       } catch (error) {
         console.error("Error triggering onMenuUpdated callback:", error);
       }
     }
+    return Promise.resolve();
   }, [onMenuUpdated]);
 
   // Fonction sécurisée pour mettre à jour la base de données
@@ -112,8 +129,8 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         return;
       }
 
-      // Utiliser setTimeout pour s'assurer que cette opération est non-bloquante
-      setTimeout(async () => {
+      // Exécuter l'opération de base de données en arrière-plan
+      const databaseOperation = async () => {
         try {
           if (action === 'add') {
             // Vérifier si l'association existe déjà
@@ -122,11 +139,9 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               .select('*')
               .eq('menu_day', menuId)
               .eq('article_id', articleId);
-              // Removed timeout to fix TypeScript error
               
             if (fetchError) {
               console.error('Error checking existing menu article association:', fetchError);
-              resolve();
               return;
             }
             
@@ -138,7 +153,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                   menu_day: menuId,
                   article_id: articleId
                 });
-                // Removed timeout to fix TypeScript error
                 
               if (insertError) {
                 console.error('Error saving menu article association:', insertError);
@@ -155,7 +169,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               .delete()
               .eq('menu_day', menuId)
               .eq('article_id', articleId);
-              // Removed timeout to fix TypeScript error
 
             if (error) {
               console.error(`Error deleting menu article association:`, error);
@@ -165,18 +178,19 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
           }
         } catch (error) {
           console.error('Error in database operation:', error);
-        } finally {
-          resolve();
         }
-      }, 0);
+      };
+
+      // Lancer l'opération en arrière-plan et résoudre immédiatement la promesse
+      databaseOperation().finally(() => resolve());
     });
   }, []);
 
   const handleSaveItem = useCallback(async (updatedItem: MenuItem) => {
-    if (isProcessing) return;
+    if (isProcessingAction) return;
     
     console.log("Starting save operation for item:", updatedItem);
-    setIsProcessing(true);
+    setIsProcessingAction(true);
     
     try {
       const { type } = editingItem;
@@ -191,13 +205,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       const itemType = itemTypeMap[type];
       const actionType = updatedItem.id.includes(`${type}_`) ? `add_${type}` : `update_${type}`;
       
-      // Fermer le dialogue et mettre à jour l'UI immédiatement (optimistic update)
+      // Réduction du traitement synchrone au minimum pour éviter le blocage de l'interface
       const updatedMenus = menus.map(m => {
         if (m.id === menu.id) {
-          // Vérifier si c'est un nouvel élément ou une mise à jour
           if (editingItem.item && m[itemType]) {
             // Mise à jour
-            // Ensure m[itemType] is an array before using find
             const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
             const items = [...currentItems];
             const index = items.findIndex(item => item.id === editingItem.item?.id);
@@ -209,7 +221,6 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
             return {...m, [itemType]: items};
           } else {
             // Ajout
-            // Ensure m[itemType] is an array before spreading
             const currentItems = Array.isArray(m[itemType]) ? m[itemType] as MenuItem[] : [];
             const items = [...currentItems, updatedItem];
             return {...m, [itemType]: items};
@@ -218,32 +229,41 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         return m;
       });
       
-      // Mettre à jour l'état local immédiatement pour une interface réactive
-      setMenus(updatedMenus);
+      // Fermer le dialogue d'abord pour améliorer la réactivité perçue
+      handleCancelEdit();
       
-      // Exécuter des tâches en arrière-plan après le rendu
+      // Planifier une notification de succès après un court délai
       setTimeout(() => {
-        try {
-          // Sauvegarder dans localStorage
-          localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
-          
-          // Notification à l'utilisateur
-          toast({
-            title: "Succès",
-            description: `${editingItem.item ? "Élément mis à jour" : "Nouvel élément ajouté"} avec succès.`,
-          });
-          
-          // Mettre à jour la base de données en arrière-plan sans bloquer l'UI
-          if (updatedItem.articleId) {
-            safeUpdateDatabase(updatedItem.articleId, menu.id, 'add');
+        toast({
+          title: "Succès",
+          description: `${editingItem.item ? "Élément mis à jour" : "Nouvel élément ajouté"} avec succès.`,
+        });
+      }, 100);
+      
+      // Lancer les opérations de fond en parallèle
+      Promise.all([
+        // Sauvegarder dans localStorage de façon asynchrone
+        new Promise<void>(resolve => {
+          try {
+            localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+            resolve();
+          } catch (error) {
+            console.error("Error saving to localStorage:", error);
+            resolve();
           }
-          
-          // Appeler le callback de notification en arrière-plan
-          safeUpdateRemote(actionType, { menuId: menu.id, dish: updatedItem });
-        } catch (error) {
-          console.error("Error in background tasks:", error);
-        }
-      }, 10);
+        }),
+        
+        // Mettre à jour la base de données en arrière-plan
+        updatedItem.articleId ? safeUpdateDatabase(updatedItem.articleId, menu.id, 'add') : Promise.resolve(),
+        
+        // Appeler le callback de notification en arrière-plan
+        safeUpdateRemote(actionType, { menuId: menu.id, dish: updatedItem })
+      ]).catch(error => {
+        console.error("Error in background operations:", error);
+      }).finally(() => {
+        setIsProcessingAction(false);
+      });
+      
     } catch (error) {
       console.error('Error saving item:', error);
       toast({
@@ -251,33 +271,22 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         description: "Une erreur est survenue lors de la sauvegarde de l'élément.",
         variant: "destructive",
       });
-    } finally {
-      // Réinitialiser les états de façon asynchrone pour éviter de bloquer l'UI
-      setTimeout(() => {
-        setIsProcessing(false);
-        setEditingItem({item: null, type: 'mainDish'});
-        setIsAddingItem(false);
-        
-        // Supprimer l'ID de la liste des éléments en cours d'édition
-        if (editingItem.item) {
-          setEditingItemIds(prev => prev.filter(id => id !== editingItem.item?.id));
-        }
-      }, 0);
+      setIsProcessingAction(false);
     }
-  }, [isProcessing, editingItem, menu, menus, setMenus, toast, safeUpdateDatabase, safeUpdateRemote]);
+  }, [isProcessingAction, editingItem, menu, menus, toast, safeUpdateDatabase, safeUpdateRemote, handleCancelEdit, setIsProcessingAction]);
 
   const handleCancelEdit = useCallback(() => {
     // Supprimer l'ID de la liste des éléments en cours d'édition
     if (editingItem.item) {
-      setEditingItemIds(prev => prev.filter(id => id !== editingItem.item?.id));
+      removeEditingItemId(editingItem.item.id);
     }
     
     setEditingItem({item: null, type: 'mainDish'});
     setIsAddingItem(false);
-  }, [editingItem]);
+  }, [editingItem.item, removeEditingItemId]);
 
   const handleDeleteItem = useCallback(async (dishId: string, dishType: DishType) => {
-    if (isProcessing || deleteProcessing) return;
+    if (isProcessingAction || deleteProcessing) return;
     
     // Fermer le dialogue de confirmation
     handleDeleteDialogState(dishId, false);
@@ -313,37 +322,43 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         return m;
       });
       
-      // Mettre à jour l'état et localStorage immédiatement pour une interface réactive
-      setMenus(updatedMenus);
-      
       // Exécuter des tâches en arrière-plan sans bloquer l'UI
       const dish = itemsArray.find(d => d.id === dishId);
-      setTimeout(() => {
-        try {
-          // Mettre à jour localStorage
-          localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
-          
-          // Notification utilisateur - immédiatement
-          toast({
-            title: "Succès",
-            description: `Élément supprimé avec succès.`,
-          });
-          
-          // Traitement en arrière-plan sans bloquer l'UI
-          if (dish?.articleId) {
-            safeUpdateDatabase(dish.articleId, menu.id, 'remove');
+      
+      // Notification utilisateur - immédiatement
+      toast({
+        title: "Succès",
+        description: `Élément supprimé avec succès.`,
+      });
+      
+      // Lancer toutes les opérations d'arrière-plan en parallèle
+      Promise.all([
+        // Mettre à jour localStorage de façon asynchrone
+        new Promise<void>(resolve => {
+          try {
+            localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
+            resolve();
+          } catch (error) {
+            console.error("Error saving to localStorage:", error);
+            resolve();
           }
-          
-          // Appeler le callback de notification en arrière-plan
-          safeUpdateRemote(`delete_${dishType}`, { 
-            menuId: menu.id, 
-            dishId, 
-            dishDetails: dishToDelete 
-          });
-        } catch (error) {
-          console.error("Error in background tasks:", error);
-        }
-      }, 10);
+        }),
+        
+        // Traitement en arrière-plan sans bloquer l'UI
+        dish?.articleId ? safeUpdateDatabase(dish.articleId, menu.id, 'remove') : Promise.resolve(),
+        
+        // Appeler le callback de notification en arrière-plan
+        safeUpdateRemote(`delete_${dishType}`, { 
+          menuId: menu.id, 
+          dishId, 
+          dishDetails: dishToDelete 
+        })
+      ]).catch(error => {
+        console.error("Error in background delete operations:", error);
+      }).finally(() => {
+        // S'assurer que l'état de suppression est réinitialisé
+        setDeleteProcessing(null);
+      });
       
     } catch (error) {
       console.error('Error in delete operation:', error);
@@ -352,16 +367,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         description: "Une erreur est survenue lors de la suppression de l'élément.",
         variant: "destructive",
       });
-    } finally {
-      // S'assurer que l'état de suppression est réinitialisé de façon asynchrone
-      setTimeout(() => {
-        setDeleteProcessing(null);
-      }, 0);
+      setDeleteProcessing(null);
     }
-  }, [isProcessing, deleteProcessing, menu, menus, setMenus, toast, safeUpdateDatabase, safeUpdateRemote]);
+  }, [isProcessingAction, deleteProcessing, handleDeleteDialogState, menu, menus, toast, safeUpdateDatabase, safeUpdateRemote]);
 
   // Fonction pour rendre une section de type de plat
-  const renderDishTypeSection = (title: string, type: DishType, items: MenuItem[]) => {
+  const renderDishTypeSection = useCallback((title: string, type: DishType, items: MenuItem[]) => {
     return (
       <Card className="mb-4">
         <CardHeader>
@@ -393,7 +404,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                             variant="ghost" 
                             className="h-8 w-8 p-0" 
                             disabled={
-                              isProcessing || 
+                              isProcessingAction || 
                               deleteProcessing === dish.id || 
                               isItemBeingEdited(dish.id)
                             }
@@ -413,7 +424,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                             <DropdownMenuItem
                               onClick={() => handleEditItem(dish, type)}
                               disabled={
-                                isProcessing || 
+                                isProcessingAction || 
                                 deleteProcessing === dish.id || 
                                 isItemBeingEdited(dish.id)
                               }
@@ -427,7 +438,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                               className="text-red-500" 
                               onClick={() => handleDeleteDialogState(dish.id, true)}
                               disabled={
-                                isProcessing || 
+                                isProcessingAction || 
                                 deleteProcessing === dish.id || 
                                 isItemBeingEdited(dish.id)
                               }
@@ -494,7 +505,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
               variant="outline"
               onClick={() => handleAddItem(type)}
               className="mt-2"
-              disabled={isProcessing}
+              disabled={isProcessingAction}
             >
               <Plus className="mr-2 h-4 w-4" />
               Ajouter{" "}
@@ -508,7 +519,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         </CardContent>
       </Card>
     );
-  };
+  }, [deleteProcessing, handleAddItem, handleDeleteDialogState, handleDeleteItem, handleEditItem, isItemBeingEdited, isProcessingAction, readOnly]);
 
   // Vérifie si le menu est valide
   if (!menu) {
@@ -519,11 +530,24 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     );
   }
 
+  // Utilisation de useMemo pour éviter de recalculer ces sections à chaque rendu
+  const mainDishesSection = useMemo(() => 
+    renderDishTypeSection("Plats Principaux", "mainDish", menu.mainDishes || []),
+  [renderDishTypeSection, menu.mainDishes]);
+
+  const sideDishesSection = useMemo(() => 
+    renderDishTypeSection("Accompagnements", "sideDish", menu.sideDishes || []),
+  [renderDishTypeSection, menu.sideDishes]);
+
+  const dessertsSection = useMemo(() => 
+    renderDishTypeSection("Desserts", "dessert", menu.desserts || []),
+  [renderDishTypeSection, menu.desserts]);
+
   return (
     <div className="space-y-4">
-      {renderDishTypeSection("Plats Principaux", "mainDish", menu.mainDishes || [])}
-      {renderDishTypeSection("Accompagnements", "sideDish", menu.sideDishes || [])}
-      {renderDishTypeSection("Desserts", "dessert", menu.desserts || [])}
+      {mainDishesSection}
+      {sideDishesSection}
+      {dessertsSection}
 
       {/* Dialog d'édition */}
       {isAddingItem && (

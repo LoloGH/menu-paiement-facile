@@ -485,13 +485,20 @@ const AdminInterface = () => {
                           setMenus={setMenus}
                           readOnly={!permissions.canManageMenus}
                           onMenuUpdated={async (action, details) => {
-                            try {
-                              if (adminData) {
-                                await logAdminAction(adminData.id, action, 'menu_items', details);
-                              }
-                            } catch (error) {
-                              console.error("Error logging admin action:", error);
-                            }
+                            return new Promise<void>((resolve) => {
+                              // Exécuter en arrière-plan sans bloquer l'interface
+                              setTimeout(async () => {
+                                try {
+                                  if (adminData) {
+                                    await logAdminAction(adminData.id, action, 'menu_items', details);
+                                  }
+                                } catch (error) {
+                                  console.error("Error logging admin action:", error);
+                                } finally {
+                                  resolve();
+                                }
+                              }, 0);
+                            });
                           }}
                         />
                       )}
