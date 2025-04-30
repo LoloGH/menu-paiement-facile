@@ -88,20 +88,24 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
   ): Promise<void> => {
     if (!onMenuUpdated) return;
     
-    return globalTaskQueue.add(async () => {
-      try {
-        // Use withRetry to automatically retry in case of failure
-        await withRetry(async () => {
-          await onMenuUpdated(actionType, details);
-          return { error: null }; // Format to match withRetry expectation
-        }, 3, 500); // 3 retries with 500ms base delay
-        
-        console.log(`Admin action logged successfully: ${actionType}`);
-      } catch (error) {
-        // Just log the error but don't throw - this prevents UI blocking
-        console.error(`Failed to log admin action after retries: ${actionType}`, error);
-      }
-    });
+    // Use setTimeout to ensure UI doesn't freeze
+    setTimeout(() => {
+      globalTaskQueue.add(async () => {
+        try {
+          // Use withRetry to automatically retry in case of failure
+          await withRetry(async () => {
+            await onMenuUpdated(actionType, details);
+            return { error: null };
+          }, 3, 500); // 3 retries with 500ms base delay
+          
+          console.log(`Admin action logged successfully: ${actionType}`);
+        } catch (error) {
+          console.error(`Failed to log admin action after retries: ${actionType}`, error);
+        }
+      });
+    }, 0);
+    
+    return Promise.resolve(); // Resolve immediately
   }, [onMenuUpdated]);
 
   /**
@@ -123,7 +127,7 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
       // Update menu item in context (which handles optimistic updates)
       await updateMenuItem(menuId, item, isNew);
       
-      // Process database updates in background
+      // Process database updates in background with no await
       globalTaskQueue.add(async () => {
         try {
           // Update database associations
@@ -140,6 +144,11 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
           console.error("Error in background tasks:", error);
         }
       });
+      
+      // Reset loading state after a short delay to allow UI update
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 50);
     } catch (error) {
       console.error('Error saving menu item:', error);
       toast({
@@ -147,7 +156,6 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
         description: "Une erreur est survenue lors de la sauvegarde de l'élément.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   }, [updateMenuItem, updateMenuArticleAssociation, safelyLogAdminAction, toast]);
@@ -167,7 +175,7 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
       // Delete in context (which handles optimistic updates)
       await deleteMenuItem(menuId, dishId, dishType);
       
-      // Process database updates in background
+      // Process database updates in background with no await
       globalTaskQueue.add(async () => {
         try {
           // Remove the association from the database
@@ -184,6 +192,11 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
           console.error("Error in background tasks:", error);
         }
       });
+      
+      // Reset loading state after a short delay to allow UI update
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 50);
     } catch (error) {
       console.error('Error removing menu item:', error);
       toast({
@@ -191,7 +204,6 @@ export const useMenuItemOperations = (onMenuUpdated?: (actionType: string, detai
         description: "Une erreur est survenue lors de la suppression de l'élément.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   }, [deleteMenuItem, updateMenuArticleAssociation, safelyLogAdminAction, toast]);

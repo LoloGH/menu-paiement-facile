@@ -49,24 +49,31 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     } catch (error) {
       console.error("Error loading menus from localStorage:", error);
     }
-    
-    // Listen to pending operations and reset processing flags when done
+  }, [activeMenuId]);
+  
+  // Monitor background task queue and update pending operations count
+  useEffect(() => {
     const checkPendingOperations = () => {
-      if (globalTaskQueue.pending === 0 && globalTaskQueue.active === 0) {
-        // Reset processing flags if no pending operations
-        setIsProcessing(false);
-        setDeleteProcessing(null);
-        setPendingOperations(0);
-      } else {
-        setPendingOperations(globalTaskQueue.pending + globalTaskQueue.active);
+      const totalPending = globalTaskQueue.pending + globalTaskQueue.active;
+      
+      // Update pending operations count
+      setPendingOperations(totalPending);
+      
+      // Reset processing flags if no pending operations
+      if (totalPending === 0) {
+        // Use a slight delay to avoid immediate UI transitions
+        setTimeout(() => {
+          setIsProcessing(false);
+          setDeleteProcessing(null);
+        }, 300);
       }
     };
     
-    // Check pending operations every 500ms
-    const intervalId = setInterval(checkPendingOperations, 500);
+    // Check pending operations every 250ms
+    const intervalId = setInterval(checkPendingOperations, 250);
     
     return () => clearInterval(intervalId);
-  }, [activeMenuId]);
+  }, []);
 
   const updateMenus = useCallback((updatedMenus: MenuDay[]) => {
     setMenus(updatedMenus);
@@ -74,13 +81,16 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const saveMenusToLocalStorage = useCallback((updatedMenus: MenuDay[]) => {
     try {
-      localStorage.setItem('weeklyMenu', JSON.stringify(updatedMenus));
-      
-      // Dispatch an event to notify other components about the update
-      const event = new CustomEvent('menu-updated', { detail: updatedMenus });
-      window.dispatchEvent(event);
-      
-      console.log('Menus saved to localStorage successfully');
+      // Use requestAnimationFrame to avoid blocking rendering
+      requestAnimationFrame(() => {
+        localStorage.setItem('weeklyMenu', JSON.stringify(updatedMenus));
+        
+        // Dispatch an event to notify other components about the update
+        const event = new CustomEvent('menu-updated', { detail: updatedMenus });
+        window.dispatchEvent(event);
+        
+        console.log('Menus saved to localStorage successfully');
+      });
     } catch (error) {
       console.error('Error saving menus to localStorage:', error);
     }
@@ -100,43 +110,58 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     item: MenuItem, 
     isNew: boolean
   ): Promise<void> => {
+    // Set processing state before the update
     setIsProcessing(true);
     
     try {
-      setMenus(prevMenus => {
-        const updatedMenus = prevMenus.map(menu => {
-          if (menu.id === menuId) {
-            const itemType = item.type === 'main_dish' 
-              ? 'mainDishes' 
-              : item.type === 'side_dish' 
-                ? 'sideDishes' 
-                : 'desserts';
-                
-            const itemsArray = [...(menu[itemType as keyof MenuDay] as MenuItem[])];
-            
-            if (isNew) {
-              // Add new item
-              itemsArray.push(item);
-            } else {
-              // Update existing item
-              const index = itemsArray.findIndex(existing => existing.id === item.id);
-              if (index !== -1) {
-                itemsArray[index] = item;
-              } else {
-                // Item wasn't found but we need to update, so add it
+      const optimisticUpdate = () => {
+        setMenus(prevMenus => {
+          const updatedMenus = prevMenus.map(menu => {
+            if (menu.id === menuId) {
+              const itemType = item.type === 'main_dish' 
+                ? 'mainDishes' 
+                : item.type === 'side_dish' 
+                  ? 'sideDishes' 
+                  : 'desserts';
+                  
+              const itemsArray = [...(menu[itemType as keyof MenuDay] as MenuItem[])];
+              
+              if (isNew) {
+                // Add new item
                 itemsArray.push(item);
+              } else {
+                // Update existing item
+                const index = itemsArray.findIndex(existing => existing.id === item.id);
+                if (index !== -1) {
+                  itemsArray[index] = item;
+                } else {
+                  // Item wasn't found but we need to update, so add it
+                  itemsArray.push(item);
+                }
               }
+              
+              return { ...menu, [itemType]: itemsArray };
             }
-            
-            return { ...menu, [itemType]: itemsArray };
-          }
-          return menu;
+            return menu;
+          });
+          
+          // Save to localStorage in background
+          setTimeout(() => {
+            saveMenusToLocalStorage(updatedMenus);
+          }, 0);
+          
+          return updatedMenus;
         });
+      };
+      
+      // Use requestAnimationFrame for smooth UI updates
+      requestAnimationFrame(() => {
+        optimisticUpdate();
         
-        // Save to localStorage
-        saveMenusToLocalStorage(updatedMenus);
-        
-        return updatedMenus;
+        // Remove the item from editing state
+        if (!isNew && item.id) {
+          removeEditingItemId(item.id);
+        }
       });
     } catch (error) {
       console.error("Error updating menu item:", error);
@@ -145,8 +170,9 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
         description: "Une erreur est survenue lors de la mise à jour du menu.",
         variant: "destructive",
       });
+      setIsProcessing(false);
     }
-  }, [saveMenusToLocalStorage, toast]);
+  }, [saveMenusToLocalStorage, removeEditingItemId, toast]);
 
   // Delete a menu item with optimistic updates
   const deleteMenuItem = useCallback(async (
@@ -154,28 +180,34 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
     dishId: string, 
     dishType: DishType
   ): Promise<void> => {
-    // Set the deleteProcessing state for UI feedback
-    setDeleteProcessing(dishId);
-    
     try {
-      setMenus(prevMenus => {
-        const updatedMenus = prevMenus.map(menu => {
-          if (menu.id === menuId) {
-            const itemTypeKey = `${dishType}s` as keyof MenuDay;
-            const currentItems = [...(menu[itemTypeKey] as MenuItem[] || [])];
-            
-            // Filter out the item to be deleted
-            const updatedItems = currentItems.filter(item => item.id !== dishId);
-            
-            return { ...menu, [itemTypeKey]: updatedItems };
-          }
-          return menu;
+      const optimisticDelete = () => {
+        setMenus(prevMenus => {
+          const updatedMenus = prevMenus.map(menu => {
+            if (menu.id === menuId) {
+              const itemTypeKey = `${dishType}s` as keyof MenuDay;
+              const currentItems = [...(menu[itemTypeKey] as MenuItem[] || [])];
+              
+              // Filter out the item to be deleted
+              const updatedItems = currentItems.filter(item => item.id !== dishId);
+              
+              return { ...menu, [itemTypeKey]: updatedItems };
+            }
+            return menu;
+          });
+          
+          // Save to localStorage in background
+          setTimeout(() => {
+            saveMenusToLocalStorage(updatedMenus);
+          }, 0);
+          
+          return updatedMenus;
         });
-        
-        // Save to localStorage
-        saveMenusToLocalStorage(updatedMenus);
-        
-        return updatedMenus;
+      };
+      
+      // Use requestAnimationFrame for smooth UI updates
+      requestAnimationFrame(() => {
+        optimisticDelete();
       });
     } catch (error) {
       console.error("Error deleting menu item:", error);
@@ -184,6 +216,7 @@ export const MenuStateProvider: React.FC<{ children: ReactNode }> = ({ children 
         description: "Une erreur est survenue lors de la suppression de l'élément du menu.",
         variant: "destructive",
       });
+      setDeleteProcessing(null);
     }
   }, [saveMenusToLocalStorage, toast]);
 

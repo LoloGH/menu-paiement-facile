@@ -19,7 +19,7 @@ import {
 import { Check, Loader2, AlertCircle } from "lucide-react";
 import { MenuItem, DishType } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { runInBackground, globalTaskQueue, withRetry } from "@/utils/backgroundWorker";
+import { globalTaskQueue, withRetry } from "@/utils/backgroundWorker";
 import { useMenuState } from "@/contexts/MenuStateContext";
 
 interface Article {
@@ -49,7 +49,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
   const maxRetries = 3;
   const { editingItemIds, removeEditingItemId } = useMenuState();
   
-  // Memoized fetch articles function with improved error handling
+  // Memoized fetch articles function that runs in background
   const fetchArticles = useCallback(async (retry = 0) => {
     if (retry > maxRetries) {
       setError("Erreur persistante lors du chargement des articles. Veuillez réessayer plus tard.");
@@ -154,7 +154,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         return;
       }
 
-      // Prepare the data in advance
+      // Prepare the data in advance to avoid UI freeze
       const menuItem: MenuItem = {
         id: item?.id || `${type}_${Date.now()}`,
         name: selectedArticle.name,
@@ -167,26 +167,32 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
       console.log("Menu item prepared:", menuItem);
       
-      // Mark as saving and close the dialog at the same time
+      // Mark as saving and start dialog closing animation
       setIsSaving(true);
       setIsOpen(false);
       
-      // Use a short timeout to allow the dialog closing animation to start
-      // before performing the save operation (which might briefly block the main thread)
+      // Use a short timeout to ensure smooth UI transition
+      // This prevents UI freezing by moving the operation to the next event loop cycle
       setTimeout(() => {
         try {
+          if (item?.id) {
+            removeEditingItemId(item.id);
+          }
           onSave(menuItem);
+          // The dialog will be fully closed by the parent component
         } catch (error) {
           console.error("Error in save callback:", error);
+          setIsSaving(false);
+          setIsOpen(true); // Re-open dialog in case of error
         }
-      }, 50);
+      }, 10);
       
     } catch (error) {
       console.error("Error preparing item for save:", error);
       setError("Une erreur est survenue lors de la préparation de l'élément. Veuillez réessayer.");
       setIsSaving(false);
     }
-  }, [selectedArticleId, availableArticles, item, type, isSaving, onSave]);
+  }, [selectedArticleId, availableArticles, item, type, isSaving, onSave, removeEditingItemId]);
 
   // Improved close handler to ensure clean dialog closing
   const handleCloseDialog = useCallback(() => {
@@ -201,7 +207,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
           removeEditingItemId(item.id);
         }
         onClose();
-      }, 50);
+      }, 20);
     });
   }, [onClose, item, removeEditingItemId]);
 

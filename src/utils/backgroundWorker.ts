@@ -30,6 +30,7 @@ export class TaskQueue {
   private isProcessing = false;
   private concurrency: number;
   private activeCount = 0;
+  private pauseProcessing = false;
 
   /**
    * @param concurrency Number of concurrent tasks that can run (default: 1)
@@ -46,6 +47,14 @@ export class TaskQueue {
     return new Promise((resolve, reject) => {
       this.queue.push(async () => {
         try {
+          // Use requestAnimationFrame to ensure we're not blocking rendering
+          // and then run the task in the next tick
+          await new Promise(resolve => {
+            requestAnimationFrame(() => {
+              setTimeout(resolve, 0);
+            });
+          });
+          
           const result = await task();
           resolve(result);
           return result;
@@ -54,11 +63,15 @@ export class TaskQueue {
           throw error;
         } finally {
           this.activeCount--;
-          this.processNext();
+          // Allow next task to run after a brief delay to prevent UI freezing
+          setTimeout(() => this.processNext(), 5);
         }
       });
       
-      this.processNext();
+      // Start processing immediately unless paused
+      if (!this.pauseProcessing) {
+        this.processNext();
+      }
     });
   }
 
@@ -66,7 +79,7 @@ export class TaskQueue {
    * Process the next task in the queue if capacity is available
    */
   private processNext() {
-    if (this.queue.length === 0 || this.activeCount >= this.concurrency) {
+    if (this.pauseProcessing || this.queue.length === 0 || this.activeCount >= this.concurrency) {
       if (this.queue.length === 0 && this.activeCount === 0) {
         this.isProcessing = false;
       }
@@ -79,17 +92,35 @@ export class TaskQueue {
     const nextTask = this.queue.shift();
     if (!nextTask) return;
 
-    // Run the task without awaiting to avoid blocking
-    Promise.resolve().then(async () => {
-      try {
-        await nextTask();
-      } catch (error) {
-        console.error("Task error:", error);
-      }
-    });
-    
-    // Check if we can process more tasks immediately
-    if (this.activeCount < this.concurrency) {
+    // Run the task without blocking
+    setTimeout(() => {
+      Promise.resolve()
+        .then(() => nextTask())
+        .catch(error => {
+          console.error("Task error:", error);
+        })
+        .finally(() => {
+          // Check if we can process more tasks immediately
+          if (this.activeCount < this.concurrency && !this.pauseProcessing) {
+            this.processNext();
+          }
+        });
+    }, 0);
+  }
+  
+  /**
+   * Temporarily pause processing tasks (queued tasks will remain in queue)
+   */
+  public pause(): void {
+    this.pauseProcessing = true;
+  }
+  
+  /**
+   * Resume processing tasks
+   */
+  public resume(): void {
+    if (this.pauseProcessing) {
+      this.pauseProcessing = false;
       this.processNext();
     }
   }
@@ -113,6 +144,13 @@ export class TaskQueue {
    */
   public get active(): number {
     return this.activeCount;
+  }
+  
+  /**
+   * Clear all pending tasks
+   */
+  public clear(): void {
+    this.queue = [];
   }
 }
 

@@ -40,7 +40,7 @@ const DishTypeSection: React.FC<{
   readOnly: boolean;
   onAddItem: (type: DishType) => void;
   onEditItem: (item: MenuItem, type: DishType) => void;
-  onDeleteItem: (dishId: string, type: DishType) => void;
+  onDeleteItem: (dishId: string, type: DishType, articleId?: string) => void;
   deleteDialogOpen: {[key: string]: boolean};
   handleDeleteDialogState: (itemId: string, isOpen: boolean) => void;
   deleteProcessing: string | null;
@@ -160,7 +160,7 @@ const DishTypeSection: React.FC<{
                             Annuler
                           </AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => onDeleteItem(dish.id, type)}
+                            onClick={() => onDeleteItem(dish.id, type, dish.articleId)}
                             disabled={deleteProcessing === dish.id}
                             className={deleteProcessing === dish.id ? "opacity-50 cursor-not-allowed" : ""}
                           >
@@ -266,45 +266,58 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
 
   const handleAddItem = useCallback((type: DishType) => {
     if (isProcessing) return;
-    setEditingItem({item: null, type});
-    setIsAddingItem(true);
+    
+    // Use setTimeout to prevent UI freeze when opening dialog
+    setTimeout(() => {
+      setEditingItem({item: null, type});
+      setIsAddingItem(true);
+    }, 0);
   }, [isProcessing]);
 
   const handleEditItem = useCallback((item: MenuItem, type: DishType) => {
     if (isProcessing || isItemBeingEdited(item.id)) return;
     
-    // Ajouter l'ID de l'élément à la liste des éléments en cours d'édition
-    addEditingItemId(item.id);
-    
-    setEditingItem({item, type});
-    setIsAddingItem(true);
+    // Use setTimeout to prevent UI freeze when opening dialog
+    setTimeout(() => {
+      // Ajouter l'ID de l'élément à la liste des éléments en cours d'édition
+      addEditingItemId(item.id);
+      
+      setEditingItem({item, type});
+      setIsAddingItem(true);
+    }, 0);
   }, [isProcessing, isItemBeingEdited, addEditingItemId]);
 
   const handleSaveItem = useCallback(async (updatedItem: MenuItem) => {
     if (isProcessing) return;
     
+    console.log("Handling save item:", updatedItem);
     setIsProcessing(true);
     
     try {
       // Déterminer si c'est un nouvel élément ou une mise à jour
       const isNewItem = !editingItem.item || updatedItem.id.includes(`${editingItem.type}_`);
       
-      // Utiliser le hook pour sauvegarder l'élément
-      await saveMenuItem(updatedItem, menu.id, isNewItem);
+      // Run the save operation in the next event cycle to allow UI to update
+      setTimeout(async () => {
+        try {
+          // Utiliser le hook pour sauvegarder l'élément
+          await saveMenuItem(updatedItem, menu.id, isNewItem);
+        } catch (error) {
+          console.error('Error in handleSaveItem:', error);
+        } finally {
+          // Reset editing state
+          setEditingItem({item: null, type: 'mainDish'});
+          setIsAddingItem(false);
+          
+          // Editing state will be cleared by the context via saveMenuItem
+        }
+      }, 0);
       
     } catch (error) {
       console.error('Error in handleSaveItem:', error);
-    } finally {
-      // Réinitialiser les états uniquement en cas de succès
-      setEditingItem({item: null, type: 'mainDish'});
-      setIsAddingItem(false);
-      
-      // Supprimer l'ID de la liste des éléments en cours d'édition
-      if (editingItem.item) {
-        removeEditingItemId(editingItem.item.id);
-      }
+      setIsProcessing(false);
     }
-  }, [isProcessing, editingItem, menu.id, setIsProcessing, saveMenuItem, removeEditingItemId]);
+  }, [isProcessing, editingItem, menu.id, setIsProcessing, saveMenuItem]);
 
   const handleCancelEdit = useCallback(() => {
     // Supprimer l'ID de la liste des éléments en cours d'édition
@@ -316,7 +329,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     setIsAddingItem(false);
   }, [editingItem, removeEditingItemId]);
 
-  const handleDeleteItem = useCallback(async (dishId: string, dishType: DishType) => {
+  const handleDeleteItem = useCallback(async (dishId: string, dishType: DishType, articleId?: string) => {
     if (isProcessing || deleteProcessing) return;
     
     // Fermer le dialogue de confirmation
@@ -325,23 +338,16 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
     // Marquer cet élément spécifique comme étant en cours de suppression
     setDeleteProcessing(dishId);
     
-    try {
-      // Find the item to get its articleId
-      const itemTypeMap: Record<DishType, keyof MenuDay> = {
-        mainDish: 'mainDishes',
-        sideDish: 'sideDishes',
-        dessert: 'desserts'
-      };
-      
-      const itemType = itemTypeMap[dishType];
-      const items = menu[itemType] as MenuItem[] || [];
-      const dishToDelete = items.find(dish => dish.id === dishId);
-      
-      // Utiliser le hook pour supprimer l'élément
-      await removeMenuItem(dishId, menu.id, dishType, dishToDelete?.articleId);
-    } catch (error) {
-      console.error('Error in handleDeleteItem:', error);
-    }
+    // Run the delete operation in the next event cycle to allow UI to update
+    setTimeout(async () => {
+      try {
+        // Utiliser le hook pour supprimer l'élément
+        await removeMenuItem(dishId, menu.id, dishType, articleId);
+      } catch (error) {
+        console.error('Error in handleDeleteItem:', error);
+        setDeleteProcessing(null);
+      }
+    }, 0);
   }, [isProcessing, deleteProcessing, menu, handleDeleteDialogState, setDeleteProcessing, removeMenuItem]);
 
   // Vérifie si le menu est valide
@@ -405,7 +411,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         isProcessing={isProcessing}
       />
 
-      {/* Dialog d'édition */}
+      {/* Dialog d'édition - rendu conditionnel optimisé */}
       {isAddingItem && (
         <EditItemDialog
           item={editingItem.item}
