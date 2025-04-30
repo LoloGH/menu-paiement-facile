@@ -69,6 +69,33 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          created_at: string
+          id: string
+          loyalty_number: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          loyalty_number?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          loyalty_number?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       menu_articles: {
         Row: {
           article_id: string | null
@@ -179,6 +206,13 @@ export type Database = {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "client_orders_history"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -186,8 +220,11 @@ export type Database = {
       }
       orders: {
         Row: {
+          client_id: string | null
           created_at: string
           details: string | null
+          guest_name: string | null
+          guest_phone: string | null
           id: string
           payment_status: string
           receipt_id: string
@@ -196,8 +233,11 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          client_id?: string | null
           created_at?: string
           details?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           payment_status?: string
           receipt_id: string
@@ -206,8 +246,11 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          client_id?: string | null
           created_at?: string
           details?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           payment_status?: string
           receipt_id?: string
@@ -216,6 +259,20 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_orders_history"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_user_id_fkey"
             columns: ["user_id"]
@@ -299,12 +356,29 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      client_orders_history: {
+        Row: {
+          client_id: string | null
+          details: string | null
+          loyalty_number: string | null
+          name: string | null
+          order_date: string | null
+          order_id: string | null
+          phone: string | null
+          receipt_id: string | null
+          total_amount: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_role_to_user_by_email: {
         Args: { user_email: string; role_name: string }
         Returns: boolean
+      }
+      generate_loyalty_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_users_with_role: {
         Args: { role_name: string }

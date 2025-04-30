@@ -26,13 +26,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MoreVertical, Plus, Trash2, Edit } from "lucide-react";
+import { MoreVertical, Plus, Trash2, Edit, Loader2, RefreshCw } from "lucide-react";
 import { MenuEditorProps, MenuDay, MenuItem, DishType } from "./types";
 import { EditItemDialog } from "./EditItemDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { playSounds } from "@/utils/soundEffects";
 
 export const MenuEditor: React.FC<MenuEditorProps> = ({ 
   menu, 
@@ -49,10 +47,27 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [deleteProcessing, setDeleteProcessing] = useState<string | null>(null);
+  // État pour suivre les dialogues de confirmation de suppression ouverts
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<{[key: string]: boolean}>({});
+  // État pour suivre les éléments en cours d'édition
+  const [editingItemIds, setEditingItemIds] = useState<string[]>([]);
 
   useEffect(() => {
     console.log("MenuEditor: menu prop updated:", menu);
   }, [menu]);
+
+  // Méthode pour vérifier si un élément est en cours d'édition
+  const isItemBeingEdited = (itemId: string) => {
+    return editingItemIds.includes(itemId);
+  };
+
+  // Fonction pour gérer l'ouverture/fermeture des dialogues de suppression
+  const handleDeleteDialogState = (itemId: string, isOpen: boolean) => {
+    setDeleteDialogOpen(prev => ({
+      ...prev,
+      [itemId]: isOpen
+    }));
+  };
 
   const handleAddItem = (type: DishType) => {
     if (isProcessing) return;
@@ -61,7 +76,11 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   };
 
   const handleEditItem = (item: MenuItem, type: DishType) => {
-    if (isProcessing) return;
+    if (isProcessing || isItemBeingEdited(item.id)) return;
+    
+    // Ajouter l'ID de l'élément à la liste des éléments en cours d'édition
+    setEditingItemIds(prev => [...prev, item.id]);
+    
     setEditingItem({item, type});
     setIsAddingItem(true);
   };
@@ -70,10 +89,12 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   const safeUpdateRemote = async (actionType: string, details: any) => {
     if (onMenuUpdated) {
       try {
-        // Exécuter le callback en mode non-bloquant
-        await onMenuUpdated(actionType, details).catch(error => {
-          console.error("Error in onMenuUpdated callback:", error);
-        });
+        // Utiliser setTimeout pour s'assurer que cette opération est non-bloquante
+        setTimeout(() => {
+          onMenuUpdated(actionType, details).catch(error => {
+            console.error("Error in onMenuUpdated callback:", error);
+          });
+        }, 0);
       } catch (error) {
         console.error("Error triggering onMenuUpdated callback:", error);
       }
@@ -81,57 +102,71 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
   };
 
   // Fonction sécurisée pour mettre à jour la base de données
-  const safeUpdateDatabase = async (articleId: string | undefined, menuId: string, action: 'add' | 'remove') => {
-    if (!articleId) return;
-
-    try {
-      if (action === 'add') {
-        // Vérifier si l'association existe déjà
-        const { data: existingAssociations, error: fetchError } = await supabase
-          .from('menu_articles')
-          .select('*')
-          .eq('menu_day', menuId)
-          .eq('article_id', articleId);
-          
-        if (fetchError) {
-          console.error('Error checking existing menu article association:', fetchError);
-          return;
-        }
-        
-        // Si l'association n'existe pas, la créer
-        if (!existingAssociations || existingAssociations.length === 0) {
-          const { error: insertError } = await supabase
-            .from('menu_articles')
-            .insert({
-              menu_day: menuId,
-              article_id: articleId
-            });
-            
-          if (insertError) {
-            console.error('Error saving menu article association:', insertError);
-          } else {
-            console.log('Menu article association saved successfully');
-          }
-        } else {
-          console.log('Menu article association already exists');
-        }
-      } else if (action === 'remove') {
-        // Supprimer l'association
-        const { error } = await supabase
-          .from('menu_articles')
-          .delete()
-          .eq('menu_day', menuId)
-          .eq('article_id', articleId);
-
-        if (error) {
-          console.error(`Error deleting menu article association:`, error);
-        } else {
-          console.log('Menu article association deleted successfully');
-        }
+  const safeUpdateDatabase = (articleId: string | undefined, menuId: string, action: 'add' | 'remove'): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!articleId) {
+        resolve();
+        return;
       }
-    } catch (error) {
-      console.error('Error in database operation:', error);
-    }
+
+      // Utiliser setTimeout pour s'assurer que cette opération est non-bloquante
+      setTimeout(async () => {
+        try {
+          if (action === 'add') {
+            // Vérifier si l'association existe déjà
+            const { data: existingAssociations, error: fetchError } = await supabase
+              .from('menu_articles')
+              .select('*')
+              .eq('menu_day', menuId)
+              .eq('article_id', articleId)
+              .timeout(3000); // Ajouter un timeout pour éviter les requêtes bloquantes
+              
+            if (fetchError) {
+              console.error('Error checking existing menu article association:', fetchError);
+              resolve();
+              return;
+            }
+            
+            // Si l'association n'existe pas, la créer
+            if (!existingAssociations || existingAssociations.length === 0) {
+              const { error: insertError } = await supabase
+                .from('menu_articles')
+                .insert({
+                  menu_day: menuId,
+                  article_id: articleId
+                })
+                .timeout(3000);
+                
+              if (insertError) {
+                console.error('Error saving menu article association:', insertError);
+              } else {
+                console.log('Menu article association saved successfully');
+              }
+            } else {
+              console.log('Menu article association already exists');
+            }
+          } else if (action === 'remove') {
+            // Supprimer l'association
+            const { error } = await supabase
+              .from('menu_articles')
+              .delete()
+              .eq('menu_day', menuId)
+              .eq('article_id', articleId)
+              .timeout(3000);
+
+            if (error) {
+              console.error(`Error deleting menu article association:`, error);
+            } else {
+              console.log('Menu article association deleted successfully');
+            }
+          }
+        } catch (error) {
+          console.error('Error in database operation:', error);
+        } finally {
+          resolve();
+        }
+      }, 0);
+    });
   };
 
   const handleSaveItem = async (updatedItem: MenuItem) => {
@@ -187,28 +222,19 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       // Sauvegarder dans localStorage
       localStorage.setItem("weeklyMenu", JSON.stringify(updatedMenus));
       
-      // Notification à l'utilisateur avant les opérations en arrière-plan
+      // Notification à l'utilisateur
       toast({
         title: "Succès",
         description: `${editingItem.item ? "Élément mis à jour" : "Nouvel élément ajouté"} avec succès.`,
       });
       
-      // Réinitialiser l'état d'édition pour libérer l'interface
-      setEditingItem({item: null, type: 'mainDish'});
-      setIsAddingItem(false);
-      
-      // Mettre à jour la base de données en arrière-plan
+      // Mettre à jour la base de données en arrière-plan sans bloquer l'UI
       if (updatedItem.articleId) {
-        // Ne pas attendre la résolution pour ne pas bloquer l'UI
-        setTimeout(() => {
-          safeUpdateDatabase(updatedItem.articleId, menu.id, 'add');
-        }, 0);
+        safeUpdateDatabase(updatedItem.articleId, menu.id, 'add');
       }
       
-      // Appeler le callback de notification en arrière-plan
-      setTimeout(() => {
-        safeUpdateRemote(actionType, { menuId: menu.id, dish: updatedItem });
-      }, 0);
+      // Appeler le callback de notification en arrière-plan sans bloquer l'interface
+      safeUpdateRemote(actionType, { menuId: menu.id, dish: updatedItem });
       
     } catch (error) {
       console.error('Error saving item:', error);
@@ -218,18 +244,33 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
         variant: "destructive",
       });
     } finally {
-      // S'assurer que isProcessing est toujours remis à false
+      // Réinitialiser les états
       setIsProcessing(false);
+      setEditingItem({item: null, type: 'mainDish'});
+      setIsAddingItem(false);
+      
+      // Supprimer l'ID de la liste des éléments en cours d'édition
+      if (editingItem.item) {
+        setEditingItemIds(prev => prev.filter(id => id !== editingItem.item?.id));
+      }
     }
   };
 
   const handleCancelEdit = () => {
+    // Supprimer l'ID de la liste des éléments en cours d'édition
+    if (editingItem.item) {
+      setEditingItemIds(prev => prev.filter(id => id !== editingItem.item?.id));
+    }
+    
     setEditingItem({item: null, type: 'mainDish'});
     setIsAddingItem(false);
   };
 
   const handleDeleteItem = async (dishId: string, dishType: DishType) => {
     if (isProcessing || deleteProcessing) return;
+    
+    // Fermer le dialogue de confirmation
+    handleDeleteDialogState(dishId, false);
     
     // Marquer cet élément spécifique comme étant en cours de suppression
     setDeleteProcessing(dishId);
@@ -277,19 +318,15 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
       
       // Traitement en arrière-plan sans bloquer l'UI
       if (dish?.articleId) {
-        setTimeout(() => {
-          safeUpdateDatabase(dish.articleId, menu.id, 'remove');
-        }, 0);
+        safeUpdateDatabase(dish.articleId, menu.id, 'remove');
       }
       
       // Appeler le callback de notification en arrière-plan sans bloquer l'interface
-      setTimeout(() => {
-        safeUpdateRemote(`delete_${dishType}`, { 
-          menuId: menu.id, 
-          dishId, 
-          dishDetails: dishToDelete 
-        });
-      }, 0);
+      safeUpdateRemote(`delete_${dishType}`, { 
+        menuId: menu.id, 
+        dishId, 
+        dishDetails: dishToDelete 
+      });
       
     } catch (error) {
       console.error('Error in delete operation:', error);
@@ -325,7 +362,7 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
             <TableBody>
               {items && items.length > 0 ? (
                 items.map((dish) => (
-                  <TableRow key={dish.id}>
+                  <TableRow key={dish.id} className={deleteProcessing === dish.id ? "opacity-50" : ""}>
                     <TableCell>{dish.name}</TableCell>
                     <TableCell>{dish.price}</TableCell>
                     <TableCell>{dish.description}</TableCell>
@@ -333,66 +370,94 @@ export const MenuEditor: React.FC<MenuEditorProps> = ({
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0" 
+                            disabled={
+                              isProcessing || 
+                              deleteProcessing === dish.id || 
+                              isItemBeingEdited(dish.id)
+                            }
+                          >
                             <span className="sr-only">Ouvrir le menu</span>
-                            <MoreVertical className="h-4 w-4" />
+                            {deleteProcessing === dish.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isItemBeingEdited(dish.id) ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MoreVertical className="h-4 w-4" />
+                            )}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {!readOnly && (
                             <DropdownMenuItem
                               onClick={() => handleEditItem(dish, type)}
-                              disabled={isProcessing || deleteProcessing === dish.id}
+                              disabled={
+                                isProcessing || 
+                                deleteProcessing === dish.id || 
+                                isItemBeingEdited(dish.id)
+                              }
                             >
                               <Edit className="h-4 w-4 mr-2" />
                               Modifier
                             </DropdownMenuItem>
                           )}
                           {!readOnly && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem 
-                                  className="text-red-500" 
-                                  disabled={isProcessing || deleteProcessing === dish.id}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Supprimer
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Êtes-vous sûr de vouloir supprimer cet élément?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteItem(dish.id, type)}
-                                    disabled={isProcessing || deleteProcessing === dish.id}
-                                    className={deleteProcessing === dish.id ? "opacity-50 cursor-not-allowed" : ""}
-                                  >
-                                    {deleteProcessing === dish.id ? (
-                                      <span className="flex items-center">
-                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Suppression...
-                                      </span>
-                                    ) : (
-                                      "Supprimer"
-                                    )}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <DropdownMenuItem
+                              className="text-red-500" 
+                              onClick={() => handleDeleteDialogState(dish.id, true)}
+                              disabled={
+                                isProcessing || 
+                                deleteProcessing === dish.id || 
+                                isItemBeingEdited(dish.id)
+                              }
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
+
+                      {/* Dialogue de confirmation de suppression - séparé du DropdownMenu */}
+                      <AlertDialog 
+                        open={deleteDialogOpen[dish.id] || false}
+                        onOpenChange={(open) => handleDeleteDialogState(dish.id, open)}
+                      >
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Êtes-vous sûr de vouloir supprimer cet élément?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action est irréversible.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel 
+                              onClick={() => handleDeleteDialogState(dish.id, false)}
+                              disabled={deleteProcessing === dish.id}
+                            >
+                              Annuler
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteItem(dish.id, type)}
+                              disabled={deleteProcessing === dish.id}
+                              className={deleteProcessing === dish.id ? "opacity-50 cursor-not-allowed" : ""}
+                            >
+                              {deleteProcessing === dish.id ? (
+                                <span className="flex items-center">
+                                  <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
+                                  Suppression...
+                                </span>
+                              ) : (
+                                "Supprimer"
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))
