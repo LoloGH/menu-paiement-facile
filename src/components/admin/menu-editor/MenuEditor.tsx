@@ -186,6 +186,17 @@ const MenuEditorContent: React.FC<MenuEditorProps> = ({
     });
   }, []);
 
+  // Définir handleCancelEdit avant qu'il ne soit utilisé dans handleSaveItem
+  const handleCancelEdit = useCallback(() => {
+    // Supprimer l'ID de la liste des éléments en cours d'édition
+    if (editingItem.item) {
+      removeEditingItemId(editingItem.item.id);
+    }
+    
+    setEditingItem({item: null, type: 'mainDish'});
+    setIsAddingItem(false);
+  }, [editingItem.item, removeEditingItemId]);
+
   const handleSaveItem = useCallback(async (updatedItem: MenuItem) => {
     if (isProcessingAction) return;
     
@@ -274,16 +285,6 @@ const MenuEditorContent: React.FC<MenuEditorProps> = ({
       setIsProcessingAction(false);
     }
   }, [isProcessingAction, editingItem, menu, menus, toast, safeUpdateDatabase, safeUpdateRemote, handleCancelEdit, setIsProcessingAction]);
-
-  const handleCancelEdit = useCallback(() => {
-    // Supprimer l'ID de la liste des éléments en cours d'édition
-    if (editingItem.item) {
-      removeEditingItemId(editingItem.item.id);
-    }
-    
-    setEditingItem({item: null, type: 'mainDish'});
-    setIsAddingItem(false);
-  }, [editingItem.item, removeEditingItemId]);
 
   const handleDeleteItem = useCallback(async (dishId: string, dishType: DishType) => {
     if (isProcessingAction || deleteProcessing) return;
@@ -561,3 +562,4 @@ const MenuEditorContent: React.FC<MenuEditorProps> = ({
     </div>
   );
 };
+
