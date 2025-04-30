@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useCallback, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,6 @@ import { Check, Loader2, AlertCircle } from "lucide-react";
 import { MenuItem, DishType } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { MenuStateContext } from "@/contexts/MenuStateContext";
 
 interface Article {
   id: string;
@@ -40,17 +39,16 @@ interface EditItemDialogProps {
 
 export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogProps) => {
   const { toast } = useToast();
-  const { isProcessingAction, setIsProcessingAction } = useContext(MenuStateContext);
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [selectedArticleId, setSelectedArticleId] = useState<string>("");
   const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchRetries, setFetchRetries] = useState(0);
   const maxRetries = 3;
   
-  // Utilisation de useCallback pour optimiser la fonction
-  const fetchArticles = useCallback(async (retry = 0) => {
+  const fetchArticles = async (retry = 0) => {
     if (retry > maxRetries) {
       setError("Erreur persistante lors du chargement des articles. Veuillez réessayer plus tard.");
       setIsLoading(false);
@@ -72,6 +70,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         .select('*')
         .eq('type', articleType)
         .order('name');
+        // Removed timeout to fix TypeScript error
 
       if (error) {
         console.error('Error fetching articles:', error);
@@ -109,7 +108,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
     } finally {
       setIsLoading(false);
     }
-  }, [type, item, maxRetries]);
+  };
 
   useEffect(() => {
     fetchArticles();
@@ -120,13 +119,13 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
       setSelectedArticleId("");
       setError(null);
       setIsLoading(false);
-      setIsProcessingAction(false);
+      setIsSaving(false);
     };
-  }, [type, item, fetchArticles, setIsProcessingAction]);
+  }, [type, item]);
 
-  // Fonction optimisée pour la séquence de fermeture et éviter le gel
-  const handleSave = useCallback(() => {
-    if (isProcessingAction) return;
+  // Fonction modifiée pour améliorer la séquence de fermeture et éviter le gel
+  const handleSave = () => {
+    if (isSaving) return;
     
     try {
       console.log("Beginning save operation with articleId:", selectedArticleId);
@@ -155,35 +154,38 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
 
       console.log("Menu item prepared:", menuItem);
       
-      // Marquer comme en cours de traitement
-      setIsProcessingAction(true);
+      // Marquer comme en cours de sauvegarde
+      setIsSaving(true);
       
       // Fermer le dialogue AVANT d'exécuter onSave pour éviter le gel de l'interface
       setIsOpen(false);
       
-      // Utiliser un délai minimal pour permettre à React de mettre à jour l'interface avant de continuer
-      setTimeout(() => {
+      // Utiliser requestAnimationFrame pour déplacer l'opération de sauvegarde après la fermeture visuelle
+      requestAnimationFrame(() => {
         // Appeler le callback de sauvegarde en dehors du thread principal
-        // Utiliser setTimeout avec un délai de 0 pour s'assurer que cette opération est exécutée
-        // dans le prochain cycle d'événements, après les mises à jour de l'interface
         setTimeout(() => {
           try {
             onSave(menuItem);
+            
+            // Notification de succès
+            toast({
+              title: "Succès",
+              description: "L'élément a été enregistré avec succès",
+            });
           } catch (error) {
             console.error("Error in save callback:", error);
-            setIsProcessingAction(false);
           }
-        }, 0);
-      }, 50);
+        }, 50); // Un petit délai pour s'assurer que l'UI a eu le temps de se mettre à jour
+      });
     } catch (error) {
       console.error("Error preparing item for save:", error);
       setError("Une erreur est survenue lors de la préparation de l'élément. Veuillez réessayer.");
-      setIsProcessingAction(false);
+      setIsSaving(false);
     }
-  }, [selectedArticleId, availableArticles, item, type, isProcessingAction, setIsProcessingAction, onSave]);
+  };
 
   // Gérer la fermeture du dialogue de manière plus propre
-  const handleCloseDialog = useCallback(() => {
+  const handleCloseDialog = () => {
     // Marquer d'abord le dialogue comme fermé pour l'animation
     setIsOpen(false);
     
@@ -194,7 +196,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         onClose();
       }, 50);
     });
-  }, [onClose]);
+  };
 
   const typeLabel = type === "mainDish" 
     ? "plat principal" 
@@ -240,7 +242,7 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
               <Select
                 value={selectedArticleId}
                 onValueChange={setSelectedArticleId}
-                disabled={isLoading || isProcessingAction}
+                disabled={isLoading || isSaving}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionnez un article" />
@@ -302,16 +304,16 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
           <Button 
             variant="outline" 
             onClick={handleCloseDialog}
-            disabled={isProcessingAction}
+            disabled={isSaving}
           >
             Annuler
           </Button>
           <Button 
             onClick={handleSave} 
             className="bg-restaurant-purple"
-            disabled={!selectedArticleId || isLoading || isProcessingAction}
+            disabled={!selectedArticleId || isLoading || isSaving}
           >
-            {isProcessingAction ? (
+            {isSaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Enregistrement...
