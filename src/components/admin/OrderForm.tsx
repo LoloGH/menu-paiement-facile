@@ -53,16 +53,18 @@ export const OrderForm: React.FC<OrderFormProps> = ({
     if (!initialData) return;
     
     // Traiter le parsing du JSON en tâche de fond pour éviter de bloquer l'UI
-    globalTaskQueue.safeExecute(() => {
+    globalTaskQueue.safeExecute(async () => {
       try {
         const details = typeof initialData?.details === 'string' 
           ? JSON.parse(initialData.details || '{}') 
           : (initialData?.details || {});
         
         setParsedDetails(details);
+        return Promise.resolve(); // Return a promise to satisfy TypeScript
       } catch (error) {
         console.error("Erreur lors du parsing des détails:", error);
         setParsedDetails({});
+        return Promise.reject(error);  // Return a rejected promise on error
       }
     });
   }, [initialData]);
@@ -92,7 +94,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
     setIsProcessing(true);
     
     // Reconstruire l'objet de détails et le convertir en JSON de manière non-bloquante
-    globalTaskQueue.safeExecute(() => {
+    globalTaskQueue.safeExecute(async () => {
       // Reconstruct the details object
       const detailsObject = {
         items: formData.items,
@@ -106,6 +108,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({
         payment_status: formData.payment_status,
         details: JSON.stringify(detailsObject),
       });
+      
+      return Promise.resolve(); // Return a promise to satisfy TypeScript
     }).finally(() => {
       setIsProcessing(false);
     });
