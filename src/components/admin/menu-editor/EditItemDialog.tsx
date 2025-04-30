@@ -123,27 +123,25 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
     };
   }, [type, item]);
 
-  const handleSave = async () => {
+  // Fonction modifiée pour améliorer la séquence de fermeture et éviter le gel
+  const handleSave = () => {
     if (isSaving) return;
     
     try {
-      console.log("Saving item with articleId:", selectedArticleId);
-      setIsSaving(true);
-      setError(null);
+      console.log("Beginning save operation with articleId:", selectedArticleId);
       
       if (!selectedArticleId) {
         setError("Veuillez sélectionner un article");
-        setIsSaving(false);
         return;
       }
       
       const selectedArticle = availableArticles.find(article => article.id === selectedArticleId);
       if (!selectedArticle) {
         setError("Article sélectionné non trouvé");
-        setIsSaving(false);
         return;
       }
 
+      // Préparer les données à l'avance
       const menuItem: MenuItem = {
         id: item?.id || `${type}_${Date.now()}`,
         name: selectedArticle.name,
@@ -154,30 +152,50 @@ export const EditItemDialog = ({ item, type, onClose, onSave }: EditItemDialogPr
         type: type === 'mainDish' ? 'main_dish' : type === 'sideDish' ? 'side_dish' : 'dessert'
       };
 
-      console.log("Menu item to save:", menuItem);
+      console.log("Menu item prepared:", menuItem);
       
-      // Fermer le dialogue immédiatement pour éviter le blocage de l'interface
+      // Marquer comme en cours de sauvegarde
+      setIsSaving(true);
+      
+      // Fermer le dialogue AVANT d'exécuter onSave pour éviter le gel de l'interface
       setIsOpen(false);
       
-      // Appeler le callback de sauvegarde
-      onSave(menuItem);
-
-      // Notification de succès
-      toast({
-        title: "Succès",
-        description: "L'élément a été enregistré avec succès",
+      // Utiliser requestAnimationFrame pour déplacer l'opération de sauvegarde après la fermeture visuelle
+      requestAnimationFrame(() => {
+        // Appeler le callback de sauvegarde en dehors du thread principal
+        setTimeout(() => {
+          try {
+            onSave(menuItem);
+            
+            // Notification de succès
+            toast({
+              title: "Succès",
+              description: "L'élément a été enregistré avec succès",
+            });
+          } catch (error) {
+            console.error("Error in save callback:", error);
+          }
+        }, 50); // Un petit délai pour s'assurer que l'UI a eu le temps de se mettre à jour
       });
-      
     } catch (error) {
-      console.error("Error saving item:", error);
-      setError("Une erreur est survenue lors de la sauvegarde. Veuillez réessayer.");
+      console.error("Error preparing item for save:", error);
+      setError("Une erreur est survenue lors de la préparation de l'élément. Veuillez réessayer.");
       setIsSaving(false);
     }
   };
 
+  // Gérer la fermeture du dialogue de manière plus propre
   const handleCloseDialog = () => {
+    // Marquer d'abord le dialogue comme fermé pour l'animation
     setIsOpen(false);
-    onClose();
+    
+    // Utiliser requestAnimationFrame pour permettre à l'animation de fermeture de se produire
+    requestAnimationFrame(() => {
+      // Petit délai pour s'assurer que l'animation est en cours
+      setTimeout(() => {
+        onClose();
+      }, 50);
+    });
   };
 
   const typeLabel = type === "mainDish" 
