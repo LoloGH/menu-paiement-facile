@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { globalTaskQueue } from '@/utils/backgroundWorker';
 
 const orderSchema = z.object({
   payment_status: z.string(),
@@ -44,11 +45,28 @@ export const OrderForm: React.FC<OrderFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
-  // Try to parse the details from the initialData
-  const parsedDetails = typeof initialData?.details === 'string' 
-    ? JSON.parse(initialData.details || '{}') 
-    : (initialData?.details || {});
-
+  const [parsedDetails, setParsedDetails] = useState<any>({});
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Utilisation d'un effet pour parser les details en tâche de fond
+  useEffect(() => {
+    if (!initialData) return;
+    
+    // Traiter le parsing du JSON en tâche de fond pour éviter de bloquer l'UI
+    globalTaskQueue.safeExecute(() => {
+      try {
+        const details = typeof initialData?.details === 'string' 
+          ? JSON.parse(initialData.details || '{}') 
+          : (initialData?.details || {});
+        
+        setParsedDetails(details);
+      } catch (error) {
+        console.error("Erreur lors du parsing des détails:", error);
+        setParsedDetails({});
+      }
+    });
+  }, [initialData]);
+  
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
@@ -59,21 +77,37 @@ export const OrderForm: React.FC<OrderFormProps> = ({
       note: parsedDetails.note || '',
       items: parsedDetails.items || '',
     },
+    // Mettre à jour le formulaire quand les détails parsés changent
+    values: {
+      payment_status: initialData?.payment_status || "pending",
+      details: initialData?.details,
+      table: parsedDetails.table || '',
+      client: parsedDetails.client || '',
+      note: parsedDetails.note || '',
+      items: parsedDetails.items || '',
+    }
   });
 
   const handleSubmit = (formData: OrderFormValues) => {
-    // Reconstruct the details object
-    const detailsObject = {
-      items: formData.items,
-      table: formData.table,
-      note: formData.note,
-      client: formData.client,
-    };
+    setIsProcessing(true);
+    
+    // Reconstruire l'objet de détails et le convertir en JSON de manière non-bloquante
+    globalTaskQueue.safeExecute(() => {
+      // Reconstruct the details object
+      const detailsObject = {
+        items: formData.items,
+        table: formData.table,
+        note: formData.note,
+        client: formData.client,
+      };
 
-    // Submit with the stringified details
-    onSubmit({
-      payment_status: formData.payment_status,
-      details: JSON.stringify(detailsObject),
+      // Submit with the stringified details
+      onSubmit({
+        payment_status: formData.payment_status,
+        details: JSON.stringify(detailsObject),
+      });
+    }).finally(() => {
+      setIsProcessing(false);
     });
   };
 
@@ -89,6 +123,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
               <Select 
                 onValueChange={field.onChange} 
                 defaultValue={field.value}
+                disabled={isProcessing}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -120,6 +155,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
                 <Input 
                   placeholder="Numéro de table" 
                   {...field} 
+                  disabled={isProcessing}
                 />
               </FormControl>
               <FormMessage />
@@ -137,6 +173,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
                 <Input 
                   placeholder="Nom du client" 
                   {...field} 
+                  disabled={isProcessing}
                 />
               </FormControl>
               <FormMessage />
@@ -155,6 +192,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
                   placeholder="Détails des articles commandés" 
                   {...field} 
                   rows={4}
+                  disabled={isProcessing}
                 />
               </FormControl>
               <FormMessage />
@@ -173,6 +211,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
                   placeholder="Notes supplémentaires sur la commande" 
                   {...field} 
                   rows={4}
+                  disabled={isProcessing}
                 />
               </FormControl>
               <FormMessage />
@@ -181,10 +220,18 @@ export const OrderForm: React.FC<OrderFormProps> = ({
         />
 
         <div className="flex justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onCancel}
+            disabled={isProcessing}
+          >
             Annuler
           </Button>
-          <Button type="submit">
+          <Button 
+            type="submit"
+            disabled={isProcessing}
+          >
             Mettre à jour
           </Button>
         </div>

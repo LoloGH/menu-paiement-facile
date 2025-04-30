@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, logAdminAction } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { 
@@ -56,9 +55,11 @@ import {
   Package,
   Truck,
   UtensilsCrossed,
-  Bell
+  Bell,
+  Loader2
 } from "lucide-react";
 import { playSounds } from '@/utils/soundEffects';
+import { globalTaskQueue } from '@/utils/backgroundWorker';
 
 interface OrdersTableProps {
   searchTerm: string;
@@ -81,6 +82,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
   const [filterClient, setFilterClient] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
+  const [updatingOrder, setUpdatingOrder] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -106,39 +108,42 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from("orders")
-        .select(`
-          *,
-          users (email, name)
-        `);
+      // Utiliser globalTaskQueue.safeExecute pour eviter de bloquer l'interface
+      const result = await globalTaskQueue.safeExecute(async () => {
+        let query = supabase
+          .from("orders")
+          .select(`
+            *,
+            users (email, name)
+          `);
+        
+        // Appliquer les filtres
+        if (searchTerm) {
+          query = query.or(`receipt_id.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
+        }
+        
+        if (filterStatus) {
+          query = query.eq('payment_status', filterStatus);
+        }
+        
+        if (filterDate) {
+          const dateStr = format(filterDate, 'yyyy-MM-dd');
+          query = query.gte('created_at', `${dateStr}T00:00:00`).lt('created_at', `${dateStr}T23:59:59`);
+        }
+        
+        if (filterClient) {
+          query = query.eq('user_id', filterClient);
+        }
+        
+        return await query.order("created_at", { ascending: false });
+      });
+
+      if (result.error) throw result.error;
       
-      // Appliquer les filtres
-      if (searchTerm) {
-        query = query.or(`receipt_id.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
-      }
+      setOrders(result.data || []);
       
-      if (filterStatus) {
-        query = query.eq('payment_status', filterStatus);
-      }
-      
-      if (filterDate) {
-        const dateStr = format(filterDate, 'yyyy-MM-dd');
-        query = query.gte('created_at', `${dateStr}T00:00:00`).lt('created_at', `${dateStr}T23:59:59`);
-      }
-      
-      if (filterClient) {
-        query = query.eq('user_id', filterClient);
-      }
-      
-      const { data, error } = await query.order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      
-      setOrders(data || []);
-      
-      // Charger les détails pour toutes les commandes
-      for (const order of data || []) {
+      // Charger les détails pour toutes les commandes en tâches de fond
+      for (const order of result.data || []) {
         fetchOrderItems(order.id);
       }
     } catch (error: any) {
@@ -154,90 +159,114 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
   const fetchOrderItems = async (orderId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("order_items")
-        .select("*")
-        .eq("order_id", orderId);
-      
-      if (error) throw error;
-      
-      setOrderDetails(prev => ({
-        ...prev,
-        [orderId]: data || []
-      }));
+      // Utiliser globalTaskQueue.add pour ne pas bloquer l'interface
+      globalTaskQueue.add(async () => {
+        const { data, error } = await supabase
+          .from("order_items")
+          .select("*")
+          .eq("order_id", orderId);
+        
+        if (error) throw error;
+        
+        // Mettre à jour l'état de façon sécurisée
+        setOrderDetails(prev => ({
+          ...prev,
+          [orderId]: data || []
+        }));
+      });
     } catch (error: any) {
       console.error("Erreur lors du chargement des articles:", error);
     }
   };
 
   const handleUpdateOrder = async (orderData: any) => {
+    // Indiquer que la mise à jour est en cours
+    setUpdatingOrder(true);
+    
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({
-          payment_status: orderData.payment_status,
-          details: orderData.details
-        })
-        .eq("id", currentOrder.id);
+      // Utiliser globalTaskQueue pour éviter de bloquer l'UI
+      const result = await globalTaskQueue.add(async () => {
+        // Mettre à jour la commande
+        const { error } = await supabase
+          .from("orders")
+          .update({
+            payment_status: orderData.payment_status,
+            details: orderData.details
+          })
+          .eq("id", currentOrder.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        
+        // Enregistrer l'action dans les logs d'audit si nécessaire
+        if (onActionPerformed) {
+          await onActionPerformed('update_order', 'orders', {
+            order_id: currentOrder.id,
+            new_status: orderData.payment_status
+          });
+        }
+        
+        return { success: true };
+      });
 
+      if (!result.success) throw new Error("Échec de la mise à jour");
+      
       toast({
         title: "Succès",
         description: "Commande mise à jour avec succès",
       });
-
-      if (onActionPerformed) {
-        await onActionPerformed('update_order', 'orders', {
-          order_id: currentOrder.id,
-          new_status: orderData.payment_status
-        });
-      }
-
+      
+      // Recharger les données en arrière-plan
+      globalTaskQueue.add(() => fetchOrders());
+      
+      // Fermer la boîte de dialogue après la mise à jour réussie
       setIsFormOpen(false);
-      fetchOrders(); // Refresh the orders list
     } catch (error: any) {
       toast({
         title: "Erreur",
         description: `Impossible de mettre à jour la commande: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      // Réinitialiser l'état de mise à jour
+      setUpdatingOrder(false);
     }
   };
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     const statusToUpdate = newStatus === 'validated' ? 'preparing' : newStatus;
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ payment_status: statusToUpdate })
-        .eq("id", orderId);
+      await globalTaskQueue.add(async () => {
+        const { error } = await supabase
+          .from("orders")
+          .update({ payment_status: statusToUpdate })
+          .eq("id", orderId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Jouer le son approprié selon le statut
-      if (statusToUpdate === 'preparing') {
-        console.log("Lecture du son pour commande en préparation");
-        playSounds.preparing();
-      } else if (statusToUpdate === 'ready') {
-        console.log("Lecture du son pour commande prête");
-        playSounds.ready();
-      } else if (statusToUpdate === 'delivered') {
-        console.log("Lecture du son pour commande livrée");
-        playSounds.delivered();
-      }
+        // Jouer le son approprié selon le statut
+        if (statusToUpdate === 'preparing') {
+          console.log("Lecture du son pour commande en préparation");
+          playSounds.preparing();
+        } else if (statusToUpdate === 'ready') {
+          console.log("Lecture du son pour commande prête");
+          playSounds.ready();
+        } else if (statusToUpdate === 'delivered') {
+          console.log("Lecture du son pour commande livrée");
+          playSounds.delivered();
+        }
+
+        if (onActionPerformed) {
+          await onActionPerformed('update_order_status', 'orders', {
+            order_id: orderId,
+            new_status: statusToUpdate
+          });
+        }
+      });
 
       toast({
         title: "Statut mis à jour",
         description: `La commande a été marquée comme "${getStatusLabel(statusToUpdate)}"`,
       });
-
-      if (onActionPerformed) {
-        await onActionPerformed('update_order_status', 'orders', {
-          order_id: orderId,
-          new_status: statusToUpdate
-        });
-      }
 
       fetchOrders();
     } catch (error: any) {
@@ -255,30 +284,32 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     }
 
     try {
-      // D'abord supprimer les articles liés
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .delete()
-        .eq("order_id", orderId);
+      await globalTaskQueue.add(async () => {
+        // D'abord supprimer les articles liés
+        const { error: itemsError } = await supabase
+          .from("order_items")
+          .delete()
+          .eq("order_id", orderId);
 
-      if (itemsError) throw itemsError;
+        if (itemsError) throw itemsError;
 
-      // Ensuite supprimer la commande
-      const { error } = await supabase
-        .from("orders")
-        .delete()
-        .eq("id", orderId);
+        // Ensuite supprimer la commande
+        const { error } = await supabase
+          .from("orders")
+          .delete()
+          .eq("id", orderId);
 
-      if (error) throw error;
+        if (error) throw error;
+
+        if (onActionPerformed) {
+          await onActionPerformed('delete_order', 'orders', { order_id: orderId });
+        }
+      });
 
       toast({
         title: "Commande supprimée",
         description: "La commande et ses articles ont été supprimés avec succès",
       });
-
-      if (onActionPerformed) {
-        await onActionPerformed('delete_order', 'orders', { order_id: orderId });
-      }
 
       fetchOrders();
     } catch (error: any) {
@@ -343,8 +374,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   };
 
   const handleEditOrder = (order: any) => {
-    setCurrentOrder(order);
-    setIsFormOpen(true);
+    // Utiliser requestAnimationFrame pour éviter de bloquer l'UI
+    requestAnimationFrame(() => {
+      setCurrentOrder(order);
+      setIsFormOpen(true);
+    });
   };
 
   const printOrder = (order: any) => {
@@ -654,7 +688,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         </Table>
       )}
 
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+      <Dialog open={isFormOpen} onOpenChange={(open) => {
+        // Si on essaie de fermer pendant une mise à jour, empêcher la fermeture
+        if (!open && updatingOrder) return;
+        setIsFormOpen(open);
+        // Si on ferme le dialog, réinitialiser l'ordre courant
+        if (!open) {
+          setTimeout(() => setCurrentOrder(null), 300);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifier la commande</DialogTitle>
@@ -662,8 +704,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           <OrderForm 
             initialData={currentOrder} 
             onSubmit={handleUpdateOrder}
-            onCancel={() => setIsFormOpen(false)}
+            onCancel={() => !updatingOrder && setIsFormOpen(false)}
           />
+          {updatingOrder && (
+            <div className="flex justify-center mt-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="ml-2">Mise à jour en cours...</span>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
