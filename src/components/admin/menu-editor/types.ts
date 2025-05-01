@@ -32,6 +32,14 @@ export interface MenuArticle {
   menu_day: string;
   article_id?: string;
   created_at?: string;
+  articles?: {
+    id: string;
+    name: string;
+    price: number;
+    description?: string;
+    image_url?: string;
+    type: 'main_dish' | 'side_dish' | 'dessert';
+  };
 }
 
 export interface MenuEditorProps {

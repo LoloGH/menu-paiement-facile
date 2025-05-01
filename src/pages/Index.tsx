@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { MenuCard } from '@/components/MenuCard';
 import { WeekNavigation } from '@/components/WeekNavigation';
@@ -19,6 +20,7 @@ const Index = () => {
   const isMobile = useIsMobile();
   const [showWeeklyReceipt, setShowWeeklyReceipt] = useState(false);
   const [weeklyReceiptId, setWeeklyReceiptId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
@@ -38,19 +40,31 @@ const Index = () => {
   useEffect(() => {
     const loadMenus = async () => {
       try {
-        // First try to load from Supabase
+        setIsLoading(true);
+        
+        // Charger d'abord les menus hebdomadaires actifs
         const { data: weeklyMenus, error: weeklyMenuError } = await supabase
           .from('weekly_menus')
           .select('*')
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .order('date', { ascending: true });
 
         if (weeklyMenuError) throw weeklyMenuError;
 
+        if (!weeklyMenus || weeklyMenus.length === 0) {
+          console.log("Aucun menu hebdomadaire actif trouvé, utilisation des menus par défaut");
+          setMenus(defaultWeeklyMenu);
+          setIsLoading(false);
+          return;
+        }
+
+        // Charger ensuite les articles de menu avec leurs détails
         const { data: menuArticles, error: menuArticlesError } = await supabase
           .from('menu_articles')
           .select(`
             id,
             menu_day,
+            article_id,
             articles (
               id,
               name,
@@ -63,62 +77,104 @@ const Index = () => {
 
         if (menuArticlesError) throw menuArticlesError;
 
-        // Group articles by menu day and type
+        // Grouper les articles par jour de menu et type
         const menusByDay = new Map();
+        
+        // Initialiser la structure pour chaque jour de la semaine
+        weeklyMenus.forEach(weekMenu => {
+          menusByDay.set(weekMenu.day, {
+            id: `menu_${weekMenu.day}`,
+            day: weekMenu.day,
+            date: weekMenu.date ? new Date(weekMenu.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '',
+            mainDishes: [],
+            sideDishes: [],
+            desserts: []
+          });
+        });
+
+        // Ajouter les articles aux jours correspondants
         menuArticles.forEach((menuArticle: any) => {
           const article = menuArticle.articles;
           const menuDay = menuArticle.menu_day;
           
           if (!menusByDay.has(menuDay)) {
-            menusByDay.set(menuDay, {
-              mainDishes: [],
-              sideDishes: [],
-              desserts: []
-            });
+            return; // Ignorer les articles pour des jours non actifs
           }
           
           const menu = menusByDay.get(menuDay);
-          if (article.type === 'main_dish') menu.mainDishes.push(article);
-          else if (article.type === 'side_dish') menu.sideDishes.push(article);
-          else if (article.type === 'dessert') menu.desserts.push(article);
+          if (!article) return; // Ignorer les articles non définis
+          
+          if (article.type === 'main_dish') {
+            menu.mainDishes.push({
+              id: article.id,
+              name: article.name,
+              price: article.price,
+              description: article.description || "",
+              imageUrl: article.image_url || "/placeholder.svg"
+            });
+          } else if (article.type === 'side_dish') {
+            menu.sideDishes.push({
+              id: article.id,
+              name: article.name,
+              price: article.price,
+              description: article.description || "",
+              imageUrl: article.image_url || "/placeholder.svg"
+            });
+          } else if (article.type === 'dessert') {
+            menu.desserts.push({
+              id: article.id,
+              name: article.name,
+              price: article.price,
+              description: article.description || "",
+              imageUrl: article.image_url || "/placeholder.svg"
+            });
+          }
         });
 
-        // Convert to app format
-        const convertedMenus = Array.from(menusByDay.entries()).map(([day, items]) => ({
-          id: `menu_${day}`,
-          day,
-          date: weeklyMenus?.find(wm => wm.day === day)?.date || '',
-          mealOptions: convertToMealOptions(items)
+        // Convertir les données au format attendu par l'application
+        const convertedMenus = Array.from(menusByDay.values()).map(menuDay => ({
+          id: menuDay.id,
+          day: menuDay.day,
+          date: menuDay.date,
+          mealOptions: convertToMealOptions(menuDay)
         }));
 
         if (convertedMenus && convertedMenus.length > 0) {
           console.log("Menus chargés depuis Supabase:", convertedMenus);
           setMenus(convertedMenus);
+          setIsLoading(false);
           return;
         }
+        
+        throw new Error("Aucun menu valide n'a été trouvé dans Supabase");
+        
       } catch (error) {
         console.error("Erreur lors du chargement des menus depuis Supabase:", error);
-      }
-
-      // Fallback to localStorage or default menus
-      try {
-        const savedMenus = localStorage.getItem('weeklyMenu');
-        if (savedMenus) {
-          const adminMenus = JSON.parse(savedMenus);
-          const convertedMenus = convertAdminMenusToAppFormat(adminMenus);
-          
-          if (convertedMenus && convertedMenus.length > 0) {
-            console.log("Menus chargés depuis localStorage:", convertedMenus);
-            setMenus(convertedMenus);
-            return;
+        
+        // Essayer de charger depuis localStorage en cas d'échec
+        try {
+          const savedMenus = localStorage.getItem('weeklyMenu');
+          if (savedMenus) {
+            const adminMenus = JSON.parse(savedMenus);
+            const convertedMenus = convertAdminMenusToAppFormat(adminMenus);
+            
+            if (convertedMenus && convertedMenus.length > 0) {
+              console.log("Menus chargés depuis localStorage:", convertedMenus);
+              setMenus(convertedMenus);
+              setIsLoading(false);
+              return;
+            }
           }
+        } catch (error) {
+          console.error("Erreur lors du chargement des menus depuis localStorage:", error);
         }
-      } catch (error) {
-        console.error("Erreur lors du chargement des menus depuis localStorage:", error);
-      }
 
-      // Fallback to default menus
-      setMenus(defaultWeeklyMenu);
+        // En dernier recours, utiliser les menus par défaut
+        console.log("Utilisation des menus par défaut");
+        setMenus(defaultWeeklyMenu);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadMenus();
@@ -127,9 +183,9 @@ const Index = () => {
       console.log("Événement de mise à jour des menus détecté");
       loadMenus();
     };
-
+    
     window.addEventListener('menu-updated', handleMenuUpdate as EventListener);
-
+    
     return () => {
       window.removeEventListener('menu-updated', handleMenuUpdate as EventListener);
     };
@@ -194,22 +250,25 @@ const Index = () => {
     });
   };
 
-  const convertToMealOptions = (items: any) => {
+  const convertToMealOptions = (menuDay: any) => {
     const mealOptions = [];
 
-    for (const mainDish of items.mainDishes) {
-      const sideDish = items.sideDishes[0] || {
+    for (const mainDish of menuDay.mainDishes) {
+      // Si aucun accompagnement ou dessert n'est disponible, utiliser des valeurs par défaut
+      const sideDish = menuDay.sideDishes[0] || {
         id: `default_side_${Date.now()}`,
         name: "Accompagnement standard",
         price: 0,
-        description: "Accompagnement du jour"
+        description: "Accompagnement du jour",
+        imageUrl: "/placeholder.svg"
       };
 
-      const dessert = items.desserts[0] || {
+      const dessert = menuDay.desserts[0] || {
         id: `default_dessert_${Date.now()}`,
         name: "Dessert standard",
         price: 0,
-        description: "Dessert du jour"
+        description: "Dessert du jour",
+        imageUrl: "/placeholder.svg"
       };
 
       const totalPrice = (mainDish.price || 0) + (sideDish.price || 0) + (dessert.price || 0);
@@ -221,21 +280,21 @@ const Index = () => {
           name: mainDish.name,
           description: mainDish.description || "",
           price: mainDish.price || 0,
-          image: mainDish.image_url || "/placeholder.svg"
+          image: mainDish.imageUrl || "/placeholder.svg"
         },
         sideDish: {
           id: sideDish.id,
           name: sideDish.name,
           description: sideDish.description || "",
           price: sideDish.price || 0,
-          image: sideDish.image_url || "/placeholder.svg"
+          image: sideDish.imageUrl || "/placeholder.svg"
         },
         dessert: {
           id: dessert.id,
           name: dessert.name,
           description: dessert.description || "",
           price: dessert.price || 0,
-          image: sideDish.image_url || "/placeholder.svg"
+          image: dessert.imageUrl || "/placeholder.svg"  // Correction de l'erreur ici
         },
         totalPrice
       });
@@ -246,10 +305,11 @@ const Index = () => {
 
   useEffect(() => {
     const getCurrentDay = () => {
+      // Les jours en français
       const daysOfWeek = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
       const currentDayName = daysOfWeek[new Date().getDay()];
       
-      const todayMenu = menus.find(menu => menu.day.includes(currentDayName));
+      const todayMenu = menus.find(menu => menu.day === currentDayName);
       
       if (todayMenu) {
         setActiveDay(todayMenu.id);
@@ -258,8 +318,10 @@ const Index = () => {
       }
     };
     
-    getCurrentDay();
-  }, [menus]);
+    if (menus.length > 0 && !isLoading) {
+      getCurrentDay();
+    }
+  }, [menus, isLoading]);
 
   const handleWeeklyPayment = () => {
     const receiptId = generateReceiptId();
@@ -328,7 +390,14 @@ const Index = () => {
           </Button>
         </div>
 
-        {activeDay && (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-restaurant-purple mx-auto mb-4"></div>
+              <p className="text-lg text-restaurant-purple">Chargement des menus...</p>
+            </div>
+          </div>
+        ) : activeDay ? (
           <>
             <WeekNavigation 
               menus={menus} 
@@ -349,6 +418,12 @@ const Index = () => {
               ))}
             </div>
           </>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-xl text-gray-600">
+              Aucun menu n'est actuellement disponible. Veuillez revenir plus tard.
+            </p>
+          </div>
         )}
       </main>
 
