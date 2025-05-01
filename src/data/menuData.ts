@@ -60,4 +60,4 @@ export const weeklyMenu: DayMenu[] = [
   }
 ];
 
-export { weeklyPackagePrice };
+export { menu_articles };
