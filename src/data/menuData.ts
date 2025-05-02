@@ -57,6 +57,70 @@ export const weeklyMenu: DayMenu[] = [
         totalPrice: 0
       }
     ]
+  },
+  {
+    id: "saturday",
+    day: "Samedi",
+    date: "",
+    mealOptions: [
+      {
+        id: "sat-option1",
+        mainDish: {
+          id: "sat-main1",
+          name: "Plat du samedi",
+          description: "Le menu du samedi n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        sideDish: {
+          id: "sat-side1",
+          name: "Accompagnement",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        dessert: {
+          id: "sat-dessert1",
+          name: "Dessert",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        totalPrice: 0
+      }
+    ]
+  },
+  {
+    id: "sunday",
+    day: "Dimanche",
+    date: "",
+    mealOptions: [
+      {
+        id: "sun-option1",
+        mainDish: {
+          id: "sun-main1",
+          name: "Plat du dimanche",
+          description: "Le menu du dimanche n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        sideDish: {
+          id: "sun-side1",
+          name: "Accompagnement",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        dessert: {
+          id: "sun-dessert1",
+          name: "Dessert",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        totalPrice: 0
+      }
+    ]
   }
 ];
 
