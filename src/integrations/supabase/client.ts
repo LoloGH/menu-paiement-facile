@@ -243,6 +243,62 @@ export const fetchMenuArticlesForDay = async (menuDay: string) => {
   }
 };
 
+/**
+ * Récupère tous les clients depuis la base de données
+ * @returns Promise resolving to clients data
+ */
+export const fetchAllClients = async () => {
+  try {
+    console.log("Fetching all clients from database...");
+    
+    const { data: clients, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) {
+      console.error("Error fetching clients:", error);
+      return null;
+    }
+    
+    console.log("Fetched clients:", clients);
+    return clients;
+    
+  } catch (error) {
+    console.error("Exception fetching clients:", error);
+    return null;
+  }
+};
+
+/**
+ * Crée un nouveau client dans la base de données
+ * @param clientData Données du client à créer
+ * @returns Promise resolving to the created client
+ */
+export const createClient = async (clientData: { name: string; phone?: string }) => {
+  try {
+    console.log("Creating new client:", clientData);
+    
+    const { data, error } = await supabase
+      .from('clients')
+      .insert(clientData)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Error creating client:", error);
+      return null;
+    }
+    
+    console.log("Created client:", data);
+    return data;
+    
+  } catch (error) {
+    console.error("Exception creating client:", error);
+    return null;
+  }
+};
+
 // Fonction pour activer la fonctionnalité temps réel pour les tables importantes
 export const setupRealtimeTables = async () => {
   try {
@@ -257,3 +313,6 @@ export const setupRealtimeTables = async () => {
     return false;
   }
 };
+
+// Appeler setupRealtimeTables au démarrage
+setupRealtimeTables();

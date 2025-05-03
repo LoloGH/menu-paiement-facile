@@ -60,7 +60,8 @@ import {
   UtensilsCrossed,
   Bell,
   Loader2,
-  Plus
+  Plus,
+  RefreshCw
 } from "lucide-react";
 import { playSounds } from '@/utils/soundEffects';
 import { globalTaskQueue } from '@/utils/backgroundWorker';
