@@ -11,7 +11,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Loader2, Search, Plus, Users, RefreshCw } from "lucide-react";
-import { supabase, createClient, fetchAllClients } from "@/integrations/supabase/client";
+import { supabase, createNewClient, fetchAllClients } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -116,7 +116,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ onSubmit, onCancel }
         phone: newClientPhone.trim() || undefined
       };
       
-      const newClient = await createClient(clientData);
+      const newClient = await createNewClient(clientData);
       
       if (newClient) {
         toast({
@@ -196,8 +196,16 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ onSubmit, onCancel }
 
     setIsSubmitting(true);
     try {
-      // Préparer les données de la commande
-      const orderData: Record<string, any> = {
+      // Préparer les données de la commande - use explicit type to match database schema
+      const orderData: {
+        receipt_id: string;
+        total_amount: number;
+        payment_status: string;
+        details: string | null;
+        client_id?: string;
+        guest_name?: string;
+        guest_phone?: string;
+      } = {
         receipt_id: receiptId,
         total_amount: parseFloat(totalAmount),
         payment_status: paymentStatus,
