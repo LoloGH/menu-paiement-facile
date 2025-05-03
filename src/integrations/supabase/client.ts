@@ -31,8 +31,9 @@ export const enableRealtimeForTable = async (tableName: string) => {
     console.log(`Enabling realtime for table: ${tableName}`);
     
     // Vérifier si la table est déjà en mode REPLICA IDENTITY FULL
-    const { data: replicaData, error: replicaError } = await supabase
-      .rpc('check_replica_identity', { table_name: tableName });
+    const { data: replicaData, error: replicaError } = await (supabase.rpc as any)(
+      'check_replica_identity', { table_name: tableName }
+    );
     
     if (replicaError) {
       console.error(`Error checking replica identity for ${tableName}:`, replicaError);
@@ -41,8 +42,9 @@ export const enableRealtimeForTable = async (tableName: string) => {
     
     // Si la table n'est pas en REPLICA IDENTITY FULL, la configurer
     if (!replicaData) {
-      const { error: setReplicaError } = await supabase
-        .rpc('set_replica_identity_full', { table_name: tableName });
+      const { error: setReplicaError } = await (supabase.rpc as any)(
+        'set_replica_identity_full', { table_name: tableName }
+      );
       
       if (setReplicaError) {
         console.error(`Error setting replica identity for ${tableName}:`, setReplicaError);
@@ -51,8 +53,9 @@ export const enableRealtimeForTable = async (tableName: string) => {
     }
     
     // Vérifier si la table est dans la publication supabase_realtime
-    const { data: publicationData, error: publicationError } = await supabase
-      .rpc('check_publication_tables', { table_name: tableName });
+    const { data: publicationData, error: publicationError } = await (supabase.rpc as any)(
+      'check_publication_tables', { table_name: tableName }
+    );
     
     if (publicationError) {
       console.error(`Error checking publication for ${tableName}:`, publicationError);
@@ -61,8 +64,9 @@ export const enableRealtimeForTable = async (tableName: string) => {
     
     // Si la table n'est pas dans la publication, l'ajouter
     if (!publicationData) {
-      const { error: addPublicationError } = await supabase
-        .rpc('add_table_to_publication', { table_name: tableName });
+      const { error: addPublicationError } = await (supabase.rpc as any)(
+        'add_table_to_publication', { table_name: tableName }
+      );
       
       if (addPublicationError) {
         console.error(`Error adding ${tableName} to publication:`, addPublicationError);
