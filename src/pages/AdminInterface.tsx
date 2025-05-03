@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import { Menu, Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw, History } from "lucide-react";
+import { Menu, Search, ShieldAlert, UtensilsCrossed, ChevronLeft, LogIn, LogOut, Users, FileText, RefreshCw, History, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLoginDialog } from "@/components/admin/AdminLoginDialog";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -23,7 +24,7 @@ import { useRoleBasedAccess } from "@/hooks/use-role-based-access";
 import { AccessDenied } from "@/components/admin/AccessDenied";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { StatCard } from "@/components/admin/stats/StatCard";
-import { logAdminAction } from "@/integrations/supabase/client";
+import { logAdminAction, fetchWeeklyMenusFromDb, fetchMenuArticlesForDay } from "@/integrations/supabase/client";
 import { MenuStateProvider } from "@/contexts/MenuStateContext";
 
 const AdminInterface = () => {
@@ -36,6 +37,7 @@ const AdminInterface = () => {
   const [activeMenuId, setActiveMenuId] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMenusOpen, setIsMenusOpen] = useState(false);
+  const [isSyncingWithDb, setIsSyncingWithDb] = useState(false);
   const isMobile = useIsMobile();
   const permissions = useRoleBasedAccess();
 
@@ -58,24 +60,185 @@ const AdminInterface = () => {
     };
   }, []);
 
-  const loadMenus = () => {
-    console.log("Loading menus from storage or default...");
-    const savedMenus = localStorage.getItem("weeklyMenu");
-    if (savedMenus) {
-      try {
-        const parsedMenus = JSON.parse(savedMenus);
-        console.log("Loaded menus from localStorage:", parsedMenus);
-        setMenus(parsedMenus);
-        if (parsedMenus.length > 0 && !activeMenuId) {
-          setActiveMenuId(parsedMenus[0].id);
+  const loadMenus = async () => {
+    console.log("Loading menus...");
+
+    try {
+      // Essayer de charger depuis la base de données d'abord
+      const dbMenus = await loadMenusFromDb();
+      
+      if (dbMenus && dbMenus.length > 0) {
+        console.log("Successfully loaded menus from database");
+        setMenus(dbMenus);
+        localStorage.setItem("weeklyMenu", JSON.stringify(dbMenus));
+        
+        if (dbMenus.length > 0 && !activeMenuId) {
+          setActiveMenuId(dbMenus[0].id);
         }
-      } catch (error) {
-        console.error("Error loading menus:", error);
-        convertAndSetMenus();
+        return;
       }
-    } else {
-      console.log("No menus in localStorage, loading defaults");
+      
+      // Si pas de données dans la base, essayer localStorage
+      const savedMenus = localStorage.getItem("weeklyMenu");
+      if (savedMenus) {
+        try {
+          const parsedMenus = JSON.parse(savedMenus);
+          console.log("Loaded menus from localStorage:", parsedMenus);
+          setMenus(parsedMenus);
+          if (parsedMenus.length > 0 && !activeMenuId) {
+            setActiveMenuId(parsedMenus[0].id);
+          }
+          return;
+        } catch (error) {
+          console.error("Error loading menus from localStorage:", error);
+        }
+      }
+      
+      // Si tout échoue, utiliser les données par défaut
+      console.log("No menus in localStorage or database, loading defaults");
       convertAndSetMenus();
+      
+    } catch (error) {
+      console.error("Error in loadMenus:", error);
+      convertAndSetMenus(); // Fallback to default menus
+    }
+  };
+
+  const loadMenusFromDb = async (): Promise<MenuDay[] | null> => {
+    try {
+      const weeklyMenusFromDb = await fetchWeeklyMenusFromDb();
+      
+      if (!weeklyMenusFromDb || weeklyMenusFromDb.length === 0) {
+        console.log("No weekly menus found in database");
+        return null;
+      }
+      
+      const convertedMenus: MenuDay[] = [];
+      
+      // Traiter chaque jour de menu
+      for (const menuDay of weeklyMenusFromDb) {
+        if (!menuDay.day) continue;
+        
+        const dayId = menuDay.day.toLowerCase().replace(/[éèê]/g, 'e');
+        const menuArticles = await fetchMenuArticlesForDay(menuDay.day);
+        
+        const mainDishes: any[] = [];
+        const sideDishes: any[] = [];
+        const desserts: any[] = [];
+        
+        if (menuArticles && menuArticles.length > 0) {
+          menuArticles.forEach((item) => {
+            if (item.articles) {
+              const articleData = {
+                id: item.articles.id,
+                name: item.articles.name,
+                price: item.articles.price,
+                description: item.articles.description || "",
+                imageUrl: item.articles.image_url || "/placeholder.svg",
+              };
+              
+              if (item.articles.type === 'main_dish') {
+                mainDishes.push(articleData);
+              } else if (item.articles.type === 'side_dish') {
+                sideDishes.push(articleData);
+              } else if (item.articles.type === 'dessert') {
+                desserts.push(articleData);
+              }
+            }
+          });
+        }
+        
+        // Si aucun plat n'est trouvé, utiliser des valeurs par défaut
+        if (mainDishes.length === 0) {
+          mainDishes.push({
+            id: `${dayId}-main1-default`,
+            name: `Plat du ${menuDay.day.toLowerCase()}`,
+            price: 0,
+            description: `Le menu du ${menuDay.day.toLowerCase()} n'a pas pu être chargé`,
+            imageUrl: "/placeholder.svg"
+          });
+        }
+        
+        if (sideDishes.length === 0) {
+          sideDishes.push({
+            id: `${dayId}-side1-default`,
+            name: "Accompagnement",
+            price: 0,
+            description: "Le menu n'a pas pu être chargé",
+            imageUrl: "/placeholder.svg"
+          });
+        }
+        
+        if (desserts.length === 0) {
+          desserts.push({
+            id: `${dayId}-dessert1-default`,
+            name: "Dessert",
+            price: 0,
+            description: "Le menu n'a pas pu être chargé",
+            imageUrl: "/placeholder.svg"
+          });
+        }
+        
+        convertedMenus.push({
+          id: dayId,
+          day: menuDay.day,
+          date: menuDay.date ? new Date(menuDay.date).toLocaleDateString('fr-FR') : "",
+          mainDishes,
+          sideDishes,
+          desserts,
+        });
+      }
+      
+      // Assurons-nous que nous avons tous les jours de la semaine
+      const expectedDays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+      expectedDays.forEach(day => {
+        const dayId = day.toLowerCase().replace(/[éèê]/g, 'e');
+        if (!convertedMenus.some(menu => menu.day === day)) {
+          console.log(`Adding default menu for ${day} as it was missing`);
+          convertedMenus.push({
+            id: dayId,
+            day: day,
+            date: "",
+            mainDishes: [{
+              id: `${dayId}-main1-default`,
+              name: `Plat du ${day.toLowerCase()}`,
+              price: 0,
+              description: `Le menu du ${day.toLowerCase()} n'a pas pu être chargé`,
+              imageUrl: "/placeholder.svg"
+            }],
+            sideDishes: [{
+              id: `${dayId}-side1-default`,
+              name: "Accompagnement",
+              price: 0,
+              description: "Le menu n'a pas pu être chargé",
+              imageUrl: "/placeholder.svg"
+            }],
+            desserts: [{
+              id: `${dayId}-dessert1-default`,
+              name: "Dessert",
+              price: 0,
+              description: "Le menu n'a pas pu être chargé",
+              imageUrl: "/placeholder.svg"
+            }]
+          });
+        }
+      });
+      
+      // Trier les menus dans l'ordre des jours de la semaine
+      convertedMenus.sort((a, b) => {
+        const dayOrder = {
+          "Lundi": 1, "Mardi": 2, "Mercredi": 3, "Jeudi": 4, 
+          "Vendredi": 5, "Samedi": 6, "Dimanche": 7
+        };
+        return (dayOrder[a.day as keyof typeof dayOrder] || 99) - (dayOrder[b.day as keyof typeof dayOrder] || 99);
+      });
+      
+      console.log("Converted menus from database:", convertedMenus);
+      return convertedMenus;
+      
+    } catch (error) {
+      console.error("Exception loading menus from database:", error);
+      return null;
     }
   };
 
@@ -152,6 +315,52 @@ const AdminInterface = () => {
         description: "Les menus ont été rechargés avec succès.",
       });
     }, 500);
+  };
+
+  const handleSyncWithDatabase = async () => {
+    setIsSyncingWithDb(true);
+    try {
+      // Forcer un rechargement à partir de la base de données
+      const dbMenus = await loadMenusFromDb();
+      
+      if (dbMenus && dbMenus.length > 0) {
+        setMenus(dbMenus);
+        localStorage.setItem("weeklyMenu", JSON.stringify(dbMenus));
+        
+        if (dbMenus.length > 0 && !activeMenuId) {
+          setActiveMenuId(dbMenus[0].id);
+        }
+        
+        if (adminData) {
+          await logAdminAction(
+            adminData.id, 
+            "sync_database_menus", 
+            "menus", 
+            { message: "Synchronisation des menus avec la base de données" }
+          );
+        }
+        
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les menus ont été synchronisés avec la base de données.",
+        });
+      } else {
+        toast({
+          title: "Synchronisation échouée",
+          description: "Aucun menu n'a été trouvé dans la base de données.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error syncing with database:", error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Une erreur est survenue lors de la synchronisation avec la base de données.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingWithDb(false);
+    }
   };
 
   const handleLoginClick = () => {
@@ -299,6 +508,7 @@ const AdminInterface = () => {
     );
   };
 
+  // Le reste du code reste inchangé
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-restaurant-purple text-white p-4 shadow-md">
@@ -462,19 +672,32 @@ const AdminInterface = () => {
                   <MenuStateProvider>
                     <Card>
                       <CardHeader>
-                        <div className="flex justify-between items-center mb-3">
+                        <div className="flex flex-wrap justify-between items-center mb-3 gap-2">
                           <CardTitle>Gestion des Menus Hebdomadaires</CardTitle>
-                          {permissions.canManageMenus && (
-                            <Button
-                              variant="outline"
-                              onClick={handleRefreshMenus}
-                              className="flex items-center"
-                              disabled={isRefreshing}
-                            >
-                              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                              Actualiser
-                            </Button>
-                          )}
+                          <div className="flex space-x-2">
+                            {permissions.canManageMenus && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  onClick={handleSyncWithDatabase}
+                                  className="flex items-center text-blue-600"
+                                  disabled={isSyncingWithDb}
+                                >
+                                  <Database className={`h-4 w-4 mr-2 ${isSyncingWithDb ? 'animate-pulse' : ''}`} />
+                                  Synchroniser BDD
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={handleRefreshMenus}
+                                  className="flex items-center"
+                                  disabled={isRefreshing}
+                                >
+                                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                  Actualiser
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                         {renderMenuButtons()}
                       </CardHeader>

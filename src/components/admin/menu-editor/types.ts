@@ -20,7 +20,7 @@ export interface MenuDay {
 
 export interface WeeklyMenu {
   id: string;
-  day: 'Lundi' | 'Mardi' | 'Mercredi' | 'Jeudi' | 'Vendredi' | 'Samedi' | 'Dimanche';
+  day: string;
   date: string;
   is_active: boolean;
   created_at: string;

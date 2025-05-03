@@ -59,6 +59,134 @@ export const weeklyMenu: DayMenu[] = [
     ]
   },
   {
+    id: "tuesday",
+    day: "Mardi",
+    date: "",
+    mealOptions: [
+      {
+        id: "tue-option1",
+        mainDish: {
+          id: "tue-main1",
+          name: "Plat du mardi",
+          description: "Le menu du mardi n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        sideDish: {
+          id: "tue-side1",
+          name: "Accompagnement",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        dessert: {
+          id: "tue-dessert1",
+          name: "Dessert",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        totalPrice: 0
+      }
+    ]
+  },
+  {
+    id: "wednesday",
+    day: "Mercredi",
+    date: "",
+    mealOptions: [
+      {
+        id: "wed-option1",
+        mainDish: {
+          id: "wed-main1",
+          name: "Plat du mercredi",
+          description: "Le menu du mercredi n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        sideDish: {
+          id: "wed-side1",
+          name: "Accompagnement",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        dessert: {
+          id: "wed-dessert1",
+          name: "Dessert",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        totalPrice: 0
+      }
+    ]
+  },
+  {
+    id: "thursday",
+    day: "Jeudi",
+    date: "",
+    mealOptions: [
+      {
+        id: "thu-option1",
+        mainDish: {
+          id: "thu-main1",
+          name: "Plat du jeudi",
+          description: "Le menu du jeudi n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        sideDish: {
+          id: "thu-side1",
+          name: "Accompagnement",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        dessert: {
+          id: "thu-dessert1",
+          name: "Dessert",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        totalPrice: 0
+      }
+    ]
+  },
+  {
+    id: "friday",
+    day: "Vendredi",
+    date: "",
+    mealOptions: [
+      {
+        id: "fri-option1",
+        mainDish: {
+          id: "fri-main1",
+          name: "Plat du vendredi",
+          description: "Le menu du vendredi n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        sideDish: {
+          id: "fri-side1",
+          name: "Accompagnement",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        dessert: {
+          id: "fri-dessert1",
+          name: "Dessert",
+          description: "Le menu n'a pas pu être chargé",
+          price: 0,
+          image: "/placeholder.svg"
+        },
+        totalPrice: 0
+      }
+    ]
+  },
+  {
     id: "saturday",
     day: "Samedi",
     date: "",
