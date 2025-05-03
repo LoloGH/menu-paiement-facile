@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +24,7 @@ import { useRoleBasedAccess } from "@/hooks/use-role-based-access";
 import { AccessDenied } from "@/components/admin/AccessDenied";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { StatCard } from "@/components/admin/stats/StatCard";
-import { logAdminAction, fetchWeeklyMenusFromDb, fetchMenuArticlesForDay, setupRealtimeTables } from "@/integrations/supabase/client";
+import { logAdminAction, fetchWeeklyMenusFromDb, fetchMenuArticlesForDay } from "@/integrations/supabase/client";
 import { MenuStateProvider } from "@/contexts/MenuStateContext";
 
 const AdminInterface = () => {
@@ -42,9 +43,6 @@ const AdminInterface = () => {
 
   useEffect(() => {
     loadMenus();
-    
-    // Activer le temps réel pour les tables importantes
-    setupRealtimeTables();
     
     const handleMenuUpdated = (event: CustomEvent) => {
       console.log("Menu updated event received:", event.detail);
@@ -510,6 +508,7 @@ const AdminInterface = () => {
     );
   };
 
+  // Le reste du code reste inchangé
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-restaurant-purple text-white p-4 shadow-md">
