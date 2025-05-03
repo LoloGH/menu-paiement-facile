@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase, logAdminAction } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,9 +16,11 @@ import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { OrderForm } from "./OrderForm";
+import { NewOrderForm } from "./NewOrderForm";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,10 +59,12 @@ import {
   Truck,
   UtensilsCrossed,
   Bell,
-  Loader2
+  Loader2,
+  Plus
 } from "lucide-react";
 import { playSounds } from '@/utils/soundEffects';
 import { globalTaskQueue } from '@/utils/backgroundWorker';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 
 interface OrdersTableProps {
   searchTerm: string;
@@ -76,6 +81,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isNewOrderFormOpen, setIsNewOrderFormOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<any>(null);
   const [orderDetails, setOrderDetails] = useState<Record<string, any[]>>({});
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -83,18 +89,24 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [filterClient, setFilterClient] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
 
-    // Subscribe to order changes
+    // Subscribe to order changes - critical for afficher les nouvelles commandes
     const channel = supabase
-      .channel('order-status-changes')
+      .channel('order-changes')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'orders' 
+        },
         (payload) => {
-          console.log('Order status changed:', payload);
+          console.log('Order change detected:', payload);
           fetchOrders();
         }
       )
@@ -119,7 +131,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         
         // Appliquer les filtres
         if (searchTerm) {
-          query = query.or(`receipt_id.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
+          query = query.or(`receipt_id.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%,guest_name.ilike.%${searchTerm}%`);
         }
         
         if (filterStatus) {
@@ -132,7 +144,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         }
         
         if (filterClient) {
-          query = query.eq('user_id', filterClient);
+          query = query.or(`client_id.eq.${filterClient},guest_name.ilike.%${filterClient}%`);
         }
         
         return await query.order("created_at", { ascending: false });
@@ -140,6 +152,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
       if (result.error) throw result.error;
       
+      console.log("Fetched orders:", result.data);
       setOrders(result.data || []);
       
       // Charger les détails pour toutes les commandes en tâches de fond
@@ -147,6 +160,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         fetchOrderItems(order.id);
       }
     } catch (error: any) {
+      console.error("Erreur lors du chargement des commandes:", error);
       toast({
         title: "Erreur",
         description: `Impossible de charger les commandes: ${error.message}`,
@@ -232,6 +246,56 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     }
   };
 
+  const handleCreateOrder = async (orderData: any) => {
+    try {
+      const result = await globalTaskQueue.add(async () => {
+        // Insérer la nouvelle commande
+        const { data: newOrder, error } = await supabase
+          .from("orders")
+          .insert(orderData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        // Enregistrer l'action dans les logs d'audit si nécessaire
+        if (onActionPerformed) {
+          await onActionPerformed('create_order', 'orders', {
+            order_id: newOrder.id,
+            client_id: newOrder.client_id,
+            guest_name: newOrder.guest_name,
+            amount: newOrder.total_amount
+          });
+        }
+        
+        return { success: true, order: newOrder };
+      });
+
+      if (result.success) {
+        toast({
+          title: "Succès",
+          description: `Commande #${orderData.receipt_id} créée avec succès`,
+        });
+        
+        // Jouer un son de notification pour la nouvelle commande
+        playSounds.preparing();
+        
+        // Fermer le formulaire
+        setIsNewOrderFormOpen(false);
+        
+        // Recharger les commandes
+        fetchOrders();
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de la création de la commande:", error);
+      toast({
+        title: "Erreur",
+        description: `Impossible de créer la commande: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     const statusToUpdate = newStatus === 'validated' ? 'preparing' : newStatus;
     try {
@@ -278,18 +342,21 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     }
   };
 
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette commande ?")) {
-      return;
-    }
+  const confirmDeleteOrder = (orderId: string) => {
+    setOrderToDelete(orderId);
+    setIsDeleteDialogOpen(true);
+  };
 
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return;
+    
     try {
       await globalTaskQueue.add(async () => {
         // D'abord supprimer les articles liés
         const { error: itemsError } = await supabase
           .from("order_items")
           .delete()
-          .eq("order_id", orderId);
+          .eq("order_id", orderToDelete);
 
         if (itemsError) throw itemsError;
 
@@ -297,12 +364,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         const { error } = await supabase
           .from("orders")
           .delete()
-          .eq("id", orderId);
+          .eq("id", orderToDelete);
 
         if (error) throw error;
 
         if (onActionPerformed) {
-          await onActionPerformed('delete_order', 'orders', { order_id: orderId });
+          await onActionPerformed('delete_order', 'orders', { order_id: orderToDelete });
         }
       });
 
@@ -318,6 +385,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         description: `Impossible de supprimer la commande: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setOrderToDelete(null);
     }
   };
 
@@ -326,7 +396,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       'pending': 'En attente',
       'validated': 'En préparation',
       'preparing': 'En préparation',
+      'ready': 'Prête',
       'delivered': 'Livrée',
+      'completed': 'Complétée',
       'cancelled': 'Annulée',
       'failed': 'Échouée'
     };
@@ -342,8 +414,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         return <CheckCircle className="h-4 w-4" />;
       case 'preparing':
         return <Package className="h-4 w-4" />;
+      case 'ready':
+        return <Package className="h-4 w-4" />;
       case 'delivered':
         return <Truck className="h-4 w-4" />;
+      case 'completed':
+        return <Check className="h-4 w-4" />;
       case 'cancelled':
       case 'failed':
         return <X className="h-4 w-4" />;
@@ -357,8 +433,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       'pending': 'bg-yellow-500',
       'validated': 'bg-blue-500',
       'preparing': 'bg-indigo-500',
-      'delivered': 'bg-green-500',
+      'ready': 'bg-green-500',
       'completed': 'bg-green-500',
+      'delivered': 'bg-green-500',
       'cancelled': 'bg-gray-500',
       'failed': 'bg-red-500'
     };
@@ -421,6 +498,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           
           ${details.table ? `<p><strong>Table:</strong> ${details.table}</p>` : ''}
           ${details.client ? `<p><strong>Client:</strong> ${details.client}</p>` : ''}
+          ${order.guest_name ? `<p><strong>Nom invité:</strong> ${order.guest_name}</p>` : ''}
           
           <p><strong>Statut:</strong> ${getStatusLabel(order.payment_status)}</p>
           
@@ -475,6 +553,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Gestion des commandes</h2>
         <div className="flex space-x-2">
+          {!readOnly && (
+            <Button 
+              onClick={() => setIsNewOrderFormOpen(true)}
+              className="bg-restaurant-purple hover:bg-restaurant-purple/80"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nouvelle commande
+            </Button>
+          )}
           <Link to="/cuisine">
             <Button variant="outline" className="flex items-center">
               <UtensilsCrossed className="h-4 w-4 mr-2" />
@@ -506,6 +593,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 <SelectItem value="pending">En attente</SelectItem>
                 <SelectItem value="validated">En préparation</SelectItem>
                 <SelectItem value="preparing">En préparation</SelectItem>
+                <SelectItem value="ready">Prête</SelectItem>
                 <SelectItem value="delivered">Livrée</SelectItem>
                 <SelectItem value="completed">Complétée</SelectItem>
                 <SelectItem value="cancelled">Annulée</SelectItem>
@@ -565,9 +653,23 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       )}
 
       {loading ? (
-        <div className="text-center py-4">Chargement des commandes...</div>
+        <div className="text-center py-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-restaurant-purple" />
+          <p className="mt-2">Chargement des commandes...</p>
+        </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-8">Aucune commande trouvée</div>
+        <div className="text-center py-8">
+          <p className="text-gray-500 mb-4">Aucune commande trouvée</p>
+          {!readOnly && (
+            <Button 
+              onClick={() => setIsNewOrderFormOpen(true)}
+              className="bg-restaurant-purple hover:bg-restaurant-purple/80"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Créer une commande
+            </Button>
+          )}
+        </div>
       ) : (
         <Table>
           <TableHeader>
@@ -586,7 +688,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 <TableRow className={order.payment_status === 'ready' ? 'bg-green-50' : ''}>
                   <TableCell>{order.receipt_id}</TableCell>
                   <TableCell>
-                    {order.users ? `${order.users.name || 'Sans nom'} (${order.users.email})` : 'Client anonyme'}
+                    {order.users ? (
+                      `${order.users.name || 'Sans nom'} (${order.users.email})`
+                    ) : order.guest_name ? (
+                      `${order.guest_name}${order.guest_phone ? ` (${order.guest_phone})` : ''}`
+                    ) : (
+                      'Client anonyme'
+                    )}
                   </TableCell>
                   <TableCell>{formatPriceInFCFA(order.total_amount)}</TableCell>
                   <TableCell>{renderStatusBadge(order.payment_status)}</TableCell>
@@ -620,7 +728,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                               <X className="h-4 w-4 mr-2 text-red-500" />
                               Annuler
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteOrder(order.id)} className="text-red-500">
+                            <DropdownMenuItem onClick={() => confirmDeleteOrder(order.id)} className="text-red-500">
                               <Trash2 className="h-4 w-4 mr-2" />
                               Supprimer
                             </DropdownMenuItem>
@@ -688,6 +796,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         </Table>
       )}
 
+      {/* Modal de modification de commande */}
       <Dialog open={isFormOpen} onOpenChange={(open) => {
         // Si on essaie de fermer pendant une mise à jour, empêcher la fermeture
         if (!open && updatingOrder) return;
@@ -714,6 +823,40 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de création de nouvelle commande */}
+      <Dialog open={isNewOrderFormOpen} onOpenChange={setIsNewOrderFormOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Créer une nouvelle commande</DialogTitle>
+          </DialogHeader>
+          <NewOrderForm 
+            onSubmit={handleCreateOrder}
+            onCancel={() => setIsNewOrderFormOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Boîte de dialogue de confirmation de suppression */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteOrder}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
