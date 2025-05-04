@@ -18,7 +18,8 @@ import {
   Clock, 
   Package, 
   Utensils, 
-  Printer 
+  Printer,
+  RefreshCw 
 } from "lucide-react";
 import { KitchenOrderItems } from "./KitchenOrderItems";
 import { playSounds } from '@/utils/soundEffects';
@@ -36,6 +37,7 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -50,15 +52,27 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
           fetchOrders();
         }
       )
-      .subscribe();
+      .subscribe(status => {
+        console.log('Subscription status for kitchen-order-changes:', status);
+        if (status !== 'SUBSCRIBED') {
+          console.warn('Could not subscribe to realtime updates for orders');
+        }
+      });
+
+    // Set up a polling interval as a fallback
+    const pollingInterval = setInterval(() => {
+      console.log('Polling for orders as fallback mechanism');
+      fetchOrders(false); // Don't show loading state for polling
+    }, 30000); // Poll every 30 seconds
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollingInterval);
     };
   }, [status]);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       let query = supabase
         .from("orders")
@@ -68,7 +82,7 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
         `);
       
       if (status === "preparing") {
-        query = query.eq('payment_status', 'preparing');
+        query = query.or('payment_status.eq.preparing,payment_status.eq.validated');
       } else if (status === "ready") {
         query = query.eq('payment_status', 'ready');
       } else if (status === "archived") {
@@ -82,11 +96,11 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
       if (error) throw error;
       
       const hasNewPreparing = data.some(order => 
-        order.payment_status === "preparing" && 
+        (order.payment_status === "preparing" || order.payment_status === "validated") && 
         new Date(order.created_at) > new Date(Date.now() - 30 * 60 * 1000)
       );
       
-      if (hasNewPreparing && status === "preparing") {
+      if (hasNewPreparing && (status === "preparing" || status === "all")) {
         setHasNewOrder(true);
       }
       
@@ -99,13 +113,14 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
       setExpandedOrders(expanded);
       
     } catch (error: any) {
+      console.error("Error fetching orders:", error);
       toast({
         title: "Erreur",
         description: `Impossible de charger les commandes: ${error.message}`,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -289,99 +304,121 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
     printWindow.document.close();
   };
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchOrders(false).finally(() => {
+      setTimeout(() => setIsRefreshing(false), 500);
+      toast({
+        title: "Mise à jour",
+        description: "Liste des commandes actualisée",
+      });
+    });
+  };
+
   if (loading) {
     return <div className="text-center py-8">Chargement des commandes...</div>;
   }
 
-  if (orders.length === 0) {
-    return (
-      <div className="bg-white rounded-lg p-8 text-center">
-        <p className="text-gray-500 mb-2">Aucune commande {
-          status === "preparing" ? "en préparation" : 
-          status === "ready" ? "prête" : 
-          status === "archived" ? "archivée" : ""
-        } pour le moment.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {orders.map((order) => (
-        <Card key={order.id} className={`overflow-hidden ${
-          order.payment_status === 'preparing' && new Date(order.created_at) > new Date(Date.now() - 30 * 60 * 1000) 
-            ? 'border-2 border-restaurant-red' 
-            : ''
-        }`}>
-          <CardContent className="p-0">
-            <div 
-              className="p-4 cursor-pointer flex justify-between items-center"
-              onClick={() => toggleOrderExpanded(order.id)}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="font-semibold">#{order.receipt_id}</div>
-                <div className="text-sm text-gray-500 hidden md:block">
-                  {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString()}
-                </div>
-                {getStatusBadge(order.payment_status)}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <div className="text-sm">
-                  <span className="font-medium">{order.users ? (order.users.name || order.users.email) : 'Client'}</span>
+      <div className="flex justify-end mb-4">
+        <Button 
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
+      </div>
+      
+      {orders.length === 0 ? (
+        <div className="bg-white rounded-lg p-8 text-center">
+          <p className="text-gray-500 mb-2">Aucune commande {
+            status === "preparing" ? "en préparation" : 
+            status === "ready" ? "prête" : 
+            status === "archived" ? "archivée" : ""
+          } pour le moment.</p>
+        </div>
+      ) : (
+        orders.map((order) => (
+          <Card key={order.id} className={`overflow-hidden ${
+            order.payment_status === 'preparing' && new Date(order.created_at) > new Date(Date.now() - 30 * 60 * 1000) 
+              ? 'border-2 border-restaurant-red' 
+              : ''
+          }`}>
+            <CardContent className="p-0">
+              <div 
+                className="p-4 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleOrderExpanded(order.id)}
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="font-semibold">#{order.receipt_id}</div>
+                  <div className="text-sm text-gray-500 hidden md:block">
+                    {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString()}
+                  </div>
+                  {getStatusBadge(order.payment_status)}
                 </div>
                 
-                <div className="flex space-x-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      printOrder(order);
-                    }}
-                  >
-                    <Printer className="h-4 w-4" />
-                  </Button>
+                <div className="flex items-center space-x-2">
+                  <div className="text-sm">
+                    <span className="font-medium">{order.users ? (order.users.name || order.users.email) : 'Client'}</span>
+                  </div>
                   
-                  {order.payment_status === 'preparing' && (
+                  <div className="flex space-x-2">
                     <Button 
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700"
+                      size="sm" 
+                      variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        markOrderAsReady(order.id, true);
+                        printOrder(order);
                       }}
                     >
-                      <Package className="h-4 w-4 mr-2" />
-                      Marquer prête
+                      <Printer className="h-4 w-4" />
                     </Button>
-                  )}
-                  
-                  {order.payment_status === 'ready' && (
-                    <Button 
-                      size="sm"
-                      className="bg-purple-600 hover:bg-purple-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        markOrderAsDelivered(order.id);
-                      }}
-                    >
-                      <Truck className="h-4 w-4 mr-2" />
-                      Marquer livrée
-                    </Button>
-                  )}
+                    
+                    {order.payment_status === 'preparing' && (
+                      <Button 
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markOrderAsReady(order.id, true);
+                        }}
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Marquer prête
+                      </Button>
+                    )}
+                    
+                    {order.payment_status === 'ready' && (
+                      <Button 
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markOrderAsDelivered(order.id);
+                        }}
+                      >
+                        <Truck className="h-4 w-4 mr-2" />
+                        Marquer livrée
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {expandedOrders[order.id] && (
-              <div className="border-t p-4">
-                <KitchenOrderItems orderId={order.id} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              
+              {expandedOrders[order.id] && (
+                <div className="border-t p-4">
+                  <KitchenOrderItems orderId={order.id} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      )}
     </div>
   );
 };

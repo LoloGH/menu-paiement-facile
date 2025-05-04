@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -9,10 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Bell, X } from "lucide-react";
 import { playSounds } from "@/utils/soundEffects";
+import { useToast } from "@/hooks/use-toast";
 
 export const OrderItemNotification: React.FC = () => {
   const [newOrder, setNewOrder] = useState<any | null>(null);
   const [showNotification, setShowNotification] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Subscribe to new orders
@@ -22,7 +25,7 @@ export const OrderItemNotification: React.FC = () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
-          console.log('New order notification:', payload);
+          console.log('New order notification received:', payload);
           setNewOrder(payload.new);
           setShowNotification(true);
           
@@ -38,14 +41,26 @@ export const OrderItemNotification: React.FC = () => {
           if (navigator.vibrate) {
             navigator.vibrate([200, 100, 200]);
           }
+          
+          // Show toast notification
+          toast({
+            title: "Nouvelle commande !",
+            description: `Une commande (#${payload.new.receipt_id}) vient d'être reçue.`,
+            variant: "default",
+          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status for orders-notification:', status);
+        if (status !== 'SUBSCRIBED') {
+          console.warn('Could not subscribe to realtime notifications for orders');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [toast]);
 
   // Hide notification after 10 seconds
   useEffect(() => {
@@ -86,7 +101,7 @@ export const OrderItemNotification: React.FC = () => {
         <CardContent className="pt-0">
           <p className="font-medium">Commande #{newOrder.receipt_id}</p>
           <p className="text-sm text-gray-500">
-            {new Date(newOrder.created_at).toLocaleString()}
+            {new Date(newOrder.created_at).toLocaleDateString()} {new Date(newOrder.created_at).toLocaleTimeString()}
           </p>
           <div className="flex justify-end mt-2">
             <Button 

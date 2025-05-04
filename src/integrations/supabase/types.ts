@@ -376,6 +376,18 @@ export type Database = {
         Args: { user_email: string; role_name: string }
         Returns: boolean
       }
+      add_table_to_publication: {
+        Args: { table_name: string }
+        Returns: boolean
+      }
+      check_publication_tables: {
+        Args: { table_name: string }
+        Returns: boolean
+      }
+      check_replica_identity: {
+        Args: { table_name: string }
+        Returns: boolean
+      }
       generate_loyalty_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -390,6 +402,10 @@ export type Database = {
       }
       remove_role_from_user: {
         Args: { user_id: string; role_name: string }
+        Returns: boolean
+      }
+      set_replica_identity_full: {
+        Args: { table_name: string }
         Returns: boolean
       }
     }

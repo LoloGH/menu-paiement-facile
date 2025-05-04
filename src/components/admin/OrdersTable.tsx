@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase, logAdminAction } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -60,7 +59,8 @@ import {
   UtensilsCrossed,
   Bell,
   Loader2,
-  Plus
+  Plus,
+  RefreshCw
 } from "lucide-react";
 import { playSounds } from '@/utils/soundEffects';
 import { globalTaskQueue } from '@/utils/backgroundWorker';
@@ -91,11 +91,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [updatingOrder, setUpdatingOrder] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   useEffect(() => {
     fetchOrders();
 
-    // Subscribe to order changes - critical for afficher les nouvelles commandes
+    // Subscribe to order changes - critical for display of new orders
     const channel = supabase
       .channel('order-changes')
       .on(
@@ -107,20 +109,51 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         },
         (payload) => {
           console.log('Order change detected:', payload);
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: "Nouvelle commande",
+              description: `La commande #${payload.new.receipt_id} a été créée`,
+            });
+          }
           fetchOrders();
         }
       )
-      .subscribe();
+      .subscribe(status => {
+        console.log('Realtime subscription status:', status);
+        setRealtimeConnected(status === 'SUBSCRIBED');
+        
+        if (status !== 'SUBSCRIBED') {
+          console.warn('Could not subscribe to realtime updates for orders. Setting up polling fallback.');
+          // Setup polling as fallback
+          const pollingInterval = setInterval(() => {
+            console.log('Polling for orders as fallback');
+            fetchOrders(false); // Don't show loading state for polling
+          }, 30000); // Poll every 30 seconds
+          
+          return () => clearInterval(pollingInterval);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [searchTerm, filterStatus, filterDate, filterClient]);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchOrders().finally(() => {
+      setTimeout(() => setIsRefreshing(false), 500);
+      toast({
+        title: "Mise à jour",
+        description: "Liste des commandes actualisée",
+      });
+    });
+  };
+
+  const fetchOrders = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
-      // Utiliser globalTaskQueue.safeExecute pour eviter de bloquer l'interface
+      // Utiliser globalTaskQueue.safeExecute pour éviter de bloquer l'interface
       const result = await globalTaskQueue.safeExecute(async () => {
         let query = supabase
           .from("orders")
@@ -167,7 +200,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -574,6 +607,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           >
             {showFilters ? "Masquer les filtres" : "Afficher les filtres"}
           </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Actualiser
+          </Button>
+          {!realtimeConnected && (
+            <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300">
+              Mode hors ligne - actualisation manuelle requise
+            </Badge>
+          )}
         </div>
       </div>
 
