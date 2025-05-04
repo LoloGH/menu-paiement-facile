@@ -15,11 +15,25 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true, // Activer la détection automatique de session dans l'URL
   },
   realtime: {
     // Activer la connexion par défaut pour les fonctions de temps réel
     params: {
       eventsPerSecond: 10
+    }
+  },
+  // Ajouter une gestion des erreurs réseau
+  global: {
+    headers: {
+      'x-application-name': 'food-ordering-app'
+    },
+    fetch: (...args) => {
+      return fetch(...args).catch(error => {
+        console.error("Erreur réseau lors de la communication avec Supabase:", error);
+        // On peut éventuellement notifier l'utilisateur ici
+        throw error;
+      });
     }
   }
 });
@@ -247,13 +261,113 @@ export const fetchMenuArticlesForDay = async (menuDay: string) => {
 export const setupRealtimeTables = async () => {
   try {
     // Activer le temps réel pour les tables principales
-    await enableRealtimeForTable('orders');
-    await enableRealtimeForTable('order_items');
-    await enableRealtimeForTable('clients');
+    const ordersResult = await enableRealtimeForTable('orders');
+    const orderItemsResult = await enableRealtimeForTable('order_items');
+    const clientsResult = await enableRealtimeForTable('clients');
     
-    return true;
+    if (ordersResult && orderItemsResult && clientsResult) {
+      console.log("Realtime functionality enabled for all important tables");
+      return true;
+    } else {
+      console.warn("Failed to enable realtime for some tables:", {
+        orders: ordersResult,
+        orderItems: orderItemsResult,
+        clients: clientsResult
+      });
+      return false;
+    }
   } catch (error) {
     console.error("Error setting up realtime tables:", error);
     return false;
   }
 };
+
+/**
+ * Synchronizes any pending orders from localStorage with the database
+ * This helps recover from network issues or interrupted operations
+ */
+export const syncPendingOrders = async () => {
+  try {
+    const pendingOrdersString = localStorage.getItem('pendingOrders');
+    if (!pendingOrdersString) return;
+    
+    const pendingOrders = JSON.parse(pendingOrdersString);
+    if (!pendingOrders.length) return;
+    
+    console.log(`Found ${pendingOrders.length} pending orders to sync`);
+    
+    // Vérifier si l'utilisateur est connecté
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.log("User not logged in, can't sync pending orders");
+      return;
+    }
+    
+    const userId = sessionData.session.user.id;
+    
+    // Récupérer les données utilisateur
+    const { data: userData } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+      
+    if (!userData) {
+      console.log("User data not found, can't sync pending orders");
+      return;
+    }
+    
+    // Traiter chaque commande en attente
+    for (const order of pendingOrders) {
+      // Vérifier si cette commande existe déjà
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('receipt_id', order.receiptId)
+        .maybeSingle();
+        
+      if (existingOrder) {
+        console.log(`Order ${order.receiptId} already exists, skipping`);
+        continue;
+      }
+      
+      console.log(`Syncing pending order ${order.receiptId}`);
+      
+      // Insérer la commande
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          receipt_id: order.receiptId,
+          user_id: userId,
+          total_amount: order.amount,
+          details: JSON.stringify(order.details),
+          payment_status: 'pending'
+        })
+        .select('id');
+        
+      if (orderError) {
+        console.error(`Failed to sync order ${order.receiptId}:`, orderError);
+        continue;
+      }
+      
+      if (!orderData || !orderData.length) {
+        console.error(`No order ID returned for ${order.receiptId}`);
+        continue;
+      }
+      
+      console.log(`Successfully synced order ${order.receiptId}`);
+    }
+    
+    // Nettoyer le stockage local
+    localStorage.removeItem('pendingOrders');
+    console.log("Pending orders synced and local storage cleaned");
+    
+  } catch (error) {
+    console.error("Error syncing pending orders:", error);
+  }
+};
+
+// Exécuter la synchronisation au chargement de l'application
+setTimeout(() => {
+  syncPendingOrders();
+}, 5000); // Attendre 5 secondes après le chargement pour laisser le temps à l'authentification de s'initialiser

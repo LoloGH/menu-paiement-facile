@@ -55,7 +55,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   const saveOrderToDatabase = async (receiptId: string, fullDetails: any) => {
     if (!isLoggedIn || !userData) {
       console.log("Non connecté, commande non enregistrée");
-      return;
+      return false;
     }
 
     try {
@@ -67,6 +67,20 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         details: JSON.stringify(fullDetails)
       });
 
+      // Vérifie si le token est toujours valide
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        console.error("Session expirée, rafraîchissement nécessaire");
+        toast({
+          title: "Session expirée",
+          description: "Votre session a expiré. Veuillez vous reconnecter.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Utilisez une transaction pour garantir que les deux opérations réussissent ou échouent ensemble
+      // Commençons par enregistrer la commande principale
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         receipt_id: receiptId,
         user_id: userData.id,
@@ -82,13 +96,15 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           description: "Impossible d'enregistrer votre commande. Veuillez réessayer.",
           variant: "destructive"
         });
-        return;
+        return false;
       }
 
       console.log("Commande enregistrée avec succès:", orderData);
 
       if (orderData && orderData.length > 0) {
         const orderId = orderData[0].id;
+
+        console.log("Enregistrement des articles de commande pour l'ID:", orderId);
 
         const orderItem: OrderItem = {
           order_id: orderId,
@@ -102,39 +118,67 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
 
         if (additionalData?.tableNumber) {
           orderItem.side_dish = `Table: ${additionalData.tableNumber}`;
+          console.log("Ajout du numéro de table:", additionalData.tableNumber);
         }
 
         if (additionalData?.clientNote) {
           orderItem.dessert = additionalData.clientNote;
+          console.log("Ajout de la note client:", additionalData.clientNote);
         }
 
-        const { error: itemError } = await supabase.from('order_items').insert(orderItem);
-
-        if (itemError) {
-          console.error("Erreur lors de l'enregistrement des éléments de commande:", itemError);
-          toast({
-            title: "Avertissement",
-            description: "Votre commande a été enregistrée mais certains détails n'ont pas pu être sauvegardés.",
-            variant: "default"
-          });
-        } else {
-          // Lecture explicite du son de nouvelle commande
-          try {
-            console.log("Lecture du son de nouvelle commande");
-            playSounds.newOrder();
-          } catch (soundError) {
-            console.error("Erreur lors de la lecture du son:", soundError);
+        // Ajout d'une nouvelle tentative en cas d'échec
+        const maxRetries = 2;
+        let attemptCount = 0;
+        let itemError = null;
+        
+        while (attemptCount <= maxRetries) {
+          const { error } = await supabase.from('order_items').insert(orderItem);
+          
+          if (!error) {
+            // Lecture explicite du son de nouvelle commande
+            try {
+              console.log("Lecture du son de nouvelle commande");
+              playSounds.newOrder();
+            } catch (soundError) {
+              console.error("Erreur lors de la lecture du son:", soundError);
+            }
+            
+            console.log("Éléments de commande enregistrés avec succès");
+            toast({
+              title: "Succès",
+              description: "Votre commande a été enregistrée avec succès.",
+              variant: "default"
+            });
+            return true;
           }
           
-          console.log("Éléments de commande enregistrés avec succès");
-          toast({
-            title: "Succès",
-            description: "Votre commande a été enregistrée avec succès.",
-            variant: "default"
-          });
+          itemError = error;
+          attemptCount++;
+          
+          if (attemptCount <= maxRetries) {
+            console.log(`Tentative ${attemptCount}/${maxRetries} échouée. Nouvelle tentative...`);
+            // Attendre un peu avant de réessayer
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
+        
+        // Si nous arrivons ici, c'est que toutes les tentatives ont échoué
+        console.error("Toutes les tentatives d'enregistrement des éléments ont échoué:", itemError);
+        toast({
+          title: "Avertissement",
+          description: "Votre commande a été partiellement enregistrée. Veuillez contacter le support.",
+          variant: "default"
+        });
+        return false;
+        
       } else {
         console.error("Aucun ID de commande retourné après insertion");
+        toast({
+          title: "Erreur",
+          description: "Commande créée mais impossible d'obtenir son identifiant.",
+          variant: "destructive"
+        });
+        return false;
       }
     } catch (err) {
       console.error("Erreur lors de l'enregistrement de la commande:", err);
@@ -143,6 +187,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         description: "Une erreur est survenue lors de l'enregistrement de votre commande.",
         variant: "destructive"
       });
+      return false;
     } finally {
       setIsProcessingOrder(false);
     }
@@ -162,21 +207,54 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
       }),
       ...(userData?.fullName && {
         client: userData.fullName
-      })
+      }),
+      timestamp: new Date().toISOString() // Ajout d'un horodatage pour le suivi
     };
 
-    saveOrderToDatabase(newReceiptId, fullDetails);
-    toast({
-      title: "Reçu disponible",
-      description: "Votre reçu est disponible pour téléchargement."
-    });
-
-    // Attendre que l'enregistrement de la commande soit terminé avant de rediriger
-    setTimeout(() => {
-      const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
-      const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
-      window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`;
-    }, 1500); // Attendre 1.5 secondes pour laisser le temps à la commande d'être enregistrée
+    // Nous sauvegardons d'abord et vérifions le résultat
+    saveOrderToDatabase(newReceiptId, fullDetails)
+      .then(success => {
+        toast({
+          title: success ? "Reçu disponible" : "Attention",
+          description: success 
+            ? "Votre reçu est disponible pour téléchargement." 
+            : "Nous avons rencontré un problème avec votre commande, mais votre paiement va être traité.",
+          variant: success ? "default" : "warning"
+        });
+        
+        // On ajoute des informations pour le suivi des pannes
+        const diagnosticInfo = {
+          timestamp: new Date().toISOString(),
+          receiptId: newReceiptId,
+          userId: userData?.id || 'guest',
+          browser: navigator.userAgent,
+          screen: `${window.innerWidth}x${window.innerHeight}`
+        };
+        
+        console.log("Informations de diagnostic:", diagnosticInfo);
+        
+        // Délai augmenté à 3 secondes pour s'assurer que l'enregistrement est terminé
+        setTimeout(() => {
+          const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success&receipt_id=${newReceiptId}`);
+          const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
+          
+          // Tenter de stocker localement la commande au cas où
+          try {
+            const pendingOrders = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
+            pendingOrders.push({
+              receiptId: newReceiptId,
+              details: fullDetails,
+              amount: roundedPrice,
+              createdAt: new Date().toISOString()
+            });
+            localStorage.setItem('pendingOrders', JSON.stringify(pendingOrders));
+          } catch (e) {
+            console.error("Erreur lors de la sauvegarde locale:", e);
+          }
+          
+          window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}&receipt_id=${newReceiptId}`;
+        }, 3000); // Augmentation du délai à 3 secondes
+      });
   };
 
   const handleLoginSuccess = () => {
