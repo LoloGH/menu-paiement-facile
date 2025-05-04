@@ -39,13 +39,9 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [receiptId, setReceiptId] = useState("");
-  const {
-    toast
-  } = useToast();
-  const {
-    isLoggedIn,
-    userData
-  } = useUserAuth();
+  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
+  const { toast } = useToast();
+  const { isLoggedIn, userData } = useUserAuth();
   const roundedPrice = Math.round(price);
 
   const handlePayment = () => {
@@ -63,6 +59,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
     }
 
     try {
+      setIsProcessingOrder(true);
       console.log("Enregistrement de la commande dans la base de données", {
         receipt_id: receiptId,
         user_id: userData.id,
@@ -70,10 +67,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         details: JSON.stringify(fullDetails)
       });
 
-      const {
-        data: orderData,
-        error: orderError
-      } = await supabase.from('orders').insert({
+      const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         receipt_id: receiptId,
         user_id: userData.id,
         total_amount: roundedPrice,
@@ -114,9 +108,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           orderItem.dessert = additionalData.clientNote;
         }
 
-        const {
-          error: itemError
-        } = await supabase.from('order_items').insert(orderItem);
+        const { error: itemError } = await supabase.from('order_items').insert(orderItem);
 
         if (itemError) {
           console.error("Erreur lors de l'enregistrement des éléments de commande:", itemError);
@@ -151,6 +143,8 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         description: "Une erreur est survenue lors de l'enregistrement de votre commande.",
         variant: "destructive"
       });
+    } finally {
+      setIsProcessingOrder(false);
     }
   };
 
@@ -177,10 +171,12 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
       description: "Votre reçu est disponible pour téléchargement."
     });
 
-    const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
-    const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
-
-    window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`;
+    // Attendre que l'enregistrement de la commande soit terminé avant de rediriger
+    setTimeout(() => {
+      const returnUrl = encodeURIComponent(`${window.location.origin}?payment_status=success`);
+      const encodedDetails = encodeURIComponent(JSON.stringify(fullDetails));
+      window.location.href = `${paymentRedirectUrl}?amount=${roundedPrice}&details=${encodedDetails}&return_url=${returnUrl}`;
+    }, 1500); // Attendre 1.5 secondes pour laisser le temps à la commande d'être enregistrée
   };
 
   const handleLoginSuccess = () => {
@@ -190,9 +186,13 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
 
   return <>
     <div className="flex flex-col items-center gap-2">
-      <Button onClick={handlePayment} className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors">
+      <Button 
+        onClick={handlePayment} 
+        className="w-full bg-restaurant-purple hover:bg-restaurant-red transition-colors"
+        disabled={isProcessingOrder}
+      >
         <ShoppingCart className="mr-2 h-5 w-5" />
-        {label}
+        {isProcessingOrder ? "Traitement en cours..." : label}
       </Button>
     </div>
     
