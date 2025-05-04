@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -334,91 +335,93 @@ export const KitchenOrderList: React.FC<KitchenOrderListProps> = ({
         </Button>
       </div>
       
-      {orders.length === 0 ? (
-        <div className="bg-white rounded-lg p-8 text-center">
-          <p className="text-gray-500 mb-2">Aucune commande {
-            status === "preparing" ? "en préparation" : 
-            status === "ready" ? "prête" : 
-            status === "archived" ? "archivée" : ""
-          } pour le moment.</p>
-        </div>
-      ) : (
-        orders.map((order) => (
-          <Card key={order.id} className={`overflow-hidden ${
-            order.payment_status === 'preparing' && new Date(order.created_at) > new Date(Date.now() - 30 * 60 * 1000) 
-              ? 'border-2 border-restaurant-red' 
-              : ''
-          }`}>
-            <CardContent className="p-0">
-              <div 
-                className="p-4 cursor-pointer flex justify-between items-center"
-                onClick={() => toggleOrderExpanded(order.id)}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="font-semibold">#{order.receipt_id}</div>
-                  <div className="text-sm text-gray-500 hidden md:block">
-                    {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString()}
-                  </div>
-                  {getStatusBadge(order.payment_status)}
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <div className="text-sm">
-                    <span className="font-medium">{order.users ? (order.users.name || order.users.email) : 'Client'}</span>
+      <div>
+        {orders.length === 0 ? (
+          <div className="bg-white rounded-lg p-8 text-center">
+            <p className="text-gray-500 mb-2">Aucune commande {
+              status === "preparing" ? "en préparation" : 
+              status === "ready" ? "prête" : 
+              status === "archived" ? "archivée" : ""
+            } pour le moment.</p>
+          </div>
+        ) : (
+          orders.map((order) => (
+            <Card key={order.id} className={`overflow-hidden mb-4 ${
+              order.payment_status === 'preparing' && new Date(order.created_at) > new Date(Date.now() - 30 * 60 * 1000) 
+                ? 'border-2 border-restaurant-red' 
+                : ''
+            }`}>
+              <CardContent className="p-0">
+                <div 
+                  className="p-4 cursor-pointer flex justify-between items-center"
+                  onClick={() => toggleOrderExpanded(order.id)}
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="font-semibold">#{order.receipt_id}</div>
+                    <div className="text-sm text-gray-500 hidden md:block">
+                      {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString()}
+                    </div>
+                    {getStatusBadge(order.payment_status)}
                   </div>
                   
-                  <div className="flex space-x-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        printOrder(order);
-                      }}
-                    >
-                      <Printer className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-sm">
+                      <span className="font-medium">{order.users ? (order.users.name || order.users.email) : 'Client'}</span>
+                    </div>
                     
-                    {order.payment_status === 'preparing' && (
+                    <div className="flex space-x-2">
                       <Button 
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700"
+                        size="sm" 
+                        variant="outline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          markOrderAsReady(order.id, true);
+                          printOrder(order);
                         }}
                       >
-                        <Package className="h-4 w-4 mr-2" />
-                        Marquer prête
+                        <Printer className="h-4 w-4" />
                       </Button>
-                    )}
-                    
-                    {order.payment_status === 'ready' && (
-                      <Button 
-                        size="sm"
-                        className="bg-purple-600 hover:bg-purple-700"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markOrderAsDelivered(order.id);
-                        }}
-                      >
-                        <Truck className="h-4 w-4 mr-2" />
-                        Marquer livrée
-                      </Button>
-                    )}
+                      
+                      {order.payment_status === 'preparing' && (
+                        <Button 
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markOrderAsReady(order.id, true);
+                          }}
+                        >
+                          <Package className="h-4 w-4 mr-2" />
+                          Marquer prête
+                        </Button>
+                      )}
+                      
+                      {order.payment_status === 'ready' && (
+                        <Button 
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markOrderAsDelivered(order.id);
+                          }}
+                        >
+                          <Truck className="h-4 w-4 mr-2" />
+                          Marquer livrée
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              {expandedOrders[order.id] && (
-                <div className="border-t p-4">
-                  <KitchenOrderItems orderId={order.id} />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      )}
+                
+                {expandedOrders[order.id] && (
+                  <div className="border-t p-4">
+                    <KitchenOrderItems orderId={order.id} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 };
