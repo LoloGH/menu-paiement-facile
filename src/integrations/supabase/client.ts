@@ -28,8 +28,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     headers: {
       'x-application-name': 'food-ordering-app'
     },
-    fetch: (...args) => {
-      return fetch(...args).catch(error => {
+    fetch: (url, options) => { // Fixed the spread argument issue by explicitly defining parameters
+      return fetch(url, options).catch(error => {
         console.error("Erreur réseau lors de la communication avec Supabase:", error);
         // On peut éventuellement notifier l'utilisateur ici
         throw error;

@@ -167,7 +167,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
         toast({
           title: "Avertissement",
           description: "Votre commande a été partiellement enregistrée. Veuillez contacter le support.",
-          variant: "default"
+          variant: "destructive" // Changed from "warning" to "destructive" since "warning" is not a valid variant
         });
         return false;
         
@@ -219,7 +219,7 @@ export const PaymentButton: React.FC<PaymentButtonProps> = ({
           description: success 
             ? "Votre reçu est disponible pour téléchargement." 
             : "Nous avons rencontré un problème avec votre commande, mais votre paiement va être traité.",
-          variant: success ? "default" : "warning"
+          variant: success ? "default" : "destructive" // Changed from "warning" to "destructive" since "warning" is not a valid variant
         });
         
         // On ajoute des informations pour le suivi des pannes
