@@ -47,6 +47,21 @@ npm run dev:web    # http://localhost:8080  (proxifie /api vers l'API)
 | `npm run lint` | ESLint sur tout le dépôt |
 | `npm test` | Tests unitaires et d'intégration |
 
+Les tests d'intégration de l'API tournent contre un vrai PostgreSQL, pas un
+double : ce qu'ils vérifient — qu'un rôle ne peut pas s'auto-attribuer, qu'un
+prix ne peut pas être falsifié — repose autant sur les contraintes SQL et les
+prédicats de requête que sur le TypeScript. Créer la base une fois :
+
+```sh
+createdb menu_test
+DATABASE_URL=postgres://menu:menu@localhost:5432/menu_test npm run db:migrate -w @menu/api
+```
+
+Le limiteur de débit est neutralisé sous `NODE_ENV=test` — chaque requête
+injectée vient de la même adresse et brimerait la suite au lieu de l'attaquant.
+`apps/api/test/rate-limit.test.ts` construit une application en configuration de
+production et vérifie que la protection fonctionne.
+
 `@menu/shared` doit être construit avant les autres : `api` et `web` consomment
 son `dist/`.
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ARTICLE_TYPES } from "@menu/shared";
 import { createDatabase } from "../db/index.js";
 import { articles, menuItems, menus } from "../db/schema.js";
-import { loadConfig } from "../config.js";
+import { loadDatabaseUrl } from "../config.js";
 
 /**
  * Imports the catalogue exported from the old Supabase project.
@@ -193,8 +193,7 @@ async function main() {
     return;
   }
 
-  const config = loadConfig();
-  const { db, client } = createDatabase(config.DATABASE_URL, { max: 1 });
+  const { db, client } = createDatabase(loadDatabaseUrl(), { max: 1 });
 
   try {
     // One transaction: a partial catalogue is worse than none.

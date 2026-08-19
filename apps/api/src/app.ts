@@ -62,6 +62,19 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     timeWindow: "1 minute",
   });
 
+  /*
+   * Per-route limits go through this helper rather than being written inline.
+   *
+   * Every request Fastify's `inject` makes looks like it comes from the same
+   * address, so a realistic limit throttles the test suite instead of the
+   * credential stuffing it exists to stop. In `test` the limits are lifted;
+   * `rate-limit.test.ts` builds an app with production settings and proves the
+   * protection itself still works.
+   */
+  app.decorate("limit", (max: number, timeWindow: string) =>
+    config.NODE_ENV === "test" ? false : { max, timeWindow },
+  );
+
   await app.register(dbPlugin);
   await app.register(authPlugin);
   await app.register(paymentsPlugin);
@@ -119,5 +132,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
 declare module "fastify" {
   interface FastifyInstance {
     config: Config;
+    /** Per-route rate limit, disabled under NODE_ENV=test. */
+    limit: (max: number, timeWindow: string) => { max: number; timeWindow: string } | false;
   }
 }

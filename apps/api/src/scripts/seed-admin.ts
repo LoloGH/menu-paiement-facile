@@ -4,7 +4,7 @@ import { passwordSchema, emailSchema } from "@menu/shared";
 import { createDatabase } from "../db/index.js";
 import { userRoles, users } from "../db/schema.js";
 import { hashPassword } from "../lib/password.js";
-import { loadConfig } from "../config.js";
+import { loadDatabaseUrl } from "../config.js";
 
 /**
  * Creates the first administrator.
@@ -17,8 +17,7 @@ import { loadConfig } from "../config.js";
  * Credentials come from ADMIN_EMAIL / ADMIN_PASSWORD when set (for automated
  * provisioning), otherwise the script prompts.
  */
-const config = loadConfig();
-const { db, client } = createDatabase(config.DATABASE_URL, { max: 1 });
+const { db, client } = createDatabase(loadDatabaseUrl(), { max: 1 });
 
 try {
   let email = process.env.ADMIN_EMAIL;

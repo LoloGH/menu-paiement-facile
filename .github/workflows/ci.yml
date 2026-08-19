@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  # A new push supersedes the run in progress for the same branch.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: menu_test
+          POSTGRES_USER: menu
+          POSTGRES_PASSWORD: menu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U menu -d menu_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://menu:menu@127.0.0.1:5432/menu_test
+      JWT_SECRET: ci-only-secret-at-least-32-characters-long
+      NODE_ENV: test
+      LOG_LEVEL: silent
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The shared package emits the types the other two compile against, so it
+      # has to exist before anything is typechecked.
+      - name: Construire le paquet partagé
+        run: npm run build -w @menu/shared
+
+      - name: Appliquer les migrations
+        run: npm run db:migrate -w @menu/api
+
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

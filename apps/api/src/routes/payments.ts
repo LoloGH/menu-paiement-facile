@@ -115,7 +115,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
   app.post(
     "/api/payments/webhook/:provider",
     {
-      config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+      config: { rateLimit: app.limit(60, "1 minute") },
       // The raw body is needed to check a signature over the exact bytes sent.
       onRequest: [],
     },

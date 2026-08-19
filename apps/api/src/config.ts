@@ -34,6 +34,21 @@ const envSchema = z.object({
 
 export type Config = z.infer<typeof envSchema>;
 
+/**
+ * Just the database URL, for tools that touch nothing else.
+ *
+ * The migration runner and the import script have no use for a JWT secret or a
+ * payment provider; demanding them would make a schema migration fail for a
+ * reason that has nothing to do with the schema.
+ */
+export function loadDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const parsed = z.string().url().safeParse(env.DATABASE_URL);
+  if (!parsed.success) {
+    throw new Error("DATABASE_URL is missing or is not a valid URL");
+  }
+  return parsed.data;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = envSchema.safeParse(env);
   if (!parsed.success) {

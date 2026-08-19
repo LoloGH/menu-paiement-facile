@@ -68,7 +68,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     "/api/orders",
     {
       onRequest: [app.requireAuth],
-      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
+      config: { rateLimit: app.limit(20, "1 minute") },
     },
     async (request, reply) => {
       const input = parseBody(createOrderSchema, request.body);
