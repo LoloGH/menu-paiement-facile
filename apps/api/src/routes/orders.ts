@@ -3,8 +3,9 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { createOrderSchema } from "@menu/shared";
 import { articles, menuItems, menus, orderItems, orders, payments } from "../db/schema.js";
 import type { DbExecutor } from "../db/index.js";
-import { HttpError, parseBody } from "../lib/http.js";
+import { HttpError, parseBody, uuidParam } from "../lib/http.js";
 import { generateReceiptId } from "../lib/receipt.js";
+import { publishOrderEvent } from "../lib/events.js";
 
 /**
  * Builds the order lines from the database.
@@ -110,6 +111,9 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       });
 
       request.log.info({ orderId: order.id, total: order.totalAmount }, "order created");
+      // Published after the transaction commits, so a screen that reacts to the
+      // event finds the order already readable.
+      await publishOrderEvent(app, { type: "order.created", orderId: order.id });
       return reply.code(201).send({ order });
     },
   );
@@ -144,7 +148,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/api/orders/:id", { onRequest: [app.requireAuth] }, async (request) => {
-    const { id } = request.params as { id: string };
+    const id = uuidParam(request.params, "id");
     const isStaff = request.user!.roles.some((role) =>
       ["admin", "order_manager", "kitchen", "viewer"].includes(role),
     );

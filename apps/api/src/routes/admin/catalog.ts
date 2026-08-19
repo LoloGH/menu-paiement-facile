@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { and, asc, eq, sql, type SQL } from "drizzle-orm";
 import { articleInputSchema, menuInputSchema } from "@menu/shared";
 import { articles, menuItems, menus } from "../../db/schema.js";
-import { HttpError, parseBody } from "../../lib/http.js";
+import { HttpError, parseBody, uuidParam } from "../../lib/http.js";
 import { likePattern } from "../../lib/search.js";
 import { recordAudit } from "../../lib/audit.js";
 
@@ -52,7 +52,7 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.put("/api/admin/articles/:id", { onRequest: [canWrite] }, async (request) => {
-    const { id } = request.params as { id: string };
+    const id = uuidParam(request.params, "id");
     const input = parseBody(articleInputSchema, request.body);
 
     const [updated] = await app.db
@@ -88,7 +88,7 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
    * from the record. Flipping availability is what "removing" means here.
    */
   app.delete("/api/admin/articles/:id", { onRequest: [canWrite] }, async (request) => {
-    const { id } = request.params as { id: string };
+    const id = uuidParam(request.params, "id");
     const [updated] = await app.db
       .update(articles)
       .set({ isAvailable: false, updatedAt: new Date() })

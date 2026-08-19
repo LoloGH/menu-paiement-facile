@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { auditLog, userRoles, users } from "../../db/schema.js";
-import { HttpError } from "../../lib/http.js";
+import { HttpError, uuidParam } from "../../lib/http.js";
 import { likePattern } from "../../lib/search.js";
 import { recordAudit } from "../../lib/audit.js";
 
@@ -61,7 +61,7 @@ export async function adminUserRoutes(app: FastifyInstance): Promise<void> {
     "/api/admin/users/:id/disable",
     { onRequest: [app.requireRole("admin")] },
     async (request) => {
-      const { id } = request.params as { id: string };
+      const id = uuidParam(request.params, "id");
       if (id === request.user!.id) {
         throw new HttpError(409, "impossible de désactiver son propre compte");
       }
@@ -89,7 +89,7 @@ export async function adminUserRoutes(app: FastifyInstance): Promise<void> {
     "/api/admin/users/:id/enable",
     { onRequest: [app.requireRole("admin")] },
     async (request) => {
-      const { id } = request.params as { id: string };
+      const id = uuidParam(request.params, "id");
       const [updated] = await app.db
         .update(users)
         .set({ disabledAt: null, updatedAt: new Date() })

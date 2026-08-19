@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserHeader } from "@/components/user-header/UserHeader";
 import { AccessDenied } from "@/components/admin/AccessDenied";
 import { OrdersTable } from "@/components/admin/OrdersTable";
+import { PaymentConfirmations } from "@/components/admin/PaymentConfirmations";
 import { UserTable } from "@/components/admin/UserTable";
 import { ArticlesManager } from "@/components/admin/articles/ArticlesManager";
 import { MenuEditor } from "@/components/admin/menu-editor/MenuEditor";
@@ -12,6 +13,7 @@ import { AdminRoleManager } from "@/components/admin/AdminRoleManager";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
 import { DashboardStats } from "@/components/admin/stats/DashboardStats";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useOrderStream } from "@/hooks/use-order-stream";
 
 /**
  * The back office.
@@ -22,6 +24,8 @@ import { usePermissions } from "@/hooks/use-permissions";
  */
 export default function AdminInterface() {
   const permissions = usePermissions();
+  // Same live stream as the kitchen, without the sound.
+  useOrderStream({ playSound: false });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -57,6 +61,9 @@ export default function AdminInterface() {
               <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
             )}
             {permissions.canViewOrders && <TabsTrigger value="orders">Commandes</TabsTrigger>}
+            {permissions.canConfirmPayments && (
+              <TabsTrigger value="payments">Paiements à confirmer</TabsTrigger>
+            )}
             {permissions.canViewCatalogue && <TabsTrigger value="articles">Articles</TabsTrigger>}
             {permissions.canViewCatalogue && <TabsTrigger value="menus">Menus</TabsTrigger>}
             {permissions.canViewUsers && <TabsTrigger value="users">Utilisateurs</TabsTrigger>}
@@ -70,6 +77,9 @@ export default function AdminInterface() {
             </TabsContent>
             <TabsContent value="orders">
               {permissions.canViewOrders ? <OrdersTable /> : <AccessDenied />}
+            </TabsContent>
+            <TabsContent value="payments">
+              {permissions.canConfirmPayments ? <PaymentConfirmations /> : <AccessDenied />}
             </TabsContent>
             <TabsContent value="articles">
               {permissions.canViewCatalogue ? (

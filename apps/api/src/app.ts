@@ -6,6 +6,8 @@ import { ZodError } from "zod";
 import type { Config } from "./config.js";
 import { dbPlugin } from "./plugins/db.js";
 import { authPlugin } from "./plugins/auth.js";
+import { paymentsPlugin } from "./plugins/payments.js";
+import { eventsPlugin } from "./plugins/events.js";
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
 import { menuRoutes } from "./routes/menus.js";
@@ -14,6 +16,8 @@ import { adminOrderRoutes } from "./routes/admin/orders.js";
 import { catalogRoutes } from "./routes/admin/catalog.js";
 import { adminUserRoutes } from "./routes/admin/users.js";
 import { roleRoutes } from "./routes/admin/roles.js";
+import { paymentRoutes } from "./routes/payments.js";
+import { kitchenRoutes } from "./routes/kitchen.js";
 import { HttpError } from "./lib/http.js";
 
 /**
@@ -60,6 +64,8 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
 
   await app.register(dbPlugin);
   await app.register(authPlugin);
+  await app.register(paymentsPlugin);
+  await app.register(eventsPlugin);
 
   /**
    * One place decides what a client sees. Expected failures carry their status
@@ -102,6 +108,8 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(catalogRoutes);
   await app.register(adminUserRoutes);
   await app.register(roleRoutes);
+  await app.register(paymentRoutes);
+  await app.register(kitchenRoutes);
 
   app.setNotFoundHandler((_request, reply) => reply.code(404).send({ error: "route inconnue" }));
 

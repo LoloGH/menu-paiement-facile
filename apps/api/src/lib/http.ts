@@ -39,3 +39,21 @@ export function sendError(reply: FastifyReply, error: HttpError) {
     ...(error.details ? { details: error.details } : {}),
   });
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Reads a UUID path parameter, or fails with a 400.
+ *
+ * Without this a malformed identifier reaches PostgreSQL, which raises a type
+ * error the handler turns into a 500 — reporting a server fault for what is
+ * plainly a bad request, and writing a stack trace on every stray crawler hit.
+ */
+export function uuidParam(params: unknown, key: string): string {
+  const value = (params as Record<string, unknown> | null)?.[key];
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) {
+    throw new HttpError(400, `identifiant « ${key} » invalide`);
+  }
+  return value;
+}

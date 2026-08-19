@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { and, desc, eq, gte, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 import { orderQuerySchema, updateFulfillmentSchema } from "@menu/shared";
 import { orderItems, orders, users } from "../../db/schema.js";
-import { HttpError, parseBody } from "../../lib/http.js";
+import { HttpError, parseBody, uuidParam } from "../../lib/http.js";
 import { likePattern } from "../../lib/search.js";
 import { recordAudit } from "../../lib/audit.js";
 import { publishOrderEvent } from "../../lib/events.js";
@@ -89,7 +89,7 @@ export async function adminOrderRoutes(app: FastifyInstance): Promise<void> {
     "/api/admin/orders/:id/fulfillment",
     { onRequest: [app.requireRole("admin", "order_manager", "kitchen")] },
     async (request) => {
-      const { id } = request.params as { id: string };
+      const id = uuidParam(request.params, "id");
       const input = parseBody(updateFulfillmentSchema, request.body);
 
       const [updated] = await app.db
