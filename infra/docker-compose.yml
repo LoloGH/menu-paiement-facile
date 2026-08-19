@@ -45,6 +45,9 @@ services:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-manual}
       WAVE_PAYMENT_URL: ${WAVE_PAYMENT_URL:-}
+      CINETPAY_API_KEY: ${CINETPAY_API_KEY:-}
+      CINETPAY_SITE_ID: ${CINETPAY_SITE_ID:-}
+      CINETPAY_SECRET_KEY: ${CINETPAY_SECRET_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       # Bound to the loopback interface only: Apache reaches it, the internet

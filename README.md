@@ -106,5 +106,9 @@ Le module de paiement est derrière une interface unique
 - `wave_link` — redirige vers le lien marchand Wave. Le retour d'URL ne vaut
   pas preuve de paiement : la confirmation reste manuelle.
 
-L'intégration d'une passerelle mobile money vérifiable (webhook signé) consiste
-à ajouter une implémentation de cette interface, sans changement de schéma.
+- `cinetpay` — agrégateur mobile money d'Afrique de l'Ouest. Le paiement se
+  solde tout seul, à partir d'une vérification serveur à serveur et jamais du
+  contenu du rappel. Voir [docs/paiement-cinetpay.md](docs/paiement-cinetpay.md).
+
+Ajouter une autre passerelle consiste à écrire une implémentation de cette
+interface, sans changement de schéma.

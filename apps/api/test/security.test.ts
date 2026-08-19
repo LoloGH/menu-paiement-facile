@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
-import { orders, userRoles } from "../src/db/schema.js";
+import { orders, payments, userRoles } from "../src/db/schema.js";
 import { createTestApp, createUser, login, resetDatabase, seedMenu } from "./helpers.js";
 
 /**
@@ -208,6 +208,102 @@ describe("sécurité", () => {
         payload: {},
       });
       expect(second.statusCode).toBe(409);
+    });
+  });
+
+  describe("montant annoncé par une passerelle", () => {
+    it("laisse la commande impayée si le rappel annonce moins que le total", async () => {
+      const { menuItemId } = await seedMenu(app, { price: 3500 });
+      const customer = await createUser(app, { email: "client@test.local" });
+      const cookies = await login(app, customer.email, customer.password);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/orders",
+        headers: { cookie: cookies },
+        payload: { items: [{ menuItemId, quantity: 2 }] },
+      });
+      const order = created.json().order as { id: string; receiptId: string; totalAmount: number };
+      expect(order.totalAmount).toBe(7000);
+
+      // Stand in for a gateway that verifies its callback but reports a
+      // partial — or tampered — amount.
+      const original = app.payments.verifyWebhook;
+      app.payments.verifyWebhook = async () => ({
+        reference: order.receiptId,
+        status: "paid" as const,
+        amount: 100,
+        raw: {},
+      });
+
+      try {
+        await app.db.insert(payments).values({
+          orderId: order.id,
+          provider: app.payments.name,
+          providerReference: order.receiptId,
+          amount: order.totalAmount,
+          status: "pending",
+        });
+
+        const response = await app.inject({
+          method: "POST",
+          url: `/api/payments/webhook/${app.payments.name}`,
+          payload: { cpm_trans_id: order.receiptId },
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json().settled).toBe(false);
+
+        const [stored] = await app.db.select().from(orders).where(eq(orders.id, order.id));
+        expect(stored?.paymentStatus).toBe("pending");
+      } finally {
+        app.payments.verifyWebhook = original;
+      }
+    });
+
+    it("solde la commande quand le montant correspond", async () => {
+      const { menuItemId } = await seedMenu(app, { price: 3500 });
+      const customer = await createUser(app, { email: "client@test.local" });
+      const cookies = await login(app, customer.email, customer.password);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/orders",
+        headers: { cookie: cookies },
+        payload: { items: [{ menuItemId, quantity: 1 }] },
+      });
+      const order = created.json().order as { id: string; receiptId: string; totalAmount: number };
+
+      const original = app.payments.verifyWebhook;
+      app.payments.verifyWebhook = async () => ({
+        reference: order.receiptId,
+        status: "paid" as const,
+        amount: order.totalAmount,
+        raw: {},
+      });
+
+      try {
+        await app.db.insert(payments).values({
+          orderId: order.id,
+          provider: app.payments.name,
+          providerReference: order.receiptId,
+          amount: order.totalAmount,
+          status: "pending",
+        });
+
+        const response = await app.inject({
+          method: "POST",
+          url: `/api/payments/webhook/${app.payments.name}`,
+          payload: { cpm_trans_id: order.receiptId },
+        });
+
+        expect(response.json().settled).toBe(true);
+
+        const [stored] = await app.db.select().from(orders).where(eq(orders.id, order.id));
+        expect(stored?.paymentStatus).toBe("paid");
+      } finally {
+        app.payments.verifyWebhook = original;
+      }
     });
   });
 

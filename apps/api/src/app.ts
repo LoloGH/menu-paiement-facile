@@ -56,6 +56,17 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     contentSecurityPolicy: false,
   });
   await app.register(cookie);
+
+  /*
+   * Payment gateways post their callbacks as form data, and the signature they
+   * send covers the exact bytes. Keeping the body as a raw string lets the
+   * provider verify it before anything parses or reshapes it.
+   */
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_request, body, done) => done(null, body),
+  );
   await app.register(rateLimit, {
     global: false,
     max: 100,

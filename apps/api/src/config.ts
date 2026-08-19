@@ -27,6 +27,16 @@ const envSchema = z.object({
   /** Only read by the `wave_link` provider. */
   WAVE_PAYMENT_URL: z.string().url().optional(),
 
+  /* CinetPay. Secrets: they belong in the server's .env, never in the repo. */
+  CINETPAY_API_KEY: z.string().min(10).optional(),
+  CINETPAY_SITE_ID: z.string().min(1).optional(),
+  /**
+   * Signs the x-token on notifications. Optional because the transaction is
+   * confirmed by a server-to-server check either way, but set it: it rejects
+   * forged callbacks before they cost a round trip.
+   */
+  CINETPAY_SECRET_KEY: z.string().min(10).optional(),
+
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),

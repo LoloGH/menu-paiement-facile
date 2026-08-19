@@ -47,11 +47,15 @@ export const USER_ROLES = [
 export type UserRole = (typeof USER_ROLES)[number];
 
 /**
- * Payment providers. `manual` means an administrator confirms the payment by
- * hand; `wave_link` redirects to a static Wave merchant link, which likewise
- * cannot be verified automatically. A real gateway is added here later.
+ * Payment providers.
+ *
+ * `manual` — an administrator confirms the payment by hand.
+ * `wave_link` — redirects to a static Wave merchant link, which cannot be
+ *   verified automatically, so it still needs manual confirmation.
+ * `cinetpay` — mobile money aggregator with a signed callback and a
+ *   server-to-server status check, so payments settle on their own.
  */
-export const PAYMENT_PROVIDERS = ["manual", "wave_link"] as const;
+export const PAYMENT_PROVIDERS = ["manual", "wave_link", "cinetpay"] as const;
 export type PaymentProviderName = (typeof PAYMENT_PROVIDERS)[number];
 
 export const FRENCH_WEEKDAYS = [

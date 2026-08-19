@@ -127,7 +127,8 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const headers = request.headers as Record<string, string | undefined>;
-      const rawBody = typeof request.body === "string" ? request.body : JSON.stringify(request.body ?? {});
+      const rawBody =
+        typeof request.body === "string" ? request.body : JSON.stringify(request.body ?? {});
 
       const event = await app.payments.verifyWebhook(headers, rawBody);
       if (!event) {
@@ -145,13 +146,41 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
 
       if (!attempt) throw new HttpError(404, "paiement inconnu");
 
+      const [order] = await app.db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, attempt.orderId))
+        .limit(1);
+      if (!order) throw new HttpError(404, "commande introuvable");
+
+      /*
+       * A verified callback still has to agree with what was ordered. A
+       * gateway reporting a smaller amount — a partial payment, a tampered
+       * transaction, a reused reference — must not settle the order. The
+       * mismatch is recorded rather than silently dropped, because it is
+       * exactly the kind of thing someone needs to look at.
+       */
+      const settled =
+        event.status === "paid" && event.amount !== null && event.amount >= order.totalAmount;
+
+      if (event.status === "paid" && !settled) {
+        request.log.error(
+          { orderId: order.id, expected: order.totalAmount, reported: event.amount },
+          "payment amount mismatch, order left unpaid",
+        );
+      }
+
       await app.db.transaction(async (tx) => {
         await tx
           .update(payments)
-          .set({ status: event.status, rawPayload: event.raw, updatedAt: new Date() })
+          .set({
+            status: settled ? "paid" : "failed",
+            rawPayload: event.raw as never,
+            updatedAt: new Date(),
+          })
           .where(eq(payments.id, attempt.id));
 
-        if (event.status === "paid") {
+        if (settled) {
           await tx
             .update(orders)
             .set({ paymentStatus: "paid", updatedAt: new Date() })
@@ -159,8 +188,18 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
         }
       });
 
-      await publishOrderEvent(app, { type: "order.paid", orderId: attempt.orderId });
-      return { ok: true };
+      if (settled) {
+        await recordAudit(app, {
+          actorId: null,
+          action: "payment.settled",
+          resource: "orders",
+          resourceId: order.id,
+          details: { provider, amount: event.amount, reference: event.reference },
+        });
+        await publishOrderEvent(app, { type: "order.paid", orderId: attempt.orderId });
+      }
+
+      return { ok: true, settled };
     },
   );
 }
