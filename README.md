@@ -50,6 +50,12 @@ npm run dev:web    # http://localhost:8080  (proxifie /api vers l'API)
 `@menu/shared` doit être construit avant les autres : `api` et `web` consomment
 son `dist/`.
 
+## Migration depuis Supabase
+
+Le catalogue (articles et menus) se reprend depuis l'ancien projet Supabase ;
+comptes et commandes repartent de zéro. Procédure détaillée dans
+[docs/migration-catalogue.md](docs/migration-catalogue.md).
+
 ## Rôles
 
 | Rôle | Droits |
