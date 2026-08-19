@@ -13,7 +13,25 @@ import type { UserRole } from "@menu/shared";
  * price cannot be forged — lives in SQL constraints and query predicates as
  * much as in TypeScript. A stubbed database would prove nothing about either.
  */
+/**
+ * Refuses to run against anything that is not obviously a test database.
+ *
+ * `resetDatabase` truncates every table. A developer with their working
+ * DATABASE_URL exported would lose their data to a stray `npm test` — which is
+ * exactly how this guard came to be written.
+ */
+function assertTestDatabase(url: string): void {
+  const name = new URL(url).pathname.replace(/^\//, "");
+  if (!/test/i.test(name)) {
+    throw new Error(
+      `refus de lancer les tests sur la base « ${name} » : ces tests vident toutes les tables. ` +
+        `Le nom de la base doit contenir « test » (par exemple menu_test).`,
+    );
+  }
+}
+
 export async function createTestApp(): Promise<FastifyInstance> {
+  assertTestDatabase(process.env.DATABASE_URL ?? "");
   const config = loadConfig({
     ...process.env,
     NODE_ENV: "test",

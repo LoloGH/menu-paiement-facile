@@ -71,6 +71,18 @@ Le catalogue (articles et menus) se reprend depuis l'ancien projet Supabase ;
 comptes et commandes repartent de zéro. Procédure détaillée dans
 [docs/migration-catalogue.md](docs/migration-catalogue.md).
 
+## Déploiement
+
+Le service tourne derrière l'Apache déjà présent sur le serveur, qui sert le
+front depuis le disque et proxifie `/api` vers un conteneur. Procédure complète
+dans [docs/deploiement.md](docs/deploiement.md).
+
+```sh
+make deploy      # reconstruit le front, le publie, relance l'API
+make api-logs
+make backup
+```
+
 ## Rôles
 
 | Rôle | Droits |

@@ -1,0 +1,59 @@
+# Production stack for the VPS.
+#
+# Only two services: PostgreSQL and the API. There is no web server here —
+# Apache already owns ports 80 and 443 on this machine (it fronts
+# portail.sukaxess.com, speedtest.sukaxess.com and Odoo), so it serves the
+# built front-end from disk and proxies /api to the container, exactly as it
+# already does for Odoo on 8090. See infra/apache/menu.conf.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: menu-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?}
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - menu-db:/var/lib/postgresql/data
+    # No published port. The host already runs a PostgreSQL for Odoo on 5432;
+    # this one stays on the Docker network, reachable only by the API.
+    networks: [menu]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    container_name: menu-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET:?}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-30d}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-manual}
+      WAVE_PAYMENT_URL: ${WAVE_PAYMENT_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      # Bound to the loopback interface only: Apache reaches it, the internet
+      # does not. Change the host port if 3000 is ever taken.
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    networks: [menu]
+
+networks:
+  menu:
+
+volumes:
+  menu-db:
