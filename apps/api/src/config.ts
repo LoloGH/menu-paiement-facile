@@ -27,7 +27,9 @@ const envSchema = z.object({
   /** Only read by the `wave_link` provider. */
   WAVE_PAYMENT_URL: z.string().url().optional(),
 
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+    .default("info"),
 });
 
 export type Config = z.infer<typeof envSchema>;
