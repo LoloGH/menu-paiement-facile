@@ -1,73 +1,77 @@
-# Welcome to your Lovable project
+# Menu Paiement Facile
 
-## Project info
+Commande et paiement de menus de restaurant : menu hebdomadaire public, espace
+client, back-office d'administration et écran de cuisine.
 
-**URL**: https://lovable.dev/projects/3320c828-67c7-434e-87c0-d97b9b76d2e1
+## Structure
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/3320c828-67c7-434e-87c0-d97b9b76d2e1) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+apps/web/        Front-end React (Vite, TypeScript, Tailwind, shadcn/ui)
+apps/api/        API Fastify + PostgreSQL (Drizzle)
+packages/shared/ Enums, schémas et helpers partagés entre le front et l'API
+infra/           Docker Compose, reverse proxy, sauvegardes
 ```
 
-**Edit a file directly in GitHub**
+Le serveur est la seule autorité sur les prix, les rôles et les statuts de
+paiement. Le navigateur ne parle jamais directement à la base de données.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Prérequis
 
-**Use GitHub Codespaces**
+- Node.js >= 22
+- Docker (pour PostgreSQL en développement)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Démarrage
 
-## What technologies are used for this project?
+```sh
+npm install
+cp .env.example .env          # puis renseigner JWT_SECRET
+docker compose -f infra/docker-compose.dev.yml up -d   # PostgreSQL
+npm run build -w @menu/shared
+npm run db:migrate -w @menu/api
+npm run seed:admin -w @menu/api
+```
 
-This project is built with:
+Deux terminaux :
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```sh
+npm run dev:api    # http://localhost:3000
+npm run dev:web    # http://localhost:8080  (proxifie /api vers l'API)
+```
 
-## How can I deploy this project?
+## Scripts
 
-Simply open [Lovable](https://lovable.dev/projects/3320c828-67c7-434e-87c0-d97b9b76d2e1) and click on Share -> Publish.
+| Commande | Effet |
+|---|---|
+| `npm run build` | Construit `shared`, puis `api`, puis `web` |
+| `npm run typecheck` | `tsc --noEmit` sur les trois workspaces |
+| `npm run lint` | ESLint sur tout le dépôt |
+| `npm test` | Tests unitaires et d'intégration |
 
-## Can I connect a custom domain to my Lovable project?
+`@menu/shared` doit être construit avant les autres : `api` et `web` consomment
+son `dist/`.
 
-Yes it is!
+## Rôles
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+| Rôle | Droits |
+|---|---|
+| `admin` | Accès complet, y compris la gestion des rôles |
+| `order_manager` | Commandes et confirmation des paiements |
+| `kitchen` | Écran de cuisine, avancement des préparations |
+| `viewer` | Lecture seule |
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Un compte ne peut pas s'attribuer de rôle. Le premier administrateur est créé
+par `npm run seed:admin -w @menu/api` ; les suivants par un administrateur
+existant depuis le back-office.
+
+## Paiement
+
+Le module de paiement est derrière une interface unique
+(`apps/api/src/payments/`), choisie par la variable `PAYMENT_PROVIDER` :
+
+- `manual` — la commande reste `pending` jusqu'à confirmation par un
+  administrateur. Aucun appel externe.
+- `wave_link` — redirige vers le lien marchand Wave. Le retour d'URL ne vaut
+  pas preuve de paiement : la confirmation reste manuelle.
+
+L'intégration d'une passerelle mobile money vérifiable (webhook signé) consiste
+à ajouter une implémentation de cette interface, sans changement de schéma.
