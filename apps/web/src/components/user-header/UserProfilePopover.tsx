@@ -1,5 +1,5 @@
 
-import React from 'react';
+import type { CurrentUser } from '@/contexts/auth-context';
 import { Settings, ShoppingBag, LogOut } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -7,19 +7,12 @@ import { User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface UserProfilePopoverProps {
-  userData: {
-    fullName: string;
-    email: string;
-    phoneNumber?: string;
-  };
+  user: CurrentUser;
   onLogout: () => Promise<void>;
 }
 
-export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({ 
-  userData, 
-  onLogout 
-}) => {
-  const displayName = userData?.fullName || "Utilisateur";
+export function UserProfilePopover({ user, onLogout }: UserProfilePopoverProps) {
+  const displayName = user.name || "Utilisateur";
   
   return (
     <Popover>
@@ -37,17 +30,18 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
               <span className="font-semibold mr-2">Nom:</span> {displayName}
             </p>
             <p className="flex items-center">
-              <span className="font-semibold mr-2">Email:</span> {userData?.email}
+              <span className="font-semibold mr-2">Email:</span> {user.email}
             </p>
-            {userData?.phoneNumber && (
+            {user.phone && (
               <p className="flex items-center">
-                <span className="font-semibold mr-2">Téléphone:</span> {userData.phoneNumber}
+                <span className="font-semibold mr-2">Téléphone:</span> {user.phone}
               </p>
             )}
-            <p className="flex items-center">
-              <span className="font-semibold mr-2">Statut:</span> 
-              <span className="text-green-600 font-medium">Actif</span>
-            </p>
+            {user.roles.length > 0 && (
+              <p className="flex items-center">
+                <span className="font-semibold mr-2">Rôles:</span> {user.roles.join(", ")}
+              </p>
+            )}
           </div>
           <div className="pt-2 border-t space-y-2">
             <Link to="/profil" className="block w-full">
@@ -68,6 +62,14 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
                 Mes commandes
               </Button>
             </Link>
+            {user.roles.length > 0 && (
+              <Link to="/interface-admin" className="block w-full">
+                <Button variant="outline" className="w-full text-gray-700 hover:bg-gray-100">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Back-office
+                </Button>
+              </Link>
+            )}
             <Button 
               variant="outline" 
               className="w-full text-white bg-restaurant-red hover:bg-restaurant-red/80"
@@ -81,4 +83,4 @@ export const UserProfilePopover: React.FC<UserProfilePopoverProps> = ({
       </PopoverContent>
     </Popover>
   );
-};
+}

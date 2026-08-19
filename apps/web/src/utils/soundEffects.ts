@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 
 /**
  * Sound effects utility for the application
@@ -22,7 +23,7 @@ const playSoundWithErrorHandling = (audio: HTMLAudioElement) => {
   try {
     audio.currentTime = 0;
   } catch (e) {
-    console.warn("Impossible de réinitialiser le son:", e);
+    logger.warn("Impossible de réinitialiser le son:", e);
   }
 
   // Essayer de jouer le son
@@ -33,23 +34,23 @@ const playSoundWithErrorHandling = (audio: HTMLAudioElement) => {
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
-          console.log("Son joué avec succès");
+          logger.debug("son joué");
         })
         .catch(error => {
-          console.error("Erreur lors de la lecture du son:", error);
+          logger.warn("lecture du son impossible", error);
           
           // En cas d'erreur, on essaie une alternative
           setTimeout(() => {
             try {
               audio.play();
             } catch (retryError) {
-              console.error("Échec de la seconde tentative de lecture:", retryError);
+              logger.error("Échec de la seconde tentative de lecture:", retryError);
             }
           }, 1000);
         });
     }
   } catch (e) {
-    console.error("Exception lors de la lecture du son:", e);
+    logger.error("Exception lors de la lecture du son:", e);
   }
 };
 

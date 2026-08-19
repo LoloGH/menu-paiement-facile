@@ -1,290 +1,184 @@
-import { useState, useEffect } from "react";
+import { useState, type FormEvent } from "react";
+import { Trash2 } from "lucide-react";
+import { USER_ROLES, type UserRole } from "@menu/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Trash2, UserPlus, Users, RefreshCw } from "lucide-react";
-import { 
-  fetchAdminUsers, fetchOrderManagerUsers, fetchViewerUsers, 
-  addRoleToUser, removeRoleFromUser, UserRoleInfo, AdminRoleType, getRoleDisplayName
-} from "@/utils/roleUtils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { logAdminAction, supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useGrantRole, useRevokeRole, useRoles } from "@/hooks/api/use-admin";
 
-export const AdminRoleManager = () => {
-  const [users, setUsers] = useState<{[key: string]: UserRoleInfo[]}>({
-    [AdminRoleType.ADMIN]: [],
-    [AdminRoleType.ORDER_MANAGER]: [],
-    [AdminRoleType.VIEWER]: [],
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [emailToAdd, setEmailToAdd] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string>(AdminRoleType.ADMIN);
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Administrateur",
+  order_manager: "Gestionnaire de commandes",
+  kitchen: "Cuisine",
+  viewer: "Lecture seule",
+};
+
+/**
+ * Grants and revokes back-office roles.
+ *
+ * Every action here is checked again on the server, which also refuses to
+ * remove the last administrator. This screen only makes the operation
+ * convenient; it is not what makes it safe.
+ */
+export function AdminRoleManager() {
   const { toast } = useToast();
-  const { adminData } = useAdminAuth();
-  const isMobile = useIsMobile();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { data: assignments, isLoading, isError, error } = useRoles();
+  const grantRole = useGrantRole();
+  const revokeRole = useRevokeRole();
 
-  const loadUsers = async () => {
-    setIsLoading(true);
-    try {
-      const [admins, orderManagers, viewers] = await Promise.all([
-        fetchAdminUsers(),
-        fetchOrderManagerUsers(),
-        fetchViewerUsers()
-      ]);
-      
-      setUsers({
-        [AdminRoleType.ADMIN]: admins,
-        [AdminRoleType.ORDER_MANAGER]: orderManagers,
-        [AdminRoleType.VIEWER]: viewers,
-      });
-    } catch (error) {
-      console.error("Erreur lors du chargement des utilisateurs:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger la liste des utilisateurs avec rôles.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<UserRole>("viewer");
 
-  useEffect(() => {
-    loadUsers();
-    
-    const channel = supabase
-      .channel('role-manager-changes')
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'user_roles'
+  const handleGrant = (event: FormEvent) => {
+    event.preventDefault();
+    grantRole.mutate(
+      { email, role },
+      {
+        onSuccess: () => {
+          setEmail("");
+          toast({ title: "Rôle attribué", description: `${ROLE_LABELS[role]} → ${email}` });
         },
-        (payload) => {
-          console.log('Role changes detected:', payload);
-          loadUsers(); // Refresh the user list
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const handleAddUser = async () => {
-    if (!emailToAdd.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez entrer une adresse email valide.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const result = await addRoleToUser(emailToAdd, selectedRole);
-      
-      if (result.success) {
-        toast({
-          title: "Succès",
-          description: result.message,
-        });
-        
-        setEmailToAdd("");
-        loadUsers();
-
-        if (adminData) {
-          await logAdminAction(
-            adminData.id,
-            "add_user_role",
-            "user_roles",
-            { email: emailToAdd, role: selectedRole }
-          );
-        }
-      } else {
-        toast({
-          title: "Erreur",
-          description: result.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'ajout de l'utilisateur:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'attribuer le rôle.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRemoveUser = async (userId: string, email: string, role: string) => {
-    try {
-      const result = await removeRoleFromUser(userId, role);
-      
-      if (result.success) {
-        toast({
-          title: "Succès",
-          description: `${getRoleDisplayName(role)} retiré pour ${email}.`,
-        });
-        
-        loadUsers();
-
-        if (adminData) {
-          await logAdminAction(
-            adminData.id,
-            "remove_user_role",
-            "user_roles",
-            { userId, email, role }
-          );
-        }
-      } else {
-        toast({
-          title: "Erreur",
-          description: result.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la suppression de l'utilisateur:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de retirer le rôle.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadUsers();
-    setIsRefreshing(false);
-    toast({
-      title: "Liste actualisée",
-      description: "La liste des utilisateurs a été rechargée.",
-    });
+        onError: (caught) =>
+          toast({
+            title: "Attribution impossible",
+            description: caught instanceof Error ? caught.message : undefined,
+            variant: "destructive",
+          }),
+      },
+    );
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-restaurant-purple" />
-            Gestion des Rôles et Permissions
-          </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {!isMobile && "Actualiser"}
-          </Button>
+    <div className="space-y-6">
+      <form onSubmit={handleGrant} className="flex flex-wrap gap-3 items-end">
+        <div className="space-y-2 flex-1 min-w-[240px]">
+          <Label htmlFor="role-email">Adresse e-mail d'un compte existant</Label>
+          <Input
+            id="role-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            placeholder="personne@exemple.com"
+          />
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-6">
-          <Label htmlFor="role-email" className="mb-2 block">Ajouter un utilisateur par email</Label>
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                id="role-email"
-                placeholder="email@exemple.com"
-                value={emailToAdd}
-                onChange={(e) => setEmailToAdd(e.target.value)}
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleAddUser} 
-                disabled={isLoading || !emailToAdd.trim()}
-                className="whitespace-nowrap"
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                {!isMobile ? "Ajouter Utilisateur" : "Ajouter"}
-              </Button>
-            </div>
-            <div>
-              <Label htmlFor="role-select" className="mb-2 block">Type de rôle</Label>
-              <select 
-                id="role-select"
-                className="w-full p-2 border rounded-md"
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-              >
-                <option value={AdminRoleType.ADMIN}>Administrateur (accès total)</option>
-                <option value={AdminRoleType.ORDER_MANAGER}>Gestionnaire de commandes</option>
-                <option value={AdminRoleType.VIEWER}>Visualiseur (lecture seule)</option>
-              </select>
-            </div>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="role-select">Rôle</Label>
+          <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
+            <SelectTrigger id="role-select" className="w-[240px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {USER_ROLES.map((entry) => (
+                <SelectItem key={entry} value={entry}>
+                  {ROLE_LABELS[entry]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+        <Button type="submit" disabled={grantRole.isPending}>
+          {grantRole.isPending ? "Attribution…" : "Attribuer"}
+        </Button>
+      </form>
 
-        <div>
-          <h3 className="font-medium mb-4">Liste des utilisateurs par rôle</h3>
-          
-          <Tabs defaultValue={AdminRoleType.ADMIN} className="w-full">
-            <TabsList className={`mb-4 ${isMobile ? 'grid grid-cols-3 gap-2' : 'flex'}`}>
-              <TabsTrigger value={AdminRoleType.ADMIN} className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4" />
-                {!isMobile && "Administrateurs"}
-              </TabsTrigger>
-              <TabsTrigger value={AdminRoleType.ORDER_MANAGER} className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                {!isMobile && "Gestionnaires"}
-              </TabsTrigger>
-              <TabsTrigger value={AdminRoleType.VIEWER} className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                {!isMobile && "Visualiseurs"}
-              </TabsTrigger>
-            </TabsList>
-            
-            {Object.entries(users).map(([role, roleUsers]) => (
-              <TabsContent key={role} value={role}>
-                {isLoading ? (
-                  <div className="text-center p-4">Chargement...</div>
-                ) : roleUsers.length === 0 ? (
-                  <div className="text-center p-4 bg-gray-50 rounded-md">
-                    Aucun utilisateur trouvé avec le rôle {getRoleDisplayName(role)}.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {roleUsers.map((user) => (
-                      <div 
-                        key={`${user.id}-${role}`} 
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                      >
-                        <div className="overflow-hidden">
-                          <div className="font-medium truncate">{user.email}</div>
-                          <div className="text-xs text-gray-500">ID: {user.id.substring(0, 8)}...</div>
-                        </div>
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          onClick={() => handleRemoveUser(user.id, user.email, role)}
-                          className="shrink-0 ml-2"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          {!isMobile && <span className="ml-2">Retirer</span>}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
+      <p className="text-sm text-gray-600">
+        Le compte doit déjà exister : un rôle s'attribue à quelqu'un d'inscrit, il ne crée pas de
+        compte.
+      </p>
+
+      {isError && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {error instanceof Error ? error.message : "Chargement impossible."}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="rounded-md border overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Compte</TableHead>
+              <TableHead>Rôle</TableHead>
+              <TableHead>Attribué le</TableHead>
+              <TableHead className="w-[100px]">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                  Chargement…
+                </TableCell>
+              </TableRow>
+            )}
+            {assignments?.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                  Aucun rôle attribué.
+                </TableCell>
+              </TableRow>
+            )}
+            {assignments?.map((assignment) => (
+              <TableRow key={`${assignment.userId}-${assignment.role}`}>
+                <TableCell>
+                  {assignment.name ?? "—"}
+                  <span className="block text-xs text-gray-500">{assignment.email}</span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{ROLE_LABELS[assignment.role]}</Badge>
+                </TableCell>
+                <TableCell className="text-sm">
+                  {new Date(assignment.createdAt).toLocaleDateString("fr-FR")}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={revokeRole.isPending}
+                    aria-label={`Retirer le rôle ${ROLE_LABELS[assignment.role]}`}
+                    onClick={() =>
+                      revokeRole.mutate(
+                        { userId: assignment.userId, role: assignment.role },
+                        {
+                          onSuccess: () => toast({ title: "Rôle retiré" }),
+                          onError: (caught) =>
+                            toast({
+                              title: "Retrait impossible",
+                              description: caught instanceof Error ? caught.message : undefined,
+                              variant: "destructive",
+                            }),
+                        },
+                      )
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-restaurant-red" />
+                  </Button>
+                </TableCell>
+              </TableRow>
             ))}
-          </Tabs>
-        </div>
-      </CardContent>
-    </Card>
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
-};
+}

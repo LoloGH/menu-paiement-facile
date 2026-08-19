@@ -40,19 +40,14 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // CLI scripts and the migration runner talk to the operator through stdout.
+    files: ["apps/api/src/scripts/**/*.ts", "apps/api/src/db/migrate.ts"],
+    rules: { "no-console": "off" },
+  },
+  {
     // Build configuration runs in Node and legitimately uses require().
     files: ["**/*.config.{ts,js}"],
     languageOptions: { globals: globals.node },
     rules: { "@typescript-eslint/no-require-imports": "off" },
-  },
-  {
-    // Legacy Lovable-era front-end. These files are rewritten when the client
-    // moves onto the API; until then their findings are warnings so that CI
-    // fails only on new code. This block goes away with the rewrite.
-    files: ["apps/web/src/**/*.{ts,tsx}"],
-    rules: {
-      "@typescript-eslint/no-unused-vars": "warn",
-      "prefer-const": "warn",
-    },
   },
 );

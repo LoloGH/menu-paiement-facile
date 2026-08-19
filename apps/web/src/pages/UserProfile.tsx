@@ -1,300 +1,167 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { useToast } from "@/hooks/use-toast"; 
-import { supabase } from "@/integrations/supabase/client";
-import { User, Key, Save } from "lucide-react";
-import { useUserAuth } from "@/hooks/use-user-auth";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { api, ApiError } from "@/lib/api";
 
-const profileFormSchema = z.object({
-  fullName: z.string().min(3, "Le nom complet doit contenir au moins 3 caractères"),
-  phoneNumber: z.string().min(9, "Le numéro de téléphone doit contenir au moins 9 chiffres").optional()
-});
-
-const passwordFormSchema = z.object({
-  currentPassword: z.string().min(1, "Le mot de passe actuel est requis"),
-  newPassword: z.string().min(6, "Le nouveau mot de passe doit contenir au moins 6 caractères"),
-  confirmPassword: z.string().min(6, "La confirmation du mot de passe doit contenir au moins 6 caractères")
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "Les mots de passe ne correspondent pas",
-  path: ["confirmPassword"]
-});
-
-type ProfileFormValues = z.infer<typeof profileFormSchema>;
-type PasswordFormValues = z.infer<typeof passwordFormSchema>;
-
-const UserProfile = () => {
+export default function UserProfile() {
+  const { user, refresh } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const { userData, isLoggedIn, updateUserData } = useUserAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const queryClient = useQueryClient();
 
-  const profileForm = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      fullName: "",
-      phoneNumber: ""
-    }
-  });
-
-  const passwordForm = useForm<PasswordFormValues>({
-    resolver: zodResolver(passwordFormSchema),
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: ""
-    }
-  });
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast({
-          title: "Accès refusé",
-          description: "Vous devez être connecté pour accéder à cette page.",
-          variant: "destructive",
-        });
-        navigate("/");
-        return;
-      }
-      
-      if (userData) {
-        console.log("Réinitialisation du formulaire avec les données utilisateur:", userData);
-        profileForm.reset({
-          fullName: userData.fullName || "",
-          phoneNumber: userData.phoneNumber || ""
-        });
-      }
-      
-      setIsLoading(false);
-    };
-    
-    checkAuth();
-  }, [navigate, toast, userData, profileForm]);
+    setName(user?.name ?? "");
+    setPhone(user?.phone ?? "");
+  }, [user]);
 
-  const onProfileSubmit = async (data: ProfileFormValues) => {
-    console.log("Soumission du formulaire de profil:", data);
-    if (!userData) return;
-    
-    setIsUpdating(true);
-    
-    try {
-      const success = await updateUserData({
-        fullName: data.fullName,
-        phoneNumber: data.phoneNumber
-      });
-      
-      if (!success) {
-        console.error("Échec de la mise à jour du profil");
-      } else {
-        console.log("Profil mis à jour avec succès");
-      }
-    } catch (error: any) {
-      console.error("Erreur de mise à jour:", error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de la mise à jour de votre profil.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const updateProfile = useMutation({
+    mutationFn: (payload: { name?: string; phone?: string }) => api.patch("/api/me", payload),
+    onSuccess: async () => {
+      await refresh();
+      toast({ title: "Profil mis à jour" });
+    },
+  });
 
-  const onPasswordSubmit = async (data: PasswordFormValues) => {
-    setIsChangingPassword(true);
-    
-    try {
-      // Pour des raisons de sécurité, nous devons d'abord vérifier l'ancien mot de passe
-      // en essayant de se reconnecter avec celui-ci
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: userData?.email || "",
-        password: data.currentPassword,
-      });
-      
-      if (authError) {
-        throw new Error("Le mot de passe actuel est incorrect");
-      }
-      
-      // Si l'authentification réussit, nous pouvons mettre à jour le mot de passe
-      const { error } = await supabase.auth.updateUser({
-        password: data.newPassword
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      passwordForm.reset({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: ""
-      });
-      
+  const changePassword = useMutation({
+    mutationFn: (payload: { currentPassword: string; newPassword: string }) =>
+      api.post("/api/me/password", payload),
+    onSuccess: () => {
+      // The server revokes every session on a password change, so the cache is
+      // no longer backed by a valid session.
+      queryClient.clear();
       toast({
-        title: "Mot de passe mis à jour",
-        description: "Votre mot de passe a été changé avec succès.",
+        title: "Mot de passe modifié",
+        description: "Toutes vos sessions ont été fermées. Reconnectez-vous.",
       });
-    } catch (error: any) {
-      console.error("Erreur de changement de mot de passe:", error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors du changement de votre mot de passe.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
+      window.location.href = "/";
+    },
+  });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-4 border-t-4 border-t-restaurant-red border-restaurant-purple rounded-full animate-spin"></div>
-      </div>
+  const handleProfileSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    updateProfile.mutate(
+      { name, ...(phone ? { phone } : {}) },
+      {
+        onError: (caught) =>
+          setError(caught instanceof ApiError ? caught.message : "Mise à jour impossible."),
+      },
     );
-  }
+  };
+
+  const handlePasswordSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    changePassword.mutate(
+      { currentPassword, newPassword },
+      {
+        onError: (caught) =>
+          setError(caught instanceof ApiError ? caught.message : "Changement impossible."),
+      },
+    );
+  };
 
   return (
-    <div className="container mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-8 text-center">Mon Profil</h1>
-      
-      <div className="max-w-2xl mx-auto grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <User className="mr-2 h-5 w-5" /> 
-              Informations Personnelles
-            </CardTitle>
-            <CardDescription>
-              Mettez à jour vos informations personnelles ici.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...profileForm}>
-              <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
-                <FormField
-                  control={profileForm.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nom complet</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Votre nom complet" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={profileForm.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Numéro de téléphone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Votre numéro de téléphone" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="pt-2">
-                  <Button type="submit" disabled={isUpdating}>
-                    <Save className="mr-2 h-4 w-4" />
-                    {isUpdating ? "Mise à jour..." : "Enregistrer les modifications"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Key className="mr-2 h-5 w-5" /> 
-              Changer de Mot de Passe
-            </CardTitle>
-            <CardDescription>
-              Mettez à jour votre mot de passe pour sécuriser votre compte.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...passwordForm}>
-              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-                <FormField
-                  control={passwordForm.control}
-                  name="currentPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mot de passe actuel</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={passwordForm.control}
-                  name="newPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nouveau mot de passe</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={passwordForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmer le nouveau mot de passe</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="pt-2">
-                  <Button type="submit" disabled={isChangingPassword}>
-                    {isChangingPassword ? "Mise à jour..." : "Changer le mot de passe"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => navigate("/")}>
-            Retour à l'accueil
+    <div className="min-h-screen bg-restaurant-cream bg-opacity-30 py-8 px-4">
+      <div className="container mx-auto max-w-2xl space-y-6">
+        <Link to="/">
+          <Button variant="outline">
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Retour au menu
           </Button>
-        </div>
+        </Link>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Mon profil</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleProfileSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="profile-email">Adresse e-mail</Label>
+                {/* Changing the address would change the login identity; that
+                    needs a verification flow, so it is read-only for now. */}
+                <Input id="profile-email" value={user?.email ?? ""} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-name">Nom</Label>
+                <Input
+                  id="profile-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-phone">Téléphone</Label>
+                <Input
+                  id="profile-phone"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={updateProfile.isPending}>
+                {updateProfile.isPending ? "Enregistrement…" : "Enregistrer"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Mot de passe</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Mot de passe actuel</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                <p className="text-sm text-gray-500">12 caractères minimum.</p>
+              </div>
+              <Button type="submit" disabled={changePassword.isPending}>
+                {changePassword.isPending ? "Modification…" : "Changer le mot de passe"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
-};
-
-export default UserProfile;
+}

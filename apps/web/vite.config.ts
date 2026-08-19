@@ -13,7 +13,7 @@ export default defineConfig({
       // In development the API runs separately; in production Caddy serves both
       // under one origin, so the front-end always calls a same-origin /api.
       "/api": {
-        target: "http://localhost:3000",
+        target: process.env.API_URL ?? "http://localhost:3000",
         changeOrigin: true,
       },
     },

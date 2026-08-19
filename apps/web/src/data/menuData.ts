@@ -1,255 +1,97 @@
+import { frenchWeekday } from "@menu/shared";
+import type { Menu, MenuItem } from "@/hooks/api/types";
 
-import { weeklyPackagePrice } from "../config/paymentConfig";
+/**
+ * Adapts the API's flat menu — a list of articles with a type — into the
+ * combo-per-day shape the ordering screens render.
+ *
+ * Every dish keeps its `menuItemId`: that identifier, not a price, is what an
+ * order is built from. Prices travel along only to be displayed; the server
+ * recomputes the total when the order is placed.
+ */
 
-export interface MenuItem {
-  id: string;
+export interface MenuDish {
+  menuItemId: string;
+  articleId: string;
   name: string;
   description: string;
   price: number;
   image: string;
+  isAvailable: boolean;
 }
 
-export interface MealOption {
+/** A main course with its optional side and dessert, priced as a whole. */
+export interface MealCombo {
   id: string;
-  mainDish: MenuItem;
-  sideDish: MenuItem;
-  dessert: MenuItem;
-  totalPrice: number;
+  mainDish: MenuDish;
+  sideDish: MenuDish | null;
+  dessert: MenuDish | null;
 }
 
 export interface DayMenu {
   id: string;
   day: string;
-  date: string;
-  mealOptions: MealOption[];
+  serviceDate: string;
+  /** `19 août`, for display. */
+  label: string;
+  combos: MealCombo[];
+  drinks: MenuDish[];
 }
 
-// Données minimales de secours en cas d'échec du chargement depuis Supabase
-export const weeklyMenu: DayMenu[] = [
-  {
-    id: "monday",
-    day: "Lundi",
-    date: "",
-    mealOptions: [
-      {
-        id: "mon-option1",
-        mainDish: {
-          id: "mon-main1",
-          name: "Plat du jour",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        sideDish: {
-          id: "mon-side1",
-          name: "Accompagnement",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        dessert: {
-          id: "mon-dessert1",
-          name: "Dessert",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        totalPrice: 0
-      }
-    ]
-  },
-  {
-    id: "tuesday",
-    day: "Mardi",
-    date: "",
-    mealOptions: [
-      {
-        id: "tue-option1",
-        mainDish: {
-          id: "tue-main1",
-          name: "Plat du mardi",
-          description: "Le menu du mardi n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        sideDish: {
-          id: "tue-side1",
-          name: "Accompagnement",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        dessert: {
-          id: "tue-dessert1",
-          name: "Dessert",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        totalPrice: 0
-      }
-    ]
-  },
-  {
-    id: "wednesday",
-    day: "Mercredi",
-    date: "",
-    mealOptions: [
-      {
-        id: "wed-option1",
-        mainDish: {
-          id: "wed-main1",
-          name: "Plat du mercredi",
-          description: "Le menu du mercredi n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        sideDish: {
-          id: "wed-side1",
-          name: "Accompagnement",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        dessert: {
-          id: "wed-dessert1",
-          name: "Dessert",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        totalPrice: 0
-      }
-    ]
-  },
-  {
-    id: "thursday",
-    day: "Jeudi",
-    date: "",
-    mealOptions: [
-      {
-        id: "thu-option1",
-        mainDish: {
-          id: "thu-main1",
-          name: "Plat du jeudi",
-          description: "Le menu du jeudi n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        sideDish: {
-          id: "thu-side1",
-          name: "Accompagnement",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        dessert: {
-          id: "thu-dessert1",
-          name: "Dessert",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        totalPrice: 0
-      }
-    ]
-  },
-  {
-    id: "friday",
-    day: "Vendredi",
-    date: "",
-    mealOptions: [
-      {
-        id: "fri-option1",
-        mainDish: {
-          id: "fri-main1",
-          name: "Plat du vendredi",
-          description: "Le menu du vendredi n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        sideDish: {
-          id: "fri-side1",
-          name: "Accompagnement",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        dessert: {
-          id: "fri-dessert1",
-          name: "Dessert",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        totalPrice: 0
-      }
-    ]
-  },
-  {
-    id: "saturday",
-    day: "Samedi",
-    date: "",
-    mealOptions: [
-      {
-        id: "sat-option1",
-        mainDish: {
-          id: "sat-main1",
-          name: "Plat du samedi",
-          description: "Le menu du samedi n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        sideDish: {
-          id: "sat-side1",
-          name: "Accompagnement",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        dessert: {
-          id: "sat-dessert1",
-          name: "Dessert",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        totalPrice: 0
-      }
-    ]
-  },
-  {
-    id: "sunday",
-    day: "Dimanche",
-    date: "",
-    mealOptions: [
-      {
-        id: "sun-option1",
-        mainDish: {
-          id: "sun-main1",
-          name: "Plat du dimanche",
-          description: "Le menu du dimanche n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        sideDish: {
-          id: "sun-side1",
-          name: "Accompagnement",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        dessert: {
-          id: "sun-dessert1",
-          name: "Dessert",
-          description: "Le menu n'a pas pu être chargé",
-          price: 0,
-          image: "/placeholder.svg"
-        },
-        totalPrice: 0
-      }
-    ]
-  }
-];
+const PLACEHOLDER = "/placeholder.svg";
 
-export { weeklyPackagePrice };
+function toDish(item: MenuItem): MenuDish {
+  return {
+    menuItemId: item.menuItemId,
+    articleId: item.articleId,
+    name: item.name,
+    description: item.description ?? "",
+    price: item.price,
+    image: item.imageUrl ?? PLACEHOLDER,
+    isAvailable: item.isAvailable,
+  };
+}
+
+function formatDayLabel(serviceDate: string): string {
+  const date = new Date(`${serviceDate}T12:00:00`);
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+}
+
+export function toDayMenu(menu: Menu): DayMenu {
+  const byType = (type: MenuItem["type"]) =>
+    menu.items
+      .filter((item) => item.type === type)
+      .sort((a, b) => a.position - b.position)
+      .map(toDish);
+
+  const mains = byType("main_dish");
+  const sides = byType("side_dish");
+  const desserts = byType("dessert");
+
+  // Mains drive the pairing: each gets the side and dessert at the same rank,
+  // falling back to the first when there are fewer of them. This mirrors what
+  // the previous screens showed, without inventing a combo out of nothing.
+  const combos: MealCombo[] = mains.map((mainDish, index) => ({
+    id: mainDish.menuItemId,
+    mainDish,
+    sideDish: sides[index] ?? sides[0] ?? null,
+    dessert: desserts[index] ?? desserts[0] ?? null,
+  }));
+
+  const date = new Date(`${menu.serviceDate}T12:00:00`);
+
+  return {
+    id: menu.id,
+    day: frenchWeekday(date),
+    serviceDate: menu.serviceDate,
+    label: formatDayLabel(menu.serviceDate),
+    combos,
+    drinks: byType("drink"),
+  };
+}
+
+export function toDayMenus(menus: Menu[]): DayMenu[] {
+  return menus
+    .map(toDayMenu)
+    .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate));
+}

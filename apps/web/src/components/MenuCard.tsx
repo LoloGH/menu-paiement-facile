@@ -1,86 +1,39 @@
-
-import React from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { DayMenu } from '@/data/menuData';
-import { MealOption } from './MealOption';
-import { format, startOfWeek, addDays } from "date-fns";
-import { fr } from 'date-fns/locale';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { DayMenu } from "@/data/menuData";
+import { MealOption } from "./MealOption";
 
 interface MenuCardProps {
   menu: DayMenu;
   isActive: boolean;
 }
 
-const getDayDate = (dayName: string): string => {
-  try {
-    const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Start week on Monday
-    
-    const dayMap: { [key: string]: number } = {
-      'Lundi': 0,
-      'Mardi': 1,
-      'Mercredi': 2,
-      'Jeudi': 3,
-      'Vendredi': 4,
-      'Samedi': 5,
-      'Dimanche': 6
-    };
-
-    const dayOffset = dayMap[dayName];
-    if (dayOffset === undefined) return '';
-
-    const date = addDays(weekStart, dayOffset);
-    return format(date, 'd MMMM', { locale: fr });
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return '';
-  }
-};
-
-export const MenuCard: React.FC<MenuCardProps> = ({ menu, isActive }) => {
-  const dynamicDate = menu?.day ? getDayDate(menu.day) : '';
-
-  // Vérifier que menu et menu.mealOptions existent
-  if (!menu || !menu.mealOptions || !Array.isArray(menu.mealOptions)) {
-    console.error('Menu data is invalid:', menu);
-    return (
-      <Card className="w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300 opacity-70">
-        <CardHeader className="bg-restaurant-purple text-white">
-          <CardTitle className="text-2xl">Menu non disponible</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <p>Les informations du menu ne sont pas disponibles pour le moment.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+export function MenuCard({ menu, isActive }: MenuCardProps) {
+  if (!isActive) return null;
 
   return (
-    <Card className={`w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300 ${isActive ? 'scale-100 opacity-100 shadow-lg' : 'scale-95 opacity-70'}`}>
-      <CardHeader className="bg-restaurant-purple text-white">
-        <CardTitle className="text-2xl">{menu.day}</CardTitle>
-        <CardDescription className="text-restaurant-cream text-lg">{dynamicDate}</CardDescription>
+    <Card className="w-full border-none shadow-none bg-transparent">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">
+          {menu.day}
+          {/* The date comes from the menu's own service date rather than being
+              recomputed from the current week, so a menu shown out of the
+              current week is not mislabelled. */}
+          <span className="block text-base font-normal text-gray-600 mt-1">{menu.label}</span>
+        </CardTitle>
       </CardHeader>
-      <CardContent className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {menu.mealOptions.map((option) => (
-            <MealOption 
-              key={option.id}
-              id={option.id}
-              mainDish={option.mainDish}
-              sideDish={option.sideDish}
-              dessert={option.dessert}
-              basePrice={option.totalPrice}
-            />
-          ))}
-        </div>
+      <CardContent className="p-0">
+        {menu.combos.length === 0 ? (
+          <p className="text-center text-gray-500 py-8">
+            Aucun plat n'est proposé pour cette journée.
+          </p>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {menu.combos.map((combo) => (
+              <MealOption key={combo.id} combo={combo} serviceDate={menu.serviceDate} />
+            ))}
+          </div>
+        )}
       </CardContent>
-      <CardFooter className="bg-muted p-6 text-center">
-        <p className="text-sm text-muted-foreground w-full">
-          Tous nos plats sont préparés avec des ingrédients frais du jour. 
-          Vous pouvez personnaliser votre repas en ajoutant ou retirant l'accompagnement et le dessert.
-        </p>
-      </CardFooter>
     </Card>
   );
-};
+}

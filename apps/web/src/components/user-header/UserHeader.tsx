@@ -1,59 +1,44 @@
-
-import React, { useState, useEffect } from 'react';
-import { LogIn } from 'lucide-react';
+import { useState } from "react";
+import { LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { PaymentLoginDialog } from '../PaymentLoginDialog';
-import { UserProfilePopover } from './UserProfilePopover';
-import { useUserAuth } from '@/hooks/use-user-auth';
+import { useAuth } from "@/hooks/use-auth";
+import { LoginDialog } from "@/components/LoginDialog";
+import { UserProfilePopover } from "./UserProfilePopover";
 
-interface UserHeaderProps {
-  className?: string;
-}
-
-export const UserHeader: React.FC<UserHeaderProps> = ({ className }) => {
-  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const { isLoggedIn, userData, handleLogout, setUserData } = useUserAuth();
+export function UserHeader({ className }: { className?: string }) {
+  const { isLoggedIn, user, logout } = useAuth();
   const { toast } = useToast();
+  const [showLogin, setShowLogin] = useState(false);
 
-  const handleLogin = () => {
-    setIsLoginDialogOpen(true);
-  };
-
-  const handleLoginSuccess = (user: any) => {
-    setIsLoginDialogOpen(false);
-    
-    toast({
-      title: "Connexion réussie",
-      description: "Vous êtes maintenant connecté à votre compte.",
-    });
+  const handleLogout = async () => {
+    await logout();
+    toast({ title: "Déconnexion", description: "Vous avez été déconnecté." });
   };
 
   return (
     <div className={className}>
-      {isLoggedIn && userData ? (
-        <UserProfilePopover 
-          userData={userData} 
-          onLogout={handleLogout} 
-        />
+      {isLoggedIn && user ? (
+        <UserProfilePopover user={user} onLogout={handleLogout} />
       ) : (
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="bg-restaurant-red text-white hover:bg-restaurant-red/80"
-          onClick={handleLogin}
+          onClick={() => setShowLogin(true)}
         >
           <LogIn className="h-4 w-4 mr-2" />
           Connexion
         </Button>
       )}
 
-      <PaymentLoginDialog 
-        isOpen={isLoginDialogOpen}
-        onClose={() => setIsLoginDialogOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-        price={0}
-        details="Connexion à l'espace client"
+      <LoginDialog
+        isOpen={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSuccess={() => {
+          setShowLogin(false);
+          toast({ title: "Connexion réussie", description: "Vous êtes connecté." });
+        }}
       />
     </div>
   );
-};
+}
