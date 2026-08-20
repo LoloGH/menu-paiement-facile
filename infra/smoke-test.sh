@@ -24,10 +24,20 @@ trap 'rm -rf "$JAR"' EXIT
 PASS=0
 FAIL=0
 SKIP=0
-ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; PASS=$((PASS + 1)); }
-ko()   { printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=$((FAIL + 1)); }
-skip() { printf '  \033[33m·\033[0m %s\n' "$1"; SKIP=$((SKIP + 1)); }
-head() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+
+# Colour only on a terminal. Redirected to a file — which is how this output
+# usually reaches someone else — escape codes would just be noise to read
+# around.
+if [ -t 1 ]; then
+  GREEN=$'\033[32m'; RED=$'\033[31m'; YELLOW=$'\033[33m'; BOLD=$'\033[1m'; OFF=$'\033[0m'
+else
+  GREEN=''; RED=''; YELLOW=''; BOLD=''; OFF=''
+fi
+
+ok()   { printf '  %s✓%s %s\n' "$GREEN" "$OFF" "$1"; PASS=$((PASS + 1)); }
+ko()   { printf '  %s✗%s %s\n' "$RED" "$OFF" "$1"; FAIL=$((FAIL + 1)); }
+skip() { printf '  %s·%s %s\n' "$YELLOW" "$OFF" "$1"; SKIP=$((SKIP + 1)); }
+head() { printf '\n%s%s%s\n' "$BOLD" "$1" "$OFF"; }
 
 # Only 40 characters of a failing response: a broken proxy answers with a whole
 # HTML error page, which buries the checks that follow.
@@ -161,11 +171,11 @@ case "$S" in
   *)       ko "webhook non signé → $S (400 ou 404 attendu)" ;;
 esac
 
-printf '\n\033[1mRésultat : %d réussis' "$PASS"
+printf '\n%sRésultat : %d réussis' "$BOLD" "$PASS"
 [ "$FAIL" -eq 1 ] && printf ', 1 échec'
 [ "$FAIL" -gt 1 ] && printf ', %d échecs' "$FAIL"
 [ "$SKIP" -gt 0 ] && printf ', %d ignoré(s)' "$SKIP"
-printf '.\033[0m\n'
+printf '.%s\n' "$OFF"
 
 if [ "$FAIL" -gt 0 ]; then
   echo "Le compte de vérification $EMAIL a été créé ; supprimez-le depuis le back-office si besoin."

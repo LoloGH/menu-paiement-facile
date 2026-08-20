@@ -13,7 +13,11 @@ ENV_NAME="${1:-production}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 [ "$ENV_NAME" = "production" ] && ENV_FILE="$DIR/.env" || ENV_FILE="$DIR/.env.$ENV_NAME"
 
-section() { printf '\n\033[1m── %s\033[0m\n' "$1"; }
+# Colour only on a terminal: this output is meant to be redirected and shared,
+# and escape codes in a pasted log are just noise to read around.
+if [ -t 1 ]; then BOLD=$'\033[1m'; OFF=$'\033[0m'; else BOLD=''; OFF=''; fi
+
+section() { printf '\n%s── %s%s\n' "$BOLD" "$1" "$OFF"; }
 
 section "Environnement"
 echo "date      : $(date -Is)"
@@ -89,4 +93,4 @@ section "Ressources"
 free -h | head -2
 df -h / | tail -1
 
-printf '\n\033[1mFin du diagnostic.\033[0m\n'
+printf '\n%sFin du diagnostic.%s\n' "$BOLD" "$OFF"
