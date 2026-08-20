@@ -1,4 +1,9 @@
-# Production stack for the VPS.
+# Stack for the VPS.
+#
+# Staging and production run side by side from this same file, told apart by
+# COMPOSE_PROJECT_NAME in the env file. Docker namespaces containers, networks
+# and volumes by project, so the two never share a database — which is the
+# whole point of trying a release before it reaches customers.
 #
 # Only two services: PostgreSQL and the API. There is no web server here —
 # Apache already owns ports 80 and 443 on this machine (it fronts
@@ -8,14 +13,13 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: menu-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?}
       POSTGRES_USER: ${POSTGRES_USER:?}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
     volumes:
-      - menu-db:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
     # No published port. The host already runs a PostgreSQL for Odoo on 5432;
     # this one stays on the Docker network, reachable only by the API.
     networks: [menu]
@@ -29,7 +33,6 @@ services:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
-    container_name: menu-api
     restart: unless-stopped
     depends_on:
       db:
@@ -59,4 +62,5 @@ networks:
   menu:
 
 volumes:
-  menu-db:
+  # Namespaced by COMPOSE_PROJECT_NAME, so staging cannot reach production data.
+  db-data:

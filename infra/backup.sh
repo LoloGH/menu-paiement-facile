@@ -8,17 +8,19 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# Defaults to production; `make backup ENV=staging` points it elsewhere.
+ENV_FILE="${ENV_FILE:-$DIR/.env}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/menu}"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 
 # shellcheck source=/dev/null
-set -a; . "$DIR/.env"; set +a
+set -a; . "$ENV_FILE"; set +a
 
 mkdir -p "$BACKUP_DIR"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 TARGET="$BACKUP_DIR/menu-$STAMP.sql.gz"
 
-docker compose -f "$DIR/docker-compose.yml" exec -T db \
+docker compose --env-file "$ENV_FILE" -f "$DIR/docker-compose.yml" exec -T db \
   pg_dump --clean --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB" \
   | gzip > "$TARGET.partial"
 

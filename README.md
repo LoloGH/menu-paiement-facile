@@ -78,10 +78,13 @@ front depuis le disque et proxifie `/api` vers un conteneur. Procédure complèt
 dans [docs/deploiement.md](docs/deploiement.md).
 
 ```sh
-make deploy      # reconstruit le front, le publie, relance l'API
-make api-logs
-make backup
+make deploy ENV=staging   # préproduction
+make smoke  ENV=staging   # vérifie l'instance déployée
+make deploy               # production
 ```
+
+Essayer une version en préproduction avant qu'elle n'atteigne les clients :
+[docs/preproduction.md](docs/preproduction.md).
 
 ## Rôles
 
