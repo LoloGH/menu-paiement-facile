@@ -190,6 +190,19 @@ et relancer `smoke-test.sh` sur le domaine de production.
 La préproduction peut rester en place : elle sert à essayer chaque mise à jour
 avant qu'elle n'atteigne les clients.
 
+## Quand quelque chose ne va pas
+
+```sh
+./infra/diagnose.sh              # production
+./infra/diagnose.sh staging      # préproduction
+```
+
+Rassemble en une fois l'état des conteneurs, la santé de l'API, le contenu de
+la base, les migrations appliquées, la configuration Apache, la racine web, les
+logs et les ressources. Les mots de passe, le secret JWT et les clés de paiement
+sont remplacés par « défini » ou « absent » — mais relisez la sortie avant de la
+partager.
+
 ## Revenir en arrière
 
 Rien de ce qui précède ne modifie vos services existants. Pour tout défaire :
